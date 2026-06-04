@@ -258,4 +258,81 @@ export async function contactWebhookHandler(req: Request, res: Response) {
   }
 }
 
+// ── POST /contacts/test-payment (dev/testing only) ───────────────────
+router.post('/test-payment', authenticateJWT, requireRole([Role.CLIENT]), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId   = req.user!.id;
+    const advisorId = req.body?.advisorId as string | undefined;
+    const now       = new Date();
+    const expiresAt = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+
+    // Reuse existing active subscription if one exists (idempotent)
+    let sub = await prisma.userContactSubscription.findFirst({
+      where: { userId, status: TransactionStatus.SUCCESS, expiresAt: { gt: now } },
+    });
+
+    if (!sub) {
+      sub = await prisma.userContactSubscription.create({
+        data: {
+          userId,
+          razorpayOrderId:   `test_cpk_${userId.slice(0, 8)}_${Date.now()}`,
+          razorpayPaymentId: `test_pay_${Date.now()}`,
+          razorpaySignature: 'test_signature',
+          amount:            TOTAL_AMOUNT,
+          status:            TransactionStatus.SUCCESS,
+          creditsTotal:      CREDITS_PER_PACK,
+          creditsUsed:       0,
+          subscribedAt:      now,
+          expiresAt,
+        },
+      });
+    }
+
+    let phoneNumber: string | undefined;
+    let email: string | undefined;
+    let creditsRemaining = sub.creditsTotal - sub.creditsUsed;
+
+    if (advisorId) {
+      const existing = await prisma.contactUnlock.findUnique({
+        where: { userId_advisorId: { userId, advisorId } },
+      });
+
+      const advisor = await prisma.advisor.findUnique({
+        where: { id: advisorId },
+        select: { phoneNumber: true, email: true },
+      });
+
+      if (!existing && advisor && creditsRemaining > 0) {
+        await prisma.$transaction([
+          prisma.contactUnlock.create({
+            data: { userId, advisorId, isFree: false, subscriptionId: sub.id },
+          }),
+          prisma.userContactSubscription.update({
+            where: { id: sub.id },
+            data: { creditsUsed: { increment: 1 } },
+          }),
+        ]);
+        creditsRemaining -= 1;
+      }
+
+      if (advisor) {
+        phoneNumber = advisor.phoneNumber;
+        email = advisor.email ?? undefined;
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'Test subscription activated',
+      creditsRemaining,
+      creditsTotal: sub.creditsTotal,
+      expiresAt: sub.expiresAt,
+      ...(phoneNumber ? { phoneNumber, email } : {}),
+    });
+  } catch (err) {
+    console.error('[contacts/test-payment]', err);
+    return res.status(500).json({ success: false, message: 'Test payment failed' });
+  }
+});
+
 export default router;
