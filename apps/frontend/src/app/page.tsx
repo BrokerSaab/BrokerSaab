@@ -540,6 +540,10 @@ export default function DiscoverPage() {
   const [revealedContacts, setRevealedContacts] = useState<Record<string, { phone: string; email: string }>>({});
   const [unlockModal, setUnlockModal] = useState<{ id: string; name: string } | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [mockToast, setMockToast] = useState(false);
+
+  // Real advisors have UUID format; mock ones have simple numeric IDs ('1'–'6')
+  const isMockAdvisor = useCallback((id: string) => /^\d{1,3}$/.test(id), []);
 
   const copyText = useCallback((text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -548,6 +552,12 @@ export default function DiscoverPage() {
   }, []);
 
   const handleConnect = useCallback(async (advisorId: string, advisorName: string) => {
+    // Mock advisors are sample data — no real profile in DB
+    if (isMockAdvisor(advisorId)) {
+      setMockToast(true);
+      setTimeout(() => setMockToast(false), 4000);
+      return;
+    }
     if (!isLoggedIn) {
       openLoginModal(() => handleConnect(advisorId, advisorName));
       return;
@@ -556,7 +566,8 @@ export default function DiscoverPage() {
     setConnectLoading(advisorId);
     try {
       const token = localStorage.getItem('accessToken') || '';
-      const res   = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/contacts/unlock/${advisorId}`, {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const res   = await fetch(`${API_URL}/contacts/unlock/${advisorId}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -573,7 +584,7 @@ export default function DiscoverPage() {
     } finally {
       setConnectLoading(null);
     }
-  }, [isLoggedIn, openLoginModal, revealedContacts, router]);
+  }, [isMockAdvisor, isLoggedIn, openLoginModal, revealedContacts, router]);
 
   const handleTileClick = useCallback((moduleId: string) => {
     setExpandedModule(prev => prev === moduleId ? null : moduleId);
@@ -1245,6 +1256,14 @@ export default function DiscoverPage() {
       {/* ═══════════════════════════════════════
           ADVISORS — White background with clean cards
           ═══════════════════════════════════════ */}
+      {/* ── Mock advisor toast ── */}
+      {mockToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] bg-navy-800 text-white text-xs font-semibold px-5 py-3 rounded-2xl shadow-2xl border border-gold-500/30 flex items-center gap-2 animate-popIn max-w-sm text-center">
+          <span>🧪</span>
+          <span>These are <strong>sample advisors</strong>. Onboard a real advisor to test the Connect flow with actual contact details.</span>
+        </div>
+      )}
+
       <section id="advisors-section" className="py-14 sm:py-16 bg-white scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 pb-5 mb-8 gap-4">
@@ -1313,8 +1332,14 @@ export default function DiscoverPage() {
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
+                  {/* Sample data badge for mock advisors */}
+                  {isMockAdvisor(advisor.id) && (
+                    <div className="-mx-5 sm:-mx-6 -mt-5 sm:-mt-6 mb-0 px-5 sm:px-6 py-1.5 bg-gray-50 border-b border-gray-200 rounded-t-2xl flex items-center gap-2">
+                      <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">🧪 Sample Data — Onboard a real advisor to test</span>
+                    </div>
+                  )}
                   {/* Authorised Dealer top accent */}
-                  {advisor.isAuthorizedDealer && (
+                  {advisor.isAuthorizedDealer && !isMockAdvisor(advisor.id) && (
                     <div className="-mx-5 sm:-mx-6 -mt-5 sm:-mt-6 mb-0 px-5 sm:px-6 py-2 bg-gradient-to-r from-amber-50 to-yellow-50 border-b border-amber-200 rounded-t-2xl flex items-center gap-2">
                       <BadgeCheck size={13} className="text-amber-600 shrink-0" />
                       <span className="text-amber-700 text-[10px] font-bold uppercase tracking-widest">
