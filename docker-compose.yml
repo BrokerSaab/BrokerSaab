@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # Database node
+  postgres:
+    image: postgres:15-alpine
+    container_name: brokersaab_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword123
+      POSTGRES_DB: brokersaab
+    ports:
+      - "5412:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d brokersaab"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Cache node
+  redis:
+    image: redis:7-alpine
+    container_name: brokersaab_cache
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Express Core REST API
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: brokersaab_api
+    restart: always
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgrespassword123@postgres:5432/brokersaab?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JWT_ACCESS_SECRET=production_access_key_brokersaab_secret
+      - JWT_REFRESH_SECRET=production_refresh_key_brokersaab_secret
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Premium Web Client interface
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    container_name: brokersaab_web
+    restart: always
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:

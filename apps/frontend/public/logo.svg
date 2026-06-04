@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 235" width="200" height="235">
+  <defs>
+    <linearGradient id="navyFill" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#2255b8"/>
+      <stop offset="50%" stop-color="#1a3a8a"/>
+      <stop offset="100%" stop-color="#0d1e5c"/>
+    </linearGradient>
+    <linearGradient id="goldBorder" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f5d855"/>
+      <stop offset="50%" stop-color="#D4AF37"/>
+      <stop offset="100%" stop-color="#b8860b"/>
+    </linearGradient>
+    <linearGradient id="goldHand" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0cc45"/>
+      <stop offset="100%" stop-color="#c89010"/>
+    </linearGradient>
+    <linearGradient id="goldSheen" x1="0%" y1="0%" x2="30%" y2="100%">
+      <stop offset="0%" stop-color="#f5e070" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#b8860b" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- ── B Shape (evenodd = counters become holes) ── -->
+  <path fill-rule="evenodd"
+    d="M 18,12 L 18,223 L 124,223
+       Q 186,223 186,178 Q 186,148 156,137
+       Q 186,126 186,82 Q 186,12 124,12 Z
+       M 56,26 L 118,26 Q 167,26 167,78 Q 167,119 118,121 L 56,121 Z
+       M 56,137 L 126,137 Q 172,137 172,178 Q 172,211 126,211 L 56,211 Z"
+    fill="url(#navyFill)"/>
+
+  <!-- Gold sheen highlight (top-left inner face) -->
+  <path fill-rule="evenodd"
+    d="M 18,12 L 18,223 L 124,223
+       Q 186,223 186,178 Q 186,148 156,137
+       Q 186,126 186,82 Q 186,12 124,12 Z
+       M 56,26 L 118,26 Q 167,26 167,78 Q 167,119 118,121 L 56,121 Z
+       M 56,137 L 126,137 Q 172,137 172,178 Q 172,211 126,211 L 56,211 Z"
+    fill="url(#goldSheen)"/>
+
+  <!-- Outer gold border -->
+  <path d="M 18,12 L 18,223 L 124,223
+           Q 186,223 186,178 Q 186,148 156,137
+           Q 186,126 186,82 Q 186,12 124,12 Z"
+    fill="none" stroke="url(#goldBorder)" stroke-width="6" stroke-linejoin="round"/>
+
+  <!-- Inner gold lines on counters -->
+  <path d="M 56,26 L 118,26 Q 167,26 167,78 Q 167,119 118,121 L 56,121 Z"
+    fill="none" stroke="url(#goldBorder)" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M 56,137 L 126,137 Q 172,137 172,178 Q 172,211 126,211 L 56,211 Z"
+    fill="none" stroke="url(#goldBorder)" stroke-width="3.5" stroke-linejoin="round"/>
+
+  <!-- Thin inner highlight line -->
+  <path d="M 24,18 L 24,217 L 122,217
+           Q 179,217 179,178 Q 179,151 151,141
+           Q 179,131 179,82 Q 179,18 122,18 Z"
+    fill="none" stroke="url(#goldBorder)" stroke-width="1" opacity="0.3" stroke-linejoin="round"/>
+
+  <!-- ── Handshake ── positioned at middle notch (y ≈ 128-140) ── -->
+
+  <!-- Left hand (gold) — comes from left side -->
+  <path d="M 20,130 C 36,112 60,107 82,119
+           L 90,124 L 96,130 L 90,140 L 82,146
+           C 62,154 38,148 20,130 Z"
+    fill="url(#goldHand)" filter="url(#glow)"/>
+  <!-- Left hand fingers detail -->
+  <path d="M 80,116 C 86,118 92,124 96,130 L 90,140 C 86,136 80,130 76,124 Z"
+    fill="#f5d050" opacity="0.7"/>
+  <!-- Finger lines left -->
+  <line x1="78" y1="120" x2="94" y2="135" stroke="#c89010" stroke-width="1" opacity="0.6"/>
+  <line x1="82" y1="116" x2="96" y2="132" stroke="#c89010" stroke-width="0.8" opacity="0.5"/>
+
+  <!-- Right hand (white/light) — comes from right side -->
+  <path d="M 154,130 C 138,112 114,107 92,119
+           L 84,124 L 78,130 L 84,140 L 92,146
+           C 112,154 136,148 154,130 Z"
+    fill="white" opacity="0.88"/>
+  <!-- Right hand shading -->
+  <path d="M 94,116 C 88,118 82,124 78,130 L 84,140 C 88,136 94,130 98,124 Z"
+    fill="#dde8ff" opacity="0.7"/>
+  <!-- Finger lines right -->
+  <line x1="96" y1="120" x2="80" y2="135" stroke="#8899cc" stroke-width="1" opacity="0.5"/>
+  <line x1="92" y1="116" x2="78" y2="132" stroke="#8899cc" stroke-width="0.8" opacity="0.4"/>
+
+  <!-- Clasped centre overlap -->
+  <ellipse cx="87" cy="130" rx="14" ry="9" fill="url(#goldHand)" opacity="0.9"/>
+  <!-- Depth shadow in centre of clasp -->
+  <ellipse cx="87" cy="130" rx="8" ry="5" fill="#0d1e5c" opacity="0.65"/>
+  <!-- Small gold highlight dot -->
+  <ellipse cx="84" cy="127" rx="3" ry="2" fill="#f5e070" opacity="0.55"/>
+</svg>

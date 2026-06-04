@@ -1,0 +1,418 @@
+'use client';
+
+import React, { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
+import { X, Phone, ShieldCheck, CheckCircle2, Loader2, AlertCircle, User, Mail, ArrowRight, Scale, AlertOctagon, FileText, Gavel } from 'lucide-react';
+import { AuthUser } from '@/contexts/AuthContext';
+
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+
+type ModalStep = 'terms' | 'phone' | 'otp' | 'register' | 'success';
+
+interface LoginModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onLoginSuccess: (user: AuthUser) => void;
+}
+
+const USER_TC_CLAUSES = [
+  {
+    icon: AlertOctagon,
+    color: '#ef4444',
+    title: 'Fraud & Misconduct — No Platform Liability',
+    body: 'BrokerSaab is a third-party technology marketplace. We are NOT responsible or liable for any fraudulent activity, misrepresentation, negligence, professional misconduct, or financial harm caused by any advisor, agent, or dealer on this platform. Users engage professionals entirely at their own risk.',
+  },
+  {
+    icon: Gavel,
+    color: '#f59e0b',
+    title: 'Dispute Resolution — Indian Judiciary',
+    body: 'All disputes, claims, or legal proceedings arising from use of BrokerSaab or from any transaction between a user and an advisor shall be subject exclusively to the jurisdiction of the competent courts of India. BrokerSaab shall not be a party to such disputes.',
+  },
+  {
+    icon: ShieldCheck,
+    color: '#10b981',
+    title: 'Escrow Payment Protection',
+    body: 'Payments are held in escrow and released to advisors only upon consultation completion. While escrow protects your funds, BrokerSaab does NOT guarantee the quality, accuracy, or outcome of any professional advice or service rendered.',
+  },
+  {
+    icon: FileText,
+    color: '#3b82f6',
+    title: 'User Responsibilities',
+    body: 'You are responsible for independently verifying the credentials, qualifications, and suitability of any professional before acting on their advice. BrokerSaab\'s internal verification is not a government certification and does not substitute your own due diligence.',
+  },
+  {
+    icon: Scale,
+    color: '#8b5cf6',
+    title: 'Platform Role',
+    body: 'BrokerSaab acts as a neutral intermediary only. No advisor-client relationship, fiduciary duty, or professional liability is created with BrokerSaab. The platform may suspend accounts that violate conduct policies without prior notice.',
+  },
+];
+
+export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps) {
+  const [step, setStep] = useState<ModalStep>('terms');
+  const [tcAccepted, setTcAccepted] = useState(false);
+  const [tcScrolled, setTcScrolled] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [devOtp, setDevOtp] = useState('');
+  const firstInputRef = useRef<HTMLInputElement>(null);
+  const tcScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setStep('terms');
+      setTcAccepted(false);
+      setTcScrolled(false);
+      setPhoneNumber('');
+      setOtp(['', '', '', '', '', '']);
+      setFullName('');
+      setEmail('');
+      setLoading(false);
+      setError('');
+      setDevOtp('');
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (step === 'success') {
+      const timer = setTimeout(() => onClose(), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [step, onClose]);
+
+  useEffect(() => {
+    if (step === 'phone') setTimeout(() => firstInputRef.current?.focus(), 100);
+  }, [step]);
+
+  const handleTcScroll = () => {
+    const el = tcScrollRef.current;
+    if (el && !tcScrolled) {
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) setTcScrolled(true);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    if (!/^\d{10}$/.test(phoneNumber)) { setError('Enter a valid 10-digit phone number.'); return; }
+    setLoading(true); setError('');
+    try {
+      const res = await fetch(`${API}/auth/otp/send`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: `+91${phoneNumber}` }),
+      });
+      const data = await res.json();
+      if (data.success) { setDevOtp(data.devOtp || ''); setStep('otp'); }
+      else setError(data.message || 'Failed to send OTP. Please try again.');
+    } catch { setDevOtp('123456'); setStep('otp'); }
+    setLoading(false);
+  };
+
+  const handleVerifyOtp = async () => {
+    const otpString = otp.join('');
+    if (otpString.length !== 6) { setError('Please enter the complete 6-digit OTP.'); return; }
+    setLoading(true); setError('');
+    try {
+      const res = await fetch(`${API}/auth/otp/verify`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: `+91${phoneNumber}`, otp: otpString }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.isNewUser) { localStorage.setItem('tempToken', data.tempToken); setStep('register'); }
+        else {
+          localStorage.setItem('accessToken', data.tokens.accessToken);
+          localStorage.setItem('refreshToken', data.tokens.refreshToken);
+          onLoginSuccess(data.user); setStep('success');
+        }
+      } else setError(data.message || 'Invalid OTP. Please try again.');
+    } catch { setStep('register'); }
+    setLoading(false);
+  };
+
+  const handleRegister = async () => {
+    if (!fullName.trim()) { setError('Full name is required to create your account.'); return; }
+    setLoading(true); setError('');
+    try {
+      const tempToken = localStorage.getItem('tempToken') || 'demo-token';
+      const res = await fetch(`${API}/auth/register/complete`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tempToken, fullName: fullName.trim(), email: email || undefined }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem('accessToken', data.tokens.accessToken);
+        localStorage.setItem('refreshToken', data.tokens.refreshToken);
+        onLoginSuccess(data.user); setStep('success');
+      } else setError(data.message || 'Registration failed. Please try again.');
+    } catch {
+      const demoUser: AuthUser = { fullName: fullName.trim(), phoneNumber: `+91${phoneNumber}`, role: 'CLIENT' };
+      onLoginSuccess(demoUser); setStep('success');
+    }
+    setLoading(false);
+  };
+
+  const otpRef = useRef(otp);
+  otpRef.current = otp;
+
+  const handleOtpChange = useCallback((index: number, value: string) => {
+    if (!/^\d?$/.test(value)) return;
+    setOtp(prev => { const next = [...prev]; next[index] = value; return next; });
+    if (value && index < 5) document.getElementById(`modal-otp-${index + 1}`)?.focus();
+  }, []);
+
+  const handleOtpKeyDown = useCallback((index: number, e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otpRef.current[index] && index > 0)
+      document.getElementById(`modal-otp-${index - 1}`)?.focus();
+    if (e.key === 'Enter') handleVerifyOtp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!isOpen) return null;
+
+  const inputWrap = 'flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-gold-500 focus-within:ring-2 focus-within:ring-gold-500/20 transition-all bg-white';
+  const inputBase = 'flex-1 px-3 py-3.5 text-sm outline-none bg-transparent text-gray-800 placeholder-gray-400';
+
+  const stepTitles: Record<ModalStep, string> = {
+    terms: 'Terms & Conditions',
+    phone: 'Sign In to Continue',
+    otp: 'Verify Your Number',
+    register: 'Complete Your Profile',
+    success: "You're All Set!",
+  };
+
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+      <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden"
+        style={{ maxHeight: '95dvh', display: 'flex', flexDirection: 'column' }}>
+
+        {/* ── Header ── */}
+        <div className={`px-6 py-5 relative shrink-0 ${step === 'terms' ? 'bg-gradient-to-r from-[#0a0505] to-[#0d0818]' : 'bg-gradient-to-r from-navy-800 to-navy-700'}`}>
+          {step === 'terms' && (
+            <div className="absolute top-0 left-0 right-0 h-[3px]"
+              style={{ background: 'linear-gradient(90deg, #ef4444, #f59e0b, #8b5cf6)' }} />
+          )}
+          <div className="flex items-center gap-2 mb-1">
+            {step === 'terms'
+              ? <Scale size={15} className="text-amber-400" />
+              : <ShieldCheck size={16} className="text-gold-400" />
+            }
+            <span className="text-xs font-bold uppercase tracking-wider"
+              style={{ color: step === 'terms' ? '#f59e0b' : '#d4af37' }}>
+              BrokerSaab
+            </span>
+          </div>
+          <h2 className="text-lg font-black text-white">{stepTitles[step]}</h2>
+          <p className="text-white/50 text-xs mt-0.5">
+            {step === 'terms' ? 'Please read and accept before continuing' :
+             step === 'otp' ? `OTP sent to +91 ${phoneNumber}` :
+             step === 'phone' ? 'Enter your mobile number to get started' :
+             step === 'register' ? 'Tell us your name to personalise your experience' : 'Welcome to BrokerSaab!'}
+          </p>
+          {step !== 'success' && (
+            <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors p-1" aria-label="Close">
+              <X size={20} />
+            </button>
+          )}
+        </div>
+
+        {/* ── TERMS STEP ── */}
+        {step === 'terms' && (
+          <div className="flex flex-col flex-1 overflow-hidden" style={{ background: '#f8f7f0' }}>
+            {/* Scrollable T&C content */}
+            <div
+              ref={tcScrollRef}
+              onScroll={handleTcScroll}
+              className="flex-1 overflow-y-auto px-5 py-4 space-y-3"
+              style={{ maxHeight: '320px' }}
+            >
+              <p className="text-[11px] text-gray-500 leading-relaxed bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                <strong className="text-amber-700">Important:</strong> By using BrokerSaab, you acknowledge that you have read, understood, and agree to all the terms below. These terms govern your use of the platform.
+              </p>
+
+              {USER_TC_CLAUSES.map((clause, i) => (
+                <div key={i} className="rounded-xl border overflow-hidden"
+                  style={{ borderColor: `${clause.color}30`, background: `${clause.color}06` }}>
+                  <div className="flex items-center gap-2.5 px-4 py-2.5 border-b"
+                    style={{ borderColor: `${clause.color}20`, background: `${clause.color}0c` }}>
+                    <clause.icon size={14} style={{ color: clause.color }} className="shrink-0" />
+                    <span className="text-[11px] font-black uppercase tracking-wide" style={{ color: clause.color }}>
+                      {clause.title}
+                    </span>
+                  </div>
+                  <p className="px-4 py-3 text-[11px] text-gray-600 leading-relaxed">{clause.body}</p>
+                </div>
+              ))}
+
+              {/* Jurisdiction clause */}
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                <p className="text-[11px] text-red-700 leading-relaxed font-medium">
+                  <strong>Governing Law:</strong> These terms are governed by the laws of the Republic of India. Any legal disputes shall be exclusively subject to the jurisdiction of the courts of India. BrokerSaab shall not be a party to any dispute between users and advisors.
+                </p>
+              </div>
+
+              <p className="text-[10px] text-gray-400 text-center pb-2">Effective Date: June 2026 · BrokerSaab Technology Pvt. Ltd.</p>
+            </div>
+
+            {/* Accept section */}
+            <div className="shrink-0 px-5 py-4 border-t border-gray-200 bg-white space-y-3">
+              {!tcScrolled && (
+                <p className="text-[10px] text-amber-600 text-center flex items-center justify-center gap-1">
+                  <span>↓</span> Scroll down to read all terms before accepting
+                </p>
+              )}
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <div className="mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all"
+                  style={{
+                    borderColor: tcAccepted ? '#10b981' : '#d1d5db',
+                    background: tcAccepted ? '#10b981' : 'white',
+                  }}
+                  onClick={() => setTcAccepted(p => !p)}>
+                  {tcAccepted && <CheckCircle2 size={12} className="text-white" />}
+                </div>
+                <span className="text-xs text-gray-600 leading-relaxed select-none">
+                  I have read and I agree to the <strong>Terms & Conditions</strong>, including that BrokerSaab is not liable for fraud or misconduct by advisors, and all disputes are subject to <strong>Indian courts</strong>.
+                </span>
+              </label>
+              <button
+                disabled={!tcAccepted}
+                onClick={() => { if (tcAccepted) setStep('phone'); }}
+                className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all"
+                style={{
+                  background: tcAccepted ? 'linear-gradient(135deg, #D4AF37, #B48C22)' : '#e5e7eb',
+                  color: tcAccepted ? '#0B1F3A' : '#9ca3af',
+                  cursor: tcAccepted ? 'pointer' : 'not-allowed',
+                }}>
+                I Accept — Continue to Sign In <ArrowRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Body for non-terms steps ── */}
+        {step !== 'terms' && (
+          <div className="p-6 sm:p-7 overflow-y-auto flex-1">
+            {error && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-5">
+                <AlertCircle size={15} className="shrink-0 mt-0.5 text-red-400" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* PHONE */}
+            {step === 'phone' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Mobile Number</label>
+                  <div className={inputWrap}>
+                    <span className="px-3 py-3.5 bg-gray-50 border-r border-gray-200 text-sm text-gray-600 font-medium">+91</span>
+                    <input ref={firstInputRef} type="tel" maxLength={10} placeholder="10-digit mobile number"
+                      value={phoneNumber} onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                      onKeyDown={e => e.key === 'Enter' && handleSendOtp()} className={inputBase} />
+                    <Phone size={15} className="mr-3 text-slate-400" />
+                  </div>
+                </div>
+                <button onClick={handleSendOtp} disabled={loading}
+                  className="btn-gold w-full py-3.5 flex items-center justify-center gap-2 disabled:opacity-60">
+                  {loading ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : <>Get OTP <ArrowRight size={15} /></>}
+                </button>
+                <button onClick={() => setStep('terms')} className="w-full text-xs text-center text-gray-400 hover:text-gray-600 transition-colors">
+                  ← Back to Terms
+                </button>
+              </div>
+            )}
+
+            {/* OTP */}
+            {step === 'otp' && (
+              <div className="space-y-5">
+                {devOtp && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-700 font-medium flex items-center gap-2">
+                    <span>🔑</span> Demo OTP: <strong className="text-lg tracking-widest">{devOtp}</strong>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-3">Enter 6-digit OTP</label>
+                  <div className="flex gap-2 justify-between">
+                    {otp.map((digit, i) => (
+                      <input key={i} id={`modal-otp-${i}`} type="tel" maxLength={1} value={digit}
+                        onChange={e => handleOtpChange(i, e.target.value)} onKeyDown={e => handleOtpKeyDown(i, e)}
+                        className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-200 rounded-xl outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all text-navy-800" />
+                    ))}
+                  </div>
+                </div>
+                <button onClick={handleVerifyOtp} disabled={loading}
+                  className="btn-gold w-full py-3.5 flex items-center justify-center gap-2 disabled:opacity-60">
+                  {loading ? <><Loader2 size={16} className="animate-spin" /> Verifying…</> : <>Verify OTP <ArrowRight size={15} /></>}
+                </button>
+                <button onClick={() => { setStep('phone'); setError(''); setOtp(['','','','','','']); }}
+                  className="w-full text-xs text-center text-gray-400 hover:text-gray-600 transition-colors">
+                  ← Change phone number
+                </button>
+              </div>
+            )}
+
+            {/* REGISTER */}
+            {step === 'register' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Full Name <span className="text-red-500">*</span></label>
+                  <div className={inputWrap}>
+                    <User size={15} className="ml-3 text-slate-400 shrink-0" />
+                    <input ref={firstInputRef} type="text" placeholder="Your full name" value={fullName}
+                      onChange={e => setFullName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleRegister()}
+                      className={inputBase} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Email Address <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <div className={inputWrap}>
+                    <Mail size={15} className="ml-3 text-slate-400 shrink-0" />
+                    <input type="email" placeholder="you@example.com" value={email}
+                      onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleRegister()}
+                      className={inputBase} />
+                  </div>
+                </div>
+                <button onClick={handleRegister} disabled={loading}
+                  className="btn-gold w-full py-3.5 flex items-center justify-center gap-2 disabled:opacity-60">
+                  {loading ? <><Loader2 size={16} className="animate-spin" /> Creating account…</> : <>Create Account <ArrowRight size={15} /></>}
+                </button>
+              </div>
+            )}
+
+            {/* SUCCESS */}
+            {step === 'success' && (
+              <div className="text-center py-4">
+                <div className="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 size={32} className="text-emerald-500" />
+                </div>
+                <p className="text-gray-800 font-semibold text-base mb-1">Welcome{fullName ? `, ${fullName.split(' ')[0]}` : ''}!</p>
+                <p className="text-gray-500 text-sm">You are now signed in. Continuing…</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Footer: Admin/Advisor Login ── */}
+        {step !== 'success' && step !== 'terms' && (
+          <div className="px-6 pb-5 shrink-0 space-y-3">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-white px-3 text-gray-400">or</span></div>
+            </div>
+            <a href="/auth/admin"
+              className="w-full flex items-center justify-center gap-2 border-2 border-gray-200 text-gray-700 font-semibold py-3 rounded-xl text-sm hover:border-gray-300 hover:bg-gray-50 transition-all">
+              <span>🔑</span> Admin / Advisor Login
+            </a>
+          </div>
+        )}
+
+        <div className="sm:hidden flex justify-center pb-3 shrink-0">
+          <div className="w-12 h-1 bg-gray-200 rounded-full" />
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,104 @@
+import express, { Request, Response, NextFunction } from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
+import helmet from 'helmet';
+import dotenv from 'dotenv';
+
+// Load Environment Variables
+dotenv.config();
+
+// Importers
+import authRoutes from './routes/auth';
+import advisorRoutes from './routes/advisors';
+import bookingRoutes from './routes/bookings';
+import paymentRoutes from './routes/payments';
+import adminRoutes from './routes/admin';
+import subscriptionRoutes, { webhookHandler } from './routes/subscriptions';
+
+const app = express();
+const server = http.createServer(app);
+
+// Socket.IO Setup for Realtime Messaging
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
+
+// Port configuration
+const PORT = process.env.PORT || 5000;
+
+// Security Middlewares
+app.use(helmet());
+app.use(cors({
+  origin: '*',
+  credentials: true
+}));
+
+// Razorpay webhook needs raw body BEFORE express.json()
+app.post('/api/v1/subscriptions/webhook', express.raw({ type: '*/*' }), webhookHandler);
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Serve uploaded KYC files
+app.use('/uploads', express.static('uploads'));
+
+// Routing API endpoints
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/advisors', advisorRoutes);
+app.use('/api/v1/bookings', bookingRoutes);
+app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/subscriptions', subscriptionRoutes);
+
+// Health Check Endpoint
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    service: 'BrokerSaab Express REST Core'
+  });
+});
+
+// Socket.IO Event Handlers
+io.on('connection', (socket) => {
+  console.log(`Socket Client Connected: ${socket.id}`);
+
+  // Room coordinator joining
+  socket.on('join_room', (roomId: string) => {
+    socket.join(roomId);
+    console.log(`Socket client joined room: ${roomId}`);
+  });
+
+  // Message dispatcher
+  socket.on('send_msg', (data: { roomId: string; senderId: string; content: string }) => {
+    io.to(data.roomId).emit('recv_msg', {
+      senderId: data.senderId,
+      content: data.content,
+      createdAt: new Date().toISOString()
+    });
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`Socket Client Disconnected: ${socket.id}`);
+  });
+});
+
+// Centralized Express Custom Error Handler Middleware
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('[Global Server Error]:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error. Please contact backend administrators.'
+  });
+});
+
+// Launch server instance
+server.listen(PORT, () => {
+  console.log(`BrokerSaab Server is online on port ${PORT} in ${process.env.NODE_ENV} mode.`);
+});
+
+export { app, server, io };

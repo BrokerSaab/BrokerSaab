@@ -1,0 +1,388 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  SUB_ADMIN
+  ADVISOR
+  CLIENT
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum ConsultationMode {
+  PHONE
+  VIDEO
+  CHAT
+  PHYSICAL
+}
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum AdvisorType {
+  REGULAR
+  AUTHORIZED
+}
+
+enum DocumentType {
+  AADHAAR_CARD
+  PASSPORT_PHOTO
+  LICENSE_COPY
+  GST_CERTIFICATE
+  DEGREE_CERTIFICATE
+  OTHER
+}
+
+model User {
+  id                String             @id @default(uuid())
+  phoneNumber       String             @unique
+  email             String?            @unique
+  fullName          String?
+  role              Role               @default(CLIENT)
+  passwordHash      String?            // Nullable for pure OTP-based clients
+  avatarUrl         String?
+  state             String?            // Selected Indian state for location-based matching
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  // Relations
+  wallet            Wallet?
+  bookings          Booking[]          @relation("ClientBookings")
+  reviews           Review[]
+  ratingsGiven      Rating[]
+  supportTickets    SupportTickets[]
+  messagesSent      Message[]
+  chatRoomsJoined   ChatRoomParticipant[]
+  auditLogs         AuditLog[]
+  transactions      Transaction[]
+
+  @@index([phoneNumber])
+}
+
+model Advisor {
+  id                 String             @id @default(uuid())
+  phoneNumber        String             @unique
+  email              String             @unique
+  fullName           String
+  businessName       String?
+  avatarUrl          String?
+  bio                String?            @db.Text
+  experienceYears    Int
+  licenseNumber      String?            @unique
+  verificationStatus VerificationStatus @default(PENDING)
+  consultationFee    Decimal            @db.Decimal(10, 2)
+  languages          String[]
+  location           String
+  latitude           Float?
+  longitude          Float?
+  isAuthorizedDealer Boolean            @default(false)
+  dealerAuthorizedAt DateTime?
+  state              String?
+  advisorType        AdvisorType        @default(REGULAR)
+  aadhaarLast4       String?
+  aadhaarHash        String?
+  gstNumber          String?
+  onboardingStep     Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  // Relations
+  documents          AdvisorDocument[]
+  categories         AdvisorCategory[]
+  specializations    AdvisorSpecialization[]
+  availabilitySlots  AvailabilitySlot[]
+  bookings           Booking[]          @relation("AdvisorBookings")
+  payouts            Payout[]
+  auditLogs          AuditLog[]         @relation("AdvisorAuditLogs")
+  subscriptions      AdvisorSubscription[]
+
+  @@index([verificationStatus])
+  @@index([location])
+  @@index([state])
+}
+
+model AdvisorDocument {
+  id             String             @id @default(uuid())
+  advisorId      String
+  advisor        Advisor            @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  documentType   DocumentType
+  documentUrl    String
+  verified       Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([advisorId])
+}
+
+model AdvisorSubscription {
+  id                 String             @id @default(uuid())
+  advisorId          String
+  advisor            Advisor            @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  razorpayOrderId    String             @unique
+  razorpayPaymentId  String?            @unique
+  razorpaySignature  String?
+  amount             Decimal            @db.Decimal(10, 2)
+  status             TransactionStatus  @default(PENDING)
+  subscribedAt       DateTime?
+  expiresAt          DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([advisorId])
+  @@index([status])
+}
+
+model OnboardingSession {
+  id           String   @id @default(uuid())
+  phoneNumber  String   @unique
+  currentStep  Int      @default(1)
+  stepLabel    String   @default("started")
+  formSnapshot Json?
+  advisorId    String?
+  lastActiveAt DateTime @default(now()) @updatedAt
+  createdAt    DateTime @default(now())
+
+  @@index([phoneNumber])
+  @@index([currentStep])
+}
+
+model Category {
+  id          String             @id @default(uuid())
+  name        String             @unique // "Legal Advisor", "Property Broker", etc.
+  slug        String             @unique
+  imageUrl    String?
+  description String?
+  createdAt   DateTime           @default(now())
+  
+  advisors    AdvisorCategory[]
+}
+
+model AdvisorCategory {
+  advisorId  String
+  advisor    Advisor   @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([advisorId, categoryId])
+}
+
+model Specialization {
+  id          String                  @id @default(uuid())
+  name        String                  @unique // "Corporate Law", "Tax Consulting", etc.
+  slug        String                  @unique
+  createdAt   DateTime                @default(now())
+  
+  advisors    AdvisorSpecialization[]
+}
+
+model AdvisorSpecialization {
+  advisorId        String
+  advisor          Advisor        @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  specializationId String
+  specialization   Specialization @relation(fields: [specializationId], references: [id], onDelete: Cascade)
+
+  @@id([advisorId, specializationId])
+}
+
+model AvailabilitySlot {
+  id           String    @id @default(uuid())
+  advisorId    String
+  advisor      Advisor   @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  dayOfWeek    Int       // 0 (Sunday) to 6 (Saturday)
+  startTime    String    // "09:00"
+  endTime      String    // "10:00"
+  isBooked     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  @@index([advisorId, dayOfWeek])
+}
+
+model Booking {
+  id               String           @id @default(uuid())
+  bookingNumber    String           @unique // Format: BS-YYYYMMDD-XXXX
+  clientId         String
+  client           User             @relation("ClientBookings", fields: [clientId], references: [id])
+  advisorId        String
+  advisor          Advisor          @relation("AdvisorBookings", fields: [advisorId], references: [id])
+  mode             ConsultationMode
+  scheduledDate    DateTime
+  startTime        String           // "10:00"
+  endTime          String           // "11:00"
+  status           BookingStatus    @default(PENDING)
+  totalFee         Decimal          @db.Decimal(10, 2)
+  notes            String?          @db.Text
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  transaction      Transaction?
+  review           Review?
+  rating           Rating?
+  chatRoom         ChatRoom?
+
+  @@index([clientId])
+  @@index([advisorId])
+  @@index([status])
+}
+
+model Transaction {
+  id             String            @id @default(uuid())
+  referenceId    String            @unique // Gateway reference (Stripe / Razorpay ID)
+  userId         String
+  user           User              @relation(fields: [userId], references: [id])
+  bookingId      String?           @unique
+  booking        Booking?          @relation(fields: [bookingId], references: [id])
+  type           TransactionType
+  status         TransactionStatus @default(PENDING)
+  amount         Decimal           @db.Decimal(10, 2)
+  commission     Decimal           @db.Decimal(10, 2) @default(0.00)
+  netAmount      Decimal           @db.Decimal(10, 2) // Amount minus platform commission
+  gatewayMessage String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance   Decimal  @db.Decimal(10, 2) @default(0.00)
+  updatedAt DateTime @updatedAt
+}
+
+model Payout {
+  id          String            @id @default(uuid())
+  advisorId   String
+  advisor     Advisor           @relation(fields: [advisorId], references: [id])
+  amount      Decimal           @db.Decimal(10, 2)
+  status      TransactionStatus @default(PENDING)
+  bankAccount String            // Masked account info
+  referenceId String?           @unique // Transfer reference
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  bookingId  String   @unique
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  clientId   String
+  client     User     @relation(fields: [clientId], references: [id])
+  title      String?
+  comment    String   @db.Text
+  createdAt  DateTime @default(now())
+}
+
+model Rating {
+  id         String   @id @default(uuid())
+  bookingId  String   @unique
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  clientId   String
+  client     User     @relation(fields: [clientId], references: [id])
+  score      Int      // 1 to 5 scale
+  createdAt  DateTime @default(now())
+}
+
+model ChatRoom {
+  id        String                @id @default(uuid())
+  bookingId String                @unique
+  booking   Booking               @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  createdAt DateTime              @default(now())
+  
+  participants ChatRoomParticipant[]
+  messages     Message[]
+}
+
+model ChatRoomParticipant {
+  id         String   @id @default(uuid())
+  chatRoomId String
+  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt   DateTime @default(now())
+
+  @@unique([chatRoomId, userId])
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  chatRoomId String
+  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     User     @relation(fields: [senderId], references: [id])
+  content    String   @db.Text
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  userId     String
+  title      String
+  body       String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model SupportTickets {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  subject     String
+  description String   @db.Text
+  status      String   @default("OPEN") // OPEN, RESOLVED, CLOSED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  action      String   // "LOGIN", "KYC_VERIFICATION", "BOOKING_STATUS_CHANGE"
+  performedBy String   // User ID or "SYSTEM"
+  user        User?    @relation(fields: [performedBy], references: [id], map: "FK_Audit_User")
+  advisorId   String?
+  advisor     Advisor? @relation("AdvisorAuditLogs", fields: [advisorId], references: [id])
+  details     Json
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+}
+
+model AdminUsers {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  fullName     String
+  passwordHash String
+  role         Role     @default(SUB_ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
