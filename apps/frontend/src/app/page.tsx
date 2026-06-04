@@ -8,8 +8,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import {
   Search, MapPin, Star, Award, ShieldCheck, Languages, ArrowRight, UserCheck,
   Home, Shield, FileCheck, Briefcase, Percent, FileText, Coins, Landmark,
-  Scale, Building2, CreditCard, Phone, CheckCircle2, Users, Clock, ChevronDown,
-  User, Sun, Moon, BadgeCheck
+  Scale, Building2, CreditCard, Phone, Mail, CheckCircle2, Users, Clock, ChevronDown,
+  User, Sun, Moon, BadgeCheck, Loader2, Copy, Check
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -19,6 +19,7 @@ import {
 import { Info, X } from 'lucide-react';
 import LaunchOfferPopup from '@/components/LaunchOfferPopup';
 import StatePickerPopup from '@/components/StatePickerPopup';
+import ContactUnlockModal from '@/components/ContactUnlockModal';
 
 /* ═══════════════════════════════════════════════
    DATA — Mock Advisors
@@ -534,6 +535,46 @@ export default function DiscoverPage() {
     else openLoginModal(() => router.push(`/advisors/${advisorId}`));
   }, [isLoggedIn, router, openLoginModal]);
 
+  // ── Connect flow (inline contact reveal on home page cards) ──
+  const [connectLoading, setConnectLoading] = useState<string | null>(null);
+  const [revealedContacts, setRevealedContacts] = useState<Record<string, { phone: string; email: string }>>({});
+  const [unlockModal, setUnlockModal] = useState<{ id: string; name: string } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const copyText = useCallback((text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(key);
+    setTimeout(() => setCopiedField(null), 2000);
+  }, []);
+
+  const handleConnect = useCallback(async (advisorId: string, advisorName: string) => {
+    if (!isLoggedIn) {
+      openLoginModal(() => handleConnect(advisorId, advisorName));
+      return;
+    }
+    if (revealedContacts[advisorId]) return;
+    setConnectLoading(advisorId);
+    try {
+      const token = localStorage.getItem('accessToken') || '';
+      const res   = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/contacts/unlock/${advisorId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success && data.phoneNumber) {
+        setRevealedContacts(prev => ({ ...prev, [advisorId]: { phone: data.phoneNumber, email: data.email || '' } }));
+      } else if (data.requiresPurchase) {
+        setUnlockModal({ id: advisorId, name: advisorName });
+      } else {
+        router.push(`/advisors/${advisorId}`);
+      }
+    } catch {
+      router.push(`/advisors/${advisorId}`);
+    } finally {
+      setConnectLoading(null);
+    }
+  }, [isLoggedIn, openLoginModal, revealedContacts, router]);
+
   const handleTileClick = useCallback((moduleId: string) => {
     setExpandedModule(prev => prev === moduleId ? null : moduleId);
     setTimeout(() => {
@@ -574,6 +615,20 @@ export default function DiscoverPage() {
 
       {/* ── India State Picker Popup (auto after 1.2s + button trigger) ── */}
       <StatePickerPopup forceOpen={showStatePicker} onForceClose={() => setShowStatePicker(false)} />
+
+      {/* ── Contact Unlock Modal (when credits run out during Connect flow) ── */}
+      {unlockModal && (
+        <ContactUnlockModal
+          advisorId={unlockModal.id}
+          advisorName={unlockModal.name}
+          isOpen={!!unlockModal}
+          onClose={() => setUnlockModal(null)}
+          onUnlockSuccess={(phone, email) => {
+            setRevealedContacts(prev => ({ ...prev, [unlockModal.id]: { phone, email } }));
+            setUnlockModal(null);
+          }}
+        />
+      )}
 
       {/* ══════════════════════════════════════════════════════════
           OFFER TICKER — Click anywhere to open the plan popup
@@ -1312,21 +1367,49 @@ export default function DiscoverPage() {
                   </div>
 
                   {/* Footer */}
-                  <div className="flex items-center justify-between border-t border-gray-100 pt-4 shrink-0">
-                    <div>
-                      <p className="text-[10px] text-gray-400 uppercase tracking-widest">Consultation Fee</p>
-                      <p className="text-lg sm:text-xl font-extrabold text-gray-900">
-                        ₹{advisor.consultationFee}
-                        <span className="text-xs font-normal text-gray-400 ml-1">/ session</span>
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleBookNow(advisor.id)}
-                      className="bg-gold-500 text-navy-800 font-semibold flex items-center gap-1.5 text-xs px-4 sm:px-5 py-2.5 rounded-lg shadow-md hover:bg-gold-400 hover:shadow-lg transition-all"
-                    >
-                      Book Now
-                      <ArrowRight size={14} />
-                    </button>
+                  <div className="border-t border-gray-100 pt-4 shrink-0 space-y-3">
+                    {revealedContacts[advisor.id] ? (
+                      /* ── Contact revealed inline ── */
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 space-y-2">
+                        <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Contact Revealed ✓</p>
+                        <div className="flex items-center gap-2 text-xs text-gray-800">
+                          <Phone size={12} className="text-emerald-600 shrink-0" />
+                          <span className="font-mono font-semibold">{revealedContacts[advisor.id].phone}</span>
+                          <button type="button" onClick={() => copyText(revealedContacts[advisor.id].phone, `phone-${advisor.id}`)} className="ml-auto text-gray-400 hover:text-gray-600">
+                            {copiedField === `phone-${advisor.id}` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                          </button>
+                        </div>
+                        {revealedContacts[advisor.id].email && (
+                          <div className="flex items-center gap-2 text-xs text-gray-800">
+                            <Mail size={12} className="text-emerald-600 shrink-0" />
+                            <span className="truncate">{revealedContacts[advisor.id].email}</span>
+                            <button type="button" onClick={() => copyText(revealedContacts[advisor.id].email, `email-${advisor.id}`)} className="ml-auto text-gray-400 hover:text-gray-600">
+                              {copiedField === `email-${advisor.id}` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-widest">Consultation Fee</p>
+                          <p className="text-lg sm:text-xl font-extrabold text-gray-900">
+                            ₹{advisor.consultationFee}
+                            <span className="text-xs font-normal text-gray-400 ml-1">/ session</span>
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleConnect(advisor.id, advisor.fullName)}
+                          disabled={connectLoading === advisor.id}
+                          className="bg-gold-500 text-navy-800 font-semibold flex items-center gap-1.5 text-xs px-4 sm:px-5 py-2.5 rounded-lg shadow-md hover:bg-gold-400 hover:shadow-lg transition-all disabled:opacity-70"
+                        >
+                          {connectLoading === advisor.id
+                            ? <><Loader2 size={13} className="animate-spin" /> Connecting…</>
+                            : <><Phone size={13} /> Connect</>}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
