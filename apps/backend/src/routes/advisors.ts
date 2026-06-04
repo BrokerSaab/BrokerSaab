@@ -1,11 +1,23 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { Role, DocumentType, VerificationStatus } from '@prisma/client';
+import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
 import { authenticateJWT, requireRole, AuthenticatedRequest } from '../middlewares/auth';
 import { validateRequest } from '../middlewares/validate';
 import { kycUpload } from '../middlewares/upload';
 import { validateAadhaar, maskAadhaar, hashAadhaar } from '../utils/aadhaar';
+
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'brokersaab_secret_access_token_12345_dev_super_secret';
+
+// Optional auth — attaches user to req if valid token present, but does not block if missing/invalid
+const optionalAuth = (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
+  const h = req.headers.authorization;
+  if (h?.startsWith('Bearer ')) {
+    try { req.user = jwt.verify(h.split(' ')[1], JWT_ACCESS_SECRET) as any; } catch { /* ignore */ }
+  }
+  next();
+};
 
 const router = Router();
 
@@ -280,7 +292,7 @@ router.post(
  * 2. GET /advisors/:id
  * Retrieve single advisor portfolio profile details, active availability slots, and reviews.
  */
-router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+router.get('/:id', optionalAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { id } = req.params;
 
   try {
@@ -323,6 +335,15 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     const ratingsCount = reviewsList.length;
     const avgRating = ratingsCount > 0 ? reviewsList.reduce((a, b) => a + b.rating, 0) / ratingsCount : 5.0;
 
+    // If authenticated user has unlocked this advisor, include contact info
+    let contactInfo: { phoneNumber?: string; email?: string } = {};
+    if (req.user?.id) {
+      const unlock = await prisma.contactUnlock.findUnique({
+        where: { userId_advisorId: { userId: req.user.id, advisorId: id } },
+      });
+      if (unlock) contactInfo = { phoneNumber: advisor.phoneNumber, email: advisor.email };
+    }
+
     res.status(200).json({
       success: true,
       data: {
@@ -345,7 +366,8 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
         availability: advisor.availabilitySlots,
         reviews: reviewsList,
         ratingsCount,
-        averageRating: parseFloat(avgRating.toFixed(1))
+        averageRating: parseFloat(avgRating.toFixed(1)),
+        ...contactInfo,
       }
     });
   } catch (error) {

@@ -7,7 +7,7 @@ import {
   ShieldCheck, Users, Star, Award, CheckCircle, ArrowRight,
   Briefcase, FileText, Search, UserCheck, CreditCard, MessageCircle,
   BadgeCheck, Scale, AlertTriangle, Globe, TrendingUp, Lock,
-  Building2, AlertOctagon, Gavel, FileWarning, Ban
+  Building2, AlertOctagon, Gavel, FileWarning, Ban, Sun, Moon
 } from 'lucide-react';
 
 /* ─── TAB TYPES ─────────────────────────────── */
@@ -124,96 +124,114 @@ const tcSections = [
   },
 ];
 
-/* ─── CARD 3D STYLE HELPER ───────────────────── */
-function card3dStyle(accent: string, depth = 6): React.CSSProperties {
+/* ─── CARD STYLE — adapts to theme ── */
+function card3dStyle(accent: string, isDark = true): React.CSSProperties {
+  if (!isDark) {
+    return {
+      background: 'rgba(255,255,255,0.96)',
+      boxShadow: `0 4px 20px rgba(0,0,0,0.07), 0 1px 0 rgba(255,255,255,0.9) inset`,
+      border: `1px solid ${accent}40`,
+    };
+  }
   return {
-    background: `linear-gradient(145deg, rgba(10,18,35,0.95), rgba(5,10,20,0.98))`,
-    boxShadow: `0 1px 0 rgba(255,255,255,0.06) inset, ${depth}px ${depth}px 0 ${accent}40, 0 ${depth + 10}px ${depth * 5}px rgba(0,0,0,0.5)`,
-    border: `1px solid ${accent}40`,
+    background: `linear-gradient(145deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))`,
+    boxShadow: `0 4px 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.10), 0 0 0 1px ${accent}40`,
+    border: `1px solid ${accent}45`,
+    backdropFilter: 'blur(12px)',
   };
 }
 
-/* ─── MESH BG PATTERNS (dark-navy, matching home page aesthetic) ─── */
-const CROSSHATCH = `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D4AF37' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`;
-
-const MESH_ABOUT = `${CROSSHATCH},
-  radial-gradient(ellipse 70% 45% at 15% 10%, rgba(212,175,55,0.18) 0%, transparent 55%),
-  radial-gradient(ellipse 55% 40% at 85% 85%, rgba(59,130,246,0.14) 0%, transparent 55%),
-  radial-gradient(ellipse 50% 60% at 50% 50%, rgba(139,92,246,0.07) 0%, transparent 60%),
-  linear-gradient(160deg, #071527 0%, #050e1b 50%, #04111c 100%)`;
-
-const MESH_PLATFORM = `${CROSSHATCH},
-  radial-gradient(ellipse 65% 45% at 8% 15%, rgba(59,130,246,0.22) 0%, transparent 55%),
-  radial-gradient(ellipse 60% 55% at 92% 82%, rgba(212,175,55,0.18) 0%, transparent 55%),
-  radial-gradient(ellipse 50% 40% at 50% 5%, rgba(16,185,129,0.14) 0%, transparent 55%),
-  linear-gradient(160deg, #04111c 0%, #050e1b 50%, #071527 100%)`;
-
-const MESH_TERMS = `${CROSSHATCH},
-  radial-gradient(ellipse 65% 45% at 12% 12%, rgba(239,68,68,0.18) 0%, transparent 55%),
-  radial-gradient(ellipse 55% 50% at 88% 88%, rgba(245,158,11,0.15) 0%, transparent 55%),
-  radial-gradient(ellipse 40% 40% at 50% 50%, rgba(139,92,246,0.08) 0%, transparent 55%),
-  linear-gradient(160deg, #0a0608 0%, #08060f 50%, #0a0608 100%)`;
 
 /* ─── COMPONENT ──────────────────────────────── */
 export default function AboutPage() {
   const { language } = useLanguage();
   const hi = language === 'HI';
   const [activeTab, setActiveTab] = useState<Tab>('about');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const isDark = theme === 'dark';
 
-  const tabMesh = activeTab === 'about' ? MESH_ABOUT : activeTab === 'platform' ? MESH_PLATFORM : MESH_TERMS;
+  /* convenience shorthands */
+  const th = (dark: string, light: string) => isDark ? dark : light;
 
-  const tabs: { id: Tab; label: string; labelHI: string; accent: string }[] = [
-    { id: 'about', label: 'About Us', labelHI: 'हमारे बारे में', accent: '#D4AF37' },
-    { id: 'platform', label: "Who's On the Platform", labelHI: 'प्लेटफ़ॉर्म पर कौन', accent: '#3b82f6' },
-    { id: 'terms', label: 'Terms & Conditions', labelHI: 'नियम और शर्तें', accent: '#ef4444' },
+  const tabs: { id: Tab; label: string; labelHI: string; short: string; shortHI: string; accent: string }[] = [
+    { id: 'about', label: 'About Us', labelHI: 'हमारे बारे में', short: 'About', shortHI: 'बारे में', accent: '#D4AF37' },
+    { id: 'platform', label: "Who's On the Platform", labelHI: 'प्लेटफ़ॉर्म पर कौन', short: 'Platform', shortHI: 'प्लेटफ़ॉर्म', accent: '#3b82f6' },
+    { id: 'terms', label: 'Terms & Conditions', labelHI: 'नियम और शर्तें', short: 'T&C', shortHI: 'नियम', accent: '#ef4444' },
   ];
 
   return (
-    <div className="min-h-screen text-white" style={{ background: tabMesh, transition: 'background 0.6s ease' }}>
+    <div className={`min-h-screen ${th('text-slate-100 bg-[#050E1B]', 'text-slate-800 bg-[#F4F6FB]')}`} style={{ transition: 'background 0.4s ease, color 0.4s ease' }}>
 
-      {/* ── Shared Hero ── */}
-      <section className="relative overflow-hidden py-20 px-6">
-        {/* grid overlay */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.04]"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      {/* ── Shared Hero — same style as home page hero ── */}
+      <section className={`relative overflow-hidden py-12 sm:py-20 px-4 sm:px-6 ${th('navy-gradient-bg', 'bg-white border-b border-slate-200')}`}>
+        {/* home-page style glow orbs */}
+        <div className="absolute top-0 right-0 w-[480px] h-[480px] rounded-full pointer-events-none opacity-30"
+          style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.18) 0%, transparent 65%)', transform: 'translate(30%, -30%)' }} />
+        <div className={`absolute bottom-0 left-0 w-80 h-80 rounded-full pointer-events-none ${th('opacity-20', 'opacity-10')}`}
+          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.25) 0%, transparent 65%)', transform: 'translate(-25%, 25%)' }} />
+        <div className="absolute inset-0 pointer-events-none opacity-[0.03]"
+          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+
+        {/* ── Theme toggle ── */}
+        <div className="absolute top-4 right-4 sm:top-5 sm:right-5 z-20">
+          <button
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+              isDark
+                ? 'bg-white/5 border-white/10 text-amber-400 hover:bg-white/10'
+                : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            {isDark
+              ? <><Sun size={13} className="text-amber-400 fill-amber-400/20" /><span>Light</span></>
+              : <><Moon size={13} className="text-slate-600" /><span>Dark</span></>}
+          </button>
+        </div>
+
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center gap-2 rounded-full px-5 py-2 mb-6"
-            style={{ background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.25)' }}>
-            <ShieldCheck size={13} className="text-gold-400" />
-            <span className="text-gold-400 text-xs font-bold tracking-[0.18em] uppercase">
+          <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 mb-5"
+            style={{ background: 'rgba(212,175,55,0.10)', border: '1px solid rgba(212,175,55,0.30)' }}>
+            <ShieldCheck size={12} className="text-gold-400" />
+            <span className="text-gold-400 text-[10px] sm:text-xs font-bold tracking-[0.15em] uppercase">
               {hi ? 'भारत का विश्वसनीय सलाहकार प्लेटफ़ॉर्म' : "India's Trusted Advisory Platform"}
             </span>
           </div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-4">
-            <span className="text-white">{hi ? 'BrokerSaab —' : 'BrokerSaab —'}</span>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-4">
+            <span className={th('text-white', 'text-slate-900')}>{hi ? 'BrokerSaab —' : 'BrokerSaab —'}</span>
             <br />
             <span className="gold-gradient-text">{hi ? 'सत्यापित विशेषज्ञों का बाज़ार' : 'Marketplace of Verified Experts'}</span>
           </h1>
-          <p className="text-white/55 text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className={`${th('text-slate-400', 'text-slate-600')} text-base sm:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed`}>
             {hi
               ? 'एक तटस्थ तृतीय-पक्ष मंच जो उपयोगकर्ताओं को सत्यापित कानूनी, संपत्ति और वित्तीय सलाहकारों से जोड़ता है।'
               : 'A neutral third-party platform connecting users with verified legal, property, financial advisors and documentation experts — safely and transparently.'}
           </p>
 
           {/* ── TAB BAR ── */}
-          <div className="inline-flex rounded-2xl p-1.5 gap-1"
-            style={{ background: 'rgba(5,14,27,0.8)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)' }}>
+          <div className="flex w-full sm:w-auto rounded-2xl p-1.5 gap-1"
+            style={{
+              background: th('rgba(11,31,58,0.8)', 'rgba(255,255,255,0.92)'),
+              border: th('1px solid rgba(255,255,255,0.10)', '1px solid rgba(0,0,0,0.08)'),
+              backdropFilter: 'blur(12px)',
+              boxShadow: th('0 2px 12px rgba(0,0,0,0.4)', '0 2px 12px rgba(0,0,0,0.06)'),
+            }}>
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className="relative px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300"
+                className="relative flex-1 sm:flex-none px-3 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 whitespace-nowrap"
                 style={activeTab === tab.id ? {
                   background: `linear-gradient(135deg, ${tab.accent}25, ${tab.accent}10)`,
                   color: tab.accent,
                   boxShadow: `0 0 16px ${tab.accent}30, inset 0 1px 0 ${tab.accent}30`,
                   border: `1px solid ${tab.accent}35`,
                 } : {
-                  color: 'rgba(255,255,255,0.45)',
+                  color: th('rgba(148,163,184,0.75)', 'rgba(71,85,105,0.75)'),
                   border: '1px solid transparent',
                 }}
               >
-                {hi ? tab.labelHI : tab.label}
+                <span className="sm:hidden">{hi ? tab.shortHI : tab.short}</span>
+                <span className="hidden sm:inline">{hi ? tab.labelHI : tab.label}</span>
                 {activeTab === tab.id && (
                   <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
                     style={{ background: tab.accent }} />
@@ -228,19 +246,156 @@ export default function AboutPage() {
           TAB 1 — ABOUT US
           ════════════════════════════════════════════ */}
       {activeTab === 'about' && (
-        <div>
-          {/* Mission & Vision */}
-          <section className="py-16 px-6">
+        <div style={{ background: th('linear-gradient(180deg, #071527 0%, #0A1829 60%, #050E1B 100%)', 'linear-gradient(180deg, #F8FAFF 0%, #F0F4FF 60%, #EEF2FF 100%)') }}>
+
+          {/* ══════════════════════════════════════════
+              FOUNDER'S DIARY
+              ══════════════════════════════════════════ */}
+          <section className="py-12 sm:py-20 px-4 sm:px-6">
             <div className="max-w-6xl mx-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+
+              {/* Badge */}
+              <div className="flex justify-center mb-10 sm:mb-14">
+                <div className="inline-flex items-center gap-2 rounded-full px-5 py-2"
+                  style={{ background: 'rgba(212,175,55,0.10)', border: '1px solid rgba(212,175,55,0.30)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#D4AF37' }} />
+                  <span className="text-[10px] sm:text-xs font-black tracking-[0.20em] uppercase" style={{ color: '#D4AF37' }}>
+                    {hi ? 'संस्थापक की डायरी' : "FOUNDER'S DIARY"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Two-column layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
+
+                {/* ── LEFT: Photo + name card ── */}
+                <div className="flex flex-col items-center lg:items-start">
+
+                  {/* Gold-framed photo */}
+                  <div className="relative mb-7 self-center">
+                    {/* Outer gold ring */}
+                    <div className="absolute -inset-[6px] rounded-3xl pointer-events-none"
+                      style={{ background: 'linear-gradient(135deg, #D4AF37 0%, #FFE082 40%, #B48C22 80%, #D4AF37 100%)', borderRadius: '28px' }}>
+                      <div className={`w-full h-full rounded-[24px] ${th('bg-[#071527]', 'bg-[#F4F6FB]')}`} />
+                    </div>
+                    {/* Ambient glow */}
+                    <div className="absolute -inset-[20px] rounded-3xl pointer-events-none"
+                      style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.15) 0%, transparent 70%)' }} />
+                    {/* Photo */}
+                    <img
+                      src="/founder.jpg"
+                      alt="Ravi Ranjan — Founder & CEO, BrokerSaab"
+                      className="relative z-10 rounded-3xl object-cover object-top"
+                      style={{ width: '100%', maxWidth: '300px', height: '360px' }}
+                    />
+                    {/* Corner accents */}
+                    <div className="absolute top-3 left-3 z-20 w-7 h-7 pointer-events-none"
+                      style={{ borderTop: '2px solid #D4AF37', borderLeft: '2px solid #D4AF37', borderRadius: '4px 0 0 0', opacity: 0.75 }} />
+                    <div className="absolute bottom-3 right-3 z-20 w-7 h-7 pointer-events-none"
+                      style={{ borderBottom: '2px solid #D4AF37', borderRight: '2px solid #D4AF37', borderRadius: '0 0 4px 0', opacity: 0.75 }} />
+                  </div>
+
+                  {/* Name / title card */}
+                  <div className="rounded-2xl px-6 py-5 w-full max-w-[300px] self-center lg:self-start"
+                    style={card3dStyle('#D4AF37', isDark)}>
+                    <div className="text-[10px] font-black uppercase tracking-[0.18em] mb-1" style={{ color: '#D4AF37' }}>
+                      {hi ? 'संस्थापक और CEO' : 'Founder & CEO'}
+                    </div>
+                    <div className={`text-xl font-black ${th('text-white', 'text-slate-900')}`}>
+                      Ravi Ranjan
+                    </div>
+                    <div className={`text-sm mt-0.5 ${th('text-slate-400', 'text-slate-500')}`}>
+                      BrokerSaab
+                    </div>
+                    <div className="mt-3 h-px" style={{ background: 'linear-gradient(90deg, #D4AF37, rgba(212,175,55,0.15))' }} />
+                    <div className="mt-3 text-base italic" style={{ color: '#D4AF37', fontFamily: "'Georgia', 'Times New Roman', serif", letterSpacing: '0.02em' }}>
+                      — Ravi Ranjan
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── RIGHT: Narrative ── */}
+                <div>
+                  <h2 className={`text-3xl sm:text-4xl font-black leading-tight mb-6 ${th('text-white', 'text-slate-900')}`}>
+                    {hi ? 'संस्थापक की कलम से' : "From the Founder's Desk"}
+                  </h2>
+
+                  {/* Pullquote */}
+                  <div className="rounded-r-2xl rounded-l-sm mb-7 px-6 py-5"
+                    style={{
+                      borderLeft: '4px solid #D4AF37',
+                      background: isDark ? 'rgba(212,175,55,0.08)' : 'rgba(212,175,55,0.07)',
+                      backdropFilter: isDark ? 'blur(8px)' : 'none',
+                    }}>
+                    <p className={`text-base sm:text-lg font-semibold leading-relaxed italic ${th('text-slate-200', 'text-slate-800')}`}>
+                      {hi
+                        ? '"मैंने देखा है कि आम भारतीय लाखों गंवा देते हैं अज्ञात दलालों पर — लालच से नहीं, बल्कि गलत भरोसे से। BrokerSaab इसीलिए बना है — ताकि यह भरोसा कभी गलत न पड़े।"'
+                        : '"I have seen ordinary Indians lose lakhs to unverified agents — not from greed, but from trust misplaced. BrokerSaab exists so that trust is never misplaced again."'}
+                    </p>
+                  </div>
+
+                  {/* Paragraph 1 */}
+                  <p className={`text-sm sm:text-base leading-relaxed mb-5 ${th('text-slate-300', 'text-slate-700')}`}>
+                    {hi
+                      ? 'बचपन से मैंने अपने परिवार को संपत्ति रजिस्ट्री, अदालती कागज़ और टैक्स फाइलिंग के चक्करों में देखा। एक बात हमेशा सामने आई — आम इंसान को यह जानने का कोई तरीका नहीं था कि सामने बैठा दलाल असली है या नहीं। न सत्यापित प्रमाणपत्र, न जवाबदेही, और शुल्क बंद कमरों में तय होते थे बिना किसी रसीद के।'
+                      : 'Growing up watching my family navigate property registrations, court paperwork, and tax filings, I saw one constant: ordinary people had no way to know if the advisor sitting across from them was legitimate. There were no verified credentials, no accountability, and fees were negotiated in smoke-filled rooms with no receipts.'}
+                  </p>
+
+                  {/* Paragraph 2 */}
+                  <p className={`text-sm sm:text-base leading-relaxed mb-5 ${th('text-slate-300', 'text-slate-700')}`}>
+                    {hi
+                      ? 'यही खाई — एक ज़रूरतमंद इंसान और एक भरोसेमंद पेशेवर के बीच — BrokerSaab के निर्माण की प्रेरणा बनी। हमने एक ऐसा प्लेटफ़ॉर्म बनाया जहाँ हर सलाहकार KYC-सत्यापित है, हर भुगतान काम पूरा होने तक एस्क्रो में सुरक्षित है, और हर शुल्क बुकिंग से पहले दिखता है। न सिर्फ एक डायरेक्टरी — बल्कि वास्तविक जवाबदेही वाला बाज़ार।'
+                      : 'That gap — between a person who needs help and a professional they can actually trust — is why BrokerSaab was built. We created a platform where every advisor is KYC-verified, every payment is held in escrow until the work is done, and every fee is shown before you book. Not a directory. Not a classifieds board. A marketplace with real accountability baked in.'}
+                  </p>
+
+                  {/* Paragraph 3 */}
+                  <p className={`text-sm sm:text-base leading-relaxed mb-8 ${th('text-slate-300', 'text-slate-700')}`}>
+                    {hi
+                      ? 'BrokerSaab का उपयोग करने वाले हर भारतीय से मेरी प्रतिबद्धता सरल है: आप हमेशा जानेंगे कि आप किससे बात कर रहे हैं, क्या दे रहे हैं, और बदले में क्या मिलेगा। टियर-2 शहरों के प्रॉपर्टी ब्रोकर से लेकर मेट्रो दफ्तरों के GST कंसल्टेंट तक — इस प्लेटफ़ॉर्म पर हर पेशेवर ने सत्यापन से अपनी जगह अर्जित की है, और हर उपयोगकर्ता इसी मानक का हकदार है।'
+                      : 'My commitment to every Indian using BrokerSaab is simple: you will always know who you are speaking to, what you are paying, and what you will receive in return. From property brokers in Tier-2 cities to GST consultants in metro offices — every professional on this platform has earned their place through verification, and every user deserves nothing less.'}
+                  </p>
+
+                  {/* Trust-signal chips */}
+                  <div className="flex flex-wrap gap-3">
+                    {[
+                      { en: 'KYC-Verified Advisors', hi: 'KYC-सत्यापित सलाहकार' },
+                      { en: 'Escrow-Protected Payments', hi: 'एस्क्रो-सुरक्षित भुगतान' },
+                      { en: 'Transparent Pricing', hi: 'पारदर्शी मूल्य' },
+                    ].map((chip) => (
+                      <span key={chip.en}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full"
+                        style={{ background: 'rgba(212,175,55,0.10)', border: '1px solid rgba(212,175,55,0.28)', color: '#D4AF37' }}>
+                        <span className="w-1 h-1 rounded-full" style={{ background: '#D4AF37' }} />
+                        {hi ? chip.hi : chip.en}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Divider → leads into Mission & Vision */}
+              <div className="mt-14 sm:mt-20 flex items-center gap-4">
+                <div className="h-px flex-1"
+                  style={{ background: isDark ? 'linear-gradient(90deg, rgba(212,175,55,0.25), rgba(255,255,255,0.04))' : 'linear-gradient(90deg, rgba(212,175,55,0.4), rgba(0,0,0,0.04))' }} />
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: '#D4AF37', opacity: 0.5 }} />
+                <div className="h-px flex-1"
+                  style={{ background: isDark ? 'linear-gradient(90deg, rgba(255,255,255,0.04), rgba(212,175,55,0.25))' : 'linear-gradient(90deg, rgba(0,0,0,0.04), rgba(212,175,55,0.4))' }} />
+              </div>
+            </div>
+          </section>
+          {/* ══ END FOUNDER'S DIARY ══ */}
+
+          {/* Mission & Vision */}
+          <section className="py-10 sm:py-16 px-4 sm:px-6">
+            <div className="max-w-6xl mx-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mb-10 sm:mb-16">
                 {[
                   { accentColor: '#D4AF37', icon: Award, tagEN: 'Our Mission', tagHI: 'हमारा मिशन', bodyEN: 'To make professional legal, property and financial advisory services accessible, verified, and affordable to every Indian — regardless of city, language, or background.', bodyHI: 'हर भारतीय के लिए पेशेवर कानूनी, संपत्ति और वित्तीय सेवाओं को सुलभ और किफायती बनाना।' },
                   { accentColor: '#3b82f6', icon: TrendingUp, tagEN: 'Our Vision', tagHI: 'हमारा विज़न', bodyEN: "Become India's most trusted third-party marketplace connecting people with credentialed professionals — one verified consultation at a time.", bodyHI: 'भारत का सबसे विश्वसनीय तृतीय-पक्ष मार्केटप्लेस बनना जो लोगों को सत्यापित पेशेवरों से जोड़े।' },
                 ].map((item) => (
                   <div key={item.tagEN}
-                    className="rounded-3xl p-8 transition-all duration-300 hover:-translate-y-1"
-                    style={card3dStyle(item.accentColor, 5)}>
-                    {/* shine */}
+                    className="relative rounded-3xl p-5 sm:p-8 transition-all duration-300 hover:-translate-y-1"
+                    style={card3dStyle(item.accentColor, isDark)}>
                     <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
                     <div className="flex items-center gap-3 mb-5">
                       <div className="w-11 h-11 rounded-xl flex items-center justify-center"
@@ -251,17 +406,17 @@ export default function AboutPage() {
                         {hi ? item.tagHI : item.tagEN}
                       </span>
                     </div>
-                    <p className="text-white/75 leading-relaxed">{hi ? item.bodyHI : item.bodyEN}</p>
+                    <p className={`${th('text-slate-300', 'text-slate-700')} leading-relaxed`}>{hi ? item.bodyHI : item.bodyEN}</p>
                   </div>
                 ))}
               </div>
 
               {/* Stats row */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10 sm:mb-16">
                 {stats.map((stat) => (
                   <div key={stat.label}
                     className="rounded-2xl p-6 text-center transition-all duration-300 hover:-translate-y-1 relative overflow-hidden"
-                    style={card3dStyle(stat.color, 4)}>
+                    style={card3dStyle(stat.color, isDark)}>
                     <div className="absolute top-0 left-0 right-0 h-[2px]"
                       style={{ background: `linear-gradient(90deg, transparent, ${stat.color}, transparent)` }} />
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3"
@@ -272,21 +427,21 @@ export default function AboutPage() {
                       style={{ color: stat.color, textShadow: `0 0 20px ${stat.color}60` }}>
                       {stat.value}
                     </div>
-                    <div className="text-white/50 text-xs font-medium">{hi ? stat.labelHI : stat.label}</div>
+                    <div className={`${th('text-slate-400', 'text-slate-600')} text-xs font-medium`}>{hi ? stat.labelHI : stat.label}</div>
                   </div>
                 ))}
               </div>
 
               {/* Verification Steps */}
               <div className="text-center mb-10">
-                <h2 className="text-3xl font-black text-white mb-3">{hi ? 'हम विश्वास कैसे बनाते हैं' : 'How We Build Trust'}</h2>
-                <p className="text-white/45 max-w-xl mx-auto">{hi ? 'हर सलाहकार 4-चरणीय सत्यापन से गुजरता है।' : 'Every advisor passes a rigorous 4-step verification before going live.'}</p>
+                <h2 className={`text-3xl font-black ${th('text-white', 'text-slate-900')} mb-3`}>{hi ? 'हम विश्वास कैसे बनाते हैं' : 'How We Build Trust'}</h2>
+                <p className={`${th('text-white/45', 'text-slate-500')} max-w-xl mx-auto`}>{hi ? 'हर सलाहकार 4-चरणीय सत्यापन से गुजरता है।' : 'Every advisor passes a rigorous 4-step verification before going live.'}</p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-16">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10 sm:mb-16">
                 {verificationSteps.map((step, i) => (
                   <div key={step.step}
                     className="rounded-2xl p-6 relative overflow-hidden transition-all duration-300 hover:-translate-y-1"
-                    style={card3dStyle(step.color, 5)}>
+                    style={card3dStyle(step.color, isDark)}>
                     <div className="absolute top-0 left-0 right-0 h-[2px]"
                       style={{ background: `linear-gradient(90deg, transparent, ${step.color}, transparent)` }} />
                     <div className="flex items-center gap-3 mb-4">
@@ -296,8 +451,8 @@ export default function AboutPage() {
                       </div>
                       <span className="text-3xl font-black opacity-25" style={{ color: step.color }}>{step.step}</span>
                     </div>
-                    <h3 className="text-white font-bold text-sm mb-2">{hi ? step.titleHI : step.titleEN}</h3>
-                    <p className="text-white/50 text-xs leading-relaxed">{hi ? step.descHI : step.descEN}</p>
+                    <h3 className={`${th('text-white', 'text-slate-900')} font-bold text-sm mb-2`}>{hi ? step.titleHI : step.titleEN}</h3>
+                    <p className={`${th('text-slate-400', 'text-slate-600')} text-xs leading-relaxed`}>{hi ? step.descHI : step.descEN}</p>
                     {i < verificationSteps.length - 1 && (
                       <div className="hidden lg:block absolute top-1/2 -right-2.5 w-5 h-0.5 z-10"
                         style={{ background: `linear-gradient(90deg, ${step.color}, transparent)` }} />
@@ -308,20 +463,17 @@ export default function AboutPage() {
 
               {/* Advantage 3D tiles */}
               <div className="text-center mb-10">
-                <h2 className="text-3xl font-black text-white mb-3">{hi ? 'BrokerSaab का फायदा' : 'The BrokerSaab Advantage'}</h2>
-                <p className="text-white/45 max-w-xl mx-auto">{hi ? 'यहां वो है जो हमें अलग करता है।' : "What sets us apart from every other directory or listing platform."}</p>
+                <h2 className={`text-3xl font-black ${th('text-white', 'text-slate-900')} mb-3`}>{hi ? 'BrokerSaab का फायदा' : 'The BrokerSaab Advantage'}</h2>
+                <p className={`${th('text-white/45', 'text-slate-500')} max-w-xl mx-auto`}>{hi ? 'यहां वो है जो हमें अलग करता है।' : "What sets us apart from every other directory or listing platform."}</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {advantages.map((adv) => (
                   <div key={adv.titleEN}
-                    className="rounded-2xl p-7 relative overflow-hidden transition-all duration-300 hover:-translate-y-2 cursor-default group"
-                    style={card3dStyle(adv.accent, 6)}>
-                    {/* top line */}
+                    className="rounded-2xl p-5 sm:p-7 relative overflow-hidden transition-all duration-300 hover:-translate-y-2 cursor-default group"
+                    style={card3dStyle(adv.accent, isDark)}>
                     <div className="absolute top-0 left-0 right-0 h-[2px]"
                       style={{ background: `linear-gradient(90deg, transparent, ${adv.accent}80, transparent)` }} />
-                    {/* shine */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent rounded-2xl pointer-events-none
-                      group-hover:from-white/[0.06] transition-all duration-300" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent rounded-2xl pointer-events-none group-hover:from-white/[0.06] transition-all duration-300" />
                     <div className="flex items-center gap-3 mb-5">
                       <div className="w-12 h-12 rounded-xl flex items-center justify-center"
                         style={{ background: `${adv.accent}18`, border: `1px solid ${adv.accent}35`, boxShadow: `0 0 16px ${adv.accent}25` }}>
@@ -329,8 +481,8 @@ export default function AboutPage() {
                       </div>
                       <span className="text-3xl font-black opacity-15" style={{ color: adv.accent }}>{adv.num}</span>
                     </div>
-                    <h3 className="text-white font-bold text-base mb-2">{hi ? adv.titleHI : adv.titleEN}</h3>
-                    <p className="text-white/50 text-sm leading-relaxed">{hi ? adv.descHI : adv.descEN}</p>
+                    <h3 className={`${th('text-white', 'text-slate-900')} font-bold text-base mb-2`}>{hi ? adv.titleHI : adv.titleEN}</h3>
+                    <p className={`${th('text-slate-400', 'text-slate-600')} text-sm leading-relaxed`}>{hi ? adv.descHI : adv.descEN}</p>
                   </div>
                 ))}
               </div>
@@ -338,11 +490,11 @@ export default function AboutPage() {
           </section>
 
           {/* CTA */}
-          <section className="py-14 px-6">
+          <section className="py-10 sm:py-14 px-4 sm:px-6">
             <div className="max-w-3xl mx-auto text-center">
-              <div className="rounded-3xl p-10" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(59,130,246,0.08))', border: '1px solid rgba(212,175,55,0.2)', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
-                <h2 className="text-3xl font-black text-white mb-3">{hi ? 'अपना विश्वसनीय सलाहकार खोजें' : 'Ready to Find Your Trusted Advisor?'}</h2>
-                <p className="text-white/55 mb-8">{hi ? 'आज एक सत्यापित सलाहकार बुक करें।' : 'Book a verified advisor today — or grow your practice with us.'}</p>
+              <div className="rounded-3xl p-8 sm:p-10" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.18), rgba(59,130,246,0.12), rgba(255,255,255,0.04))', border: '1px solid rgba(212,175,55,0.35)', backdropFilter: 'blur(12px)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                <h2 className={`text-3xl font-black ${th('text-white', 'text-slate-900')} mb-3`}>{hi ? 'अपना विश्वसनीय सलाहकार खोजें' : 'Ready to Find Your Trusted Advisor?'}</h2>
+                <p className={`${th('text-slate-400', 'text-slate-600')} mb-8`}>{hi ? 'आज एक सत्यापित सलाहकार बुक करें।' : 'Book a verified advisor today — or grow your practice with us.'}</p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link href="/advisors" className="btn-gold px-8 py-3.5 rounded-xl font-semibold flex items-center gap-2 justify-center text-sm">
                     {hi ? 'परामर्श बुक करें' : 'Book Consultation Now'}<ArrowRight size={15} />
@@ -361,21 +513,21 @@ export default function AboutPage() {
           TAB 2 — WHO'S ON THE PLATFORM
           ════════════════════════════════════════════ */}
       {activeTab === 'platform' && (
-        <div>
-          <section className="py-16 px-6">
+        <div style={{ background: th('linear-gradient(180deg, #071527 0%, #081628 60%, #050E1B 100%)', 'linear-gradient(180deg, #F8FAFF 0%, #EEF5FF 60%, #E8F0FF 100%)') }}>
+          <section className="py-10 sm:py-16 px-4 sm:px-6">
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-14">
                 <div className="inline-flex items-center gap-2 rounded-full px-5 py-2 mb-5"
-                  style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)' }}>
+                  style={{ background: 'rgba(59,130,246,0.10)', border: '1px solid rgba(59,130,246,0.30)' }}>
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
                   <span className="text-blue-400 text-xs font-bold tracking-[0.18em] uppercase">
                     {hi ? 'तीन पक्ष · एक विश्वसनीय हाथ मिलाना' : 'Three Sides · One Trusted Handshake'}
                   </span>
                 </div>
-                <h2 className="text-3xl md:text-4xl font-black text-white mb-4">
+                <h2 className={`text-3xl md:text-4xl font-black ${th('text-white', 'text-slate-900')} mb-4`}>
                   {hi ? 'BrokerSaab पर सबकी जगह है' : 'Everyone Has a Place on BrokerSaab'}
                 </h2>
-                <p className="text-white/50 max-w-2xl mx-auto">
+                <p className={`${th('text-slate-400', 'text-slate-600')} max-w-2xl mx-auto`}>
                   {hi ? 'तीन अलग भूमिकाएं, एक विश्वसनीय प्लेटफ़ॉर्म।' : 'Three distinct roles, one trusted neutral platform connecting them all.'}
                 </p>
               </div>
@@ -414,20 +566,23 @@ export default function AboutPage() {
                 ].map((card) => (
                   <div key={card.num}
                     className="rounded-3xl p-8 relative overflow-hidden transition-all duration-400 hover:-translate-y-3 flex flex-col"
-                    style={{
-                      background: `linear-gradient(160deg, ${card.accent}0d, rgba(5,10,20,0.98))`,
-                      boxShadow: `8px 8px 0 ${card.accent}35, 0 20px 50px rgba(0,0,0,0.55)`,
+                    style={isDark ? {
+                      background: `linear-gradient(160deg, ${card.accent}20, rgba(255,255,255,0.05))`,
+                      boxShadow: `0 0 0 1px ${card.accent}45, 8px 8px 0 ${card.accent}25, 0 20px 50px rgba(0,0,0,0.5)`,
+                      border: `1px solid ${card.accent}40`,
+                      backdropFilter: 'blur(12px)',
+                    } : {
+                      background: `linear-gradient(160deg, ${card.accent}12, rgba(255,255,255,0.98))`,
+                      boxShadow: `0 0 0 1px ${card.accent}30, 8px 8px 0 ${card.accent}15, 0 12px 30px rgba(0,0,0,0.08)`,
                       border: `1px solid ${card.accent}35`,
                     }}>
-                    {/* top glow line */}
                     <div className="absolute top-0 left-0 right-0 h-[3px]"
                       style={{ background: `linear-gradient(90deg, transparent, ${card.accent}, transparent)` }} />
-                    {/* shine */}
                     <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-transparent rounded-3xl pointer-events-none" />
 
                     <div className="flex items-center gap-3 mb-6">
                       <span className="text-6xl font-black leading-none opacity-15" style={{ color: card.accent }}>{card.num}</span>
-                      <div className="w-13 h-13 w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
                         style={{ background: card.accent, boxShadow: `0 6px 20px ${card.accent}60` }}>
                         <card.icon size={22} className="text-white" />
                       </div>
@@ -435,11 +590,11 @@ export default function AboutPage() {
                     <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: card.accent }}>
                       {hi ? card.tagHI : card.tagEN}
                     </div>
-                    <h3 className="text-2xl font-black text-white mb-4">{hi ? card.titleHI : card.titleEN}</h3>
-                    <p className="text-white/55 text-sm leading-relaxed mb-6">{hi ? card.descHI : card.descEN}</p>
+                    <h3 className={`text-2xl font-black ${th('text-white', 'text-slate-900')} mb-4`}>{hi ? card.titleHI : card.titleEN}</h3>
+                    <p className={`${th('text-slate-400', 'text-slate-600')} text-sm leading-relaxed mb-6`}>{hi ? card.descHI : card.descEN}</p>
                     <ul className="space-y-2.5 mb-8 flex-1">
                       {card.points.map((p, i) => (
-                        <li key={i} className="flex items-start gap-2.5 text-sm text-white/65">
+                        <li key={i} className={`flex items-start gap-2.5 text-sm ${th('text-white/65', 'text-slate-600')}`}>
                           <CheckCircle size={13} className="shrink-0 mt-0.5" style={{ color: card.accent }} />
                           {typeof p === 'string' ? p : (hi ? (p as any).HI || p : (p as any).EN || p)}
                         </li>
@@ -458,8 +613,8 @@ export default function AboutPage() {
 
               {/* How the sides connect — flow */}
               <div className="rounded-3xl p-8 mb-10"
-                style={{ background: 'rgba(5,10,20,0.7)', border: '1px solid rgba(255,255,255,0.06)', boxShadow: '0 20px 50px rgba(0,0,0,0.4)' }}>
-                <h3 className="text-white font-black text-xl mb-8 text-center">
+                style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)', boxShadow: '0 20px 50px rgba(0,0,0,0.4)' }}>
+                <h3 className={`${th('text-white', 'text-slate-900')} font-black text-xl mb-8 text-center`}>
                   {hi ? 'तीनों पक्ष कैसे जुड़ते हैं' : 'How the Three Sides Connect'}
                 </h3>
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -476,9 +631,9 @@ export default function AboutPage() {
                           style={{ background: step.color, boxShadow: `0 6px 18px ${step.color}50` }}>
                           <step.icon size={22} className="text-white" />
                         </div>
-                        <span className="text-white/65 text-xs font-semibold max-w-[90px]">{step.label}</span>
+                        <span className={`${th('text-white/65', 'text-slate-600')} text-xs font-semibold max-w-[90px]`}>{step.label}</span>
                       </div>
-                      {i < arr.length - 1 && <ArrowRight size={16} className="text-white/20 hidden md:block shrink-0" />}
+                      {i < arr.length - 1 && <ArrowRight size={16} className={`${th('text-white/20', 'text-slate-300')} hidden md:block shrink-0`} />}
                     </div>
                   ))}
                 </div>
@@ -492,16 +647,17 @@ export default function AboutPage() {
           TAB 3 — TERMS & CONDITIONS
           ════════════════════════════════════════════ */}
       {activeTab === 'terms' && (
-        <div>
-          <section className="py-16 px-6">
+        <div style={{ background: th('linear-gradient(180deg, #090512 0%, #0A0615 60%, #050E1B 100%)', 'linear-gradient(180deg, #FDF4FF 0%, #F9F0FF 60%, #F5EEFF 100%)') }}>
+          <section className="py-10 sm:py-16 px-4 sm:px-6">
             <div className="max-w-4xl mx-auto">
 
               {/* MAIN FRAUD WARNING — PROMINENT */}
               <div className="rounded-3xl p-8 mb-10 relative overflow-hidden"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(10,5,5,0.97))',
-                  border: '1px solid rgba(239,68,68,0.4)',
-                  boxShadow: '0 8px 0 rgba(239,68,68,0.2), 0 20px 50px rgba(0,0,0,0.5)',
+                  background: 'linear-gradient(135deg, rgba(239,68,68,0.14), rgba(255,255,255,0.04))',
+                  border: '1px solid rgba(239,68,68,0.45)',
+                  backdropFilter: 'blur(12px)',
+                  boxShadow: '0 8px 0 rgba(239,68,68,0.2), 0 20px 50px rgba(0,0,0,0.4)',
                 }}>
                 <div className="absolute top-0 left-0 right-0 h-[3px]"
                   style={{ background: 'linear-gradient(90deg, transparent, #ef4444, transparent)' }} />
@@ -514,10 +670,10 @@ export default function AboutPage() {
                     <div className="text-red-400 text-xs font-black uppercase tracking-widest mb-2">
                       {hi ? 'महत्वपूर्ण — कृपया ध्यान से पढ़ें' : 'IMPORTANT — Please Read Carefully'}
                     </div>
-                    <h2 className="text-white font-black text-xl md:text-2xl mb-4">
+                    <h2 className={`${th('text-white', 'text-slate-900')} font-black text-xl md:text-2xl mb-4`}>
                       {hi ? 'BrokerSaab किसी भी धोखाधड़ी के लिए उत्तरदायी नहीं है' : 'BrokerSaab is NOT Responsible for Any Fraudulent Activity'}
                     </h2>
-                    <p className="text-white/70 leading-relaxed text-sm md:text-base">
+                    <p className={`${th('text-white/70', 'text-slate-700')} leading-relaxed text-sm md:text-base`}>
                       {hi
                         ? 'BrokerSaab एक तकनीकी मार्केटप्लेस प्लेटफ़ॉर्म है। हम किसी भी प्रकार की धोखाधड़ी, गलत बयानी, लापरवाही या नुकसान के लिए उत्तरदायी नहीं हैं जो किसी भी सलाहकार, एजेंट या डीलर द्वारा किया गया हो। उपयोगकर्ता अपने विवेक से सलाहकार का चयन करते हैं।'
                         : 'BrokerSaab is a technology marketplace platform only. We are NOT responsible or liable for any fraudulent activity, misrepresentation, negligence, misconduct, harm, or financial loss caused by any advisor, agent, dealer, or user listed on or using this platform. Users engage professionals entirely at their own discretion and risk.'}
@@ -529,7 +685,7 @@ export default function AboutPage() {
               {/* Effective Date */}
               <div className="flex items-center gap-3 mb-8 px-1">
                 <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
-                <span className="text-white/30 text-xs font-mono">
+                <span className={`${th('text-white/30', 'text-slate-400')} text-xs font-mono`}>
                   {hi ? 'प्रभावी तारीख: जून 2026' : 'Effective Date: June 2026'}
                 </span>
                 <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
@@ -541,9 +697,10 @@ export default function AboutPage() {
                   <div key={i}
                     className="rounded-2xl p-7 relative overflow-hidden transition-all duration-300 hover:-translate-y-0.5"
                     style={{
-                      background: `linear-gradient(145deg, ${section.color}08, rgba(8,6,12,0.97))`,
-                      boxShadow: `5px 5px 0 ${section.color}30, 0 12px 30px rgba(0,0,0,0.45)`,
-                      border: `1px solid ${section.color}30`,
+                      background: `linear-gradient(145deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))`,
+                      boxShadow: `0 0 0 1px ${section.color}45, 0 12px 30px rgba(0,0,0,0.4)`,
+                      border: `1px solid ${section.color}40`,
+                      backdropFilter: 'blur(12px)',
                     }}>
                     <div className="absolute top-0 left-0 right-0 h-[2px]"
                       style={{ background: `linear-gradient(90deg, transparent, ${section.color}70, transparent)` }} />
@@ -552,7 +709,7 @@ export default function AboutPage() {
                         style={{ background: `${section.color}18`, border: `1px solid ${section.color}35` }}>
                         <section.icon size={18} style={{ color: section.color }} />
                       </div>
-                      <h3 className="text-white font-black text-base" style={{ textShadow: `0 0 20px ${section.color}30` }}>
+                      <h3 className={`${th('text-white', 'text-slate-900')} font-black text-base`} style={{ textShadow: isDark ? `0 0 20px ${section.color}30` : 'none' }}>
                         {section.titleEN}
                       </h3>
                     </div>
@@ -560,7 +717,7 @@ export default function AboutPage() {
                       {section.body.map((para, j) => (
                         <li key={j} className="flex items-start gap-3">
                           <div className="w-1.5 h-1.5 rounded-full shrink-0 mt-2" style={{ background: section.color }} />
-                          <p className="text-white/60 text-sm leading-relaxed">{para}</p>
+                          <p className="text-slate-400 text-sm leading-relaxed">{para}</p>
                         </li>
                       ))}
                     </ul>
@@ -570,9 +727,9 @@ export default function AboutPage() {
 
               {/* Final acknowledgement */}
               <div className="mt-10 rounded-2xl p-7 text-center"
-                style={{ background: 'rgba(5,10,20,0.8)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <Scale size={32} className="mx-auto mb-3 text-white/20" />
-                <p className="text-white/40 text-xs leading-relaxed max-w-xl mx-auto">
+                style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}>
+                <Scale size={32} className={`mx-auto mb-3 ${th('text-white/20', 'text-slate-300')}`} />
+                <p className={`${th('text-slate-400', 'text-slate-600')} text-xs leading-relaxed max-w-xl mx-auto`}>
                   {hi
                     ? 'BrokerSaab का उपयोग करके, आप इन नियमों और शर्तों से सहमत होते हैं। किसी भी प्रश्न के लिए help@brokersaab.com पर संपर्क करें।'
                     : 'By using BrokerSaab, you agree to these Terms & Conditions. For questions, contact help@brokersaab.com. These terms are governed by the laws of India.'}

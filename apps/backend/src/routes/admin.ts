@@ -384,6 +384,33 @@ router.get('/subscriptions', ...ADMIN_GUARD, async (req: Request, res: Response)
 });
 
 /**
+ * GET /admin/contact-subscriptions — all user contact pack purchases
+ */
+router.get('/contact-subscriptions', ...ADMIN_GUARD, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { status, page = '1', limit = '20' } = req.query as Record<string, string>;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const where: any = {};
+    if (status && status !== 'ALL') where.status = status;
+
+    const [subs, total] = await prisma.$transaction([
+      prisma.userContactSubscription.findMany({
+        where,
+        include: { user: { select: { id: true, fullName: true, email: true, phoneNumber: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: parseInt(limit),
+      }),
+      prisma.userContactSubscription.count({ where }),
+    ]);
+
+    res.json({ success: true, data: subs, total, page: parseInt(page), limit: parseInt(limit) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch contact subscriptions' });
+  }
+});
+
+/**
  * GET /admin/export/:entity — download XLSX for advisors | users | funnel | subscriptions | bookings
  */
 router.get('/export/:entity', ...ADMIN_GUARD, async (req: Request, res: Response): Promise<void> => {
@@ -457,6 +484,22 @@ router.get('/export/:entity', ...ADMIN_GUARD, async (req: Request, res: Response
         { header: 'Fee (₹)', key: 'totalFee', width: 12 },
         { header: 'Created', key: 'createdAt', width: 20 },
       ], bookings.map((b) => ({ ...b, clientName: b.client.fullName, clientPhone: b.client.phoneNumber, advisorName: b.advisor.fullName, totalFee: Number(b.totalFee), scheduledDate: b.scheduledDate.toISOString().slice(0, 10), createdAt: b.createdAt.toISOString().slice(0, 10) })));
+
+    } else if (entity === 'contact-subscriptions') {
+      const subs = await prisma.userContactSubscription.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } });
+      await exportToExcel(res, 'contact-subscriptions', 'Contact Packs', [
+        { header: 'User Name', key: 'userName', width: 22 },
+        { header: 'Phone', key: 'userPhone', width: 16 },
+        { header: 'Email', key: 'userEmail', width: 28 },
+        { header: 'Razorpay Order ID', key: 'razorpayOrderId', width: 28 },
+        { header: 'Razorpay Payment ID', key: 'razorpayPaymentId', width: 28 },
+        { header: 'Amount (₹)', key: 'amount', width: 14 },
+        { header: 'Credits Total', key: 'creditsTotal', width: 14 },
+        { header: 'Credits Used', key: 'creditsUsed', width: 14 },
+        { header: 'Status', key: 'status', width: 12 },
+        { header: 'Subscribed At', key: 'subscribedAt', width: 22 },
+        { header: 'Expires At', key: 'expiresAt', width: 22 },
+      ], subs.map((s) => ({ ...s, userName: s.user.fullName || '—', userPhone: s.user.phoneNumber, userEmail: s.user.email || '—', amount: Number(s.amount), subscribedAt: s.subscribedAt?.toISOString().slice(0, 10) || '', expiresAt: s.expiresAt?.toISOString().slice(0, 10) || '' })));
 
     } else {
       res.status(400).json({ success: false, message: 'Unknown export entity' });

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Calendar, Clock, MapPin, ShieldCheck, AlertCircle, Loader2,
-  ArrowLeft, XCircle, CheckCircle2, RefreshCw, BookOpen, Phone
+  ArrowLeft, XCircle, CheckCircle2, RefreshCw, BookOpen, Phone, Eye
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -89,6 +89,7 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [contactCredits, setContactCredits] = useState<{ creditsRemaining: number; expiresAt: string | null } | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -96,8 +97,18 @@ export default function BookingsPage() {
       return;
     }
     fetchBookings();
+    fetchContactCredits();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn]);
+
+  const fetchContactCredits = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(`${API}/contacts/status`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setContactCredits({ creditsRemaining: data.creditsRemaining, expiresAt: data.expiresAt });
+    } catch { /* ignore */ }
+  };
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -167,6 +178,32 @@ export default function BookingsPage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+
+        {/* Contact credits widget */}
+        {contactCredits !== null && (
+          <div className="mb-5 flex items-center justify-between gap-4 px-4 py-3 rounded-2xl border flex-wrap"
+            style={{ borderColor: contactCredits.creditsRemaining > 0 ? 'rgba(212,175,55,0.25)' : 'rgba(249,115,22,0.25)', background: contactCredits.creditsRemaining > 0 ? 'rgba(212,175,55,0.06)' : 'rgba(249,115,22,0.06)' }}>
+            <div className="flex items-center gap-3">
+              <Eye size={16} style={{ color: contactCredits.creditsRemaining > 0 ? '#D4AF37' : '#fb923c' }} className="shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-slate-200">
+                  {contactCredits.creditsRemaining > 0
+                    ? <><span className="font-extrabold" style={{ color: '#D4AF37' }}>{contactCredits.creditsRemaining}</span> advisor contacts remaining in your pack</>
+                    : 'No contact credits left'}
+                </p>
+                {contactCredits.expiresAt && (
+                  <p className="text-xs text-slate-500">Pack valid until {new Date(contactCredits.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                )}
+              </div>
+            </div>
+            {contactCredits.creditsRemaining === 0 && (
+              <Link href="/advisors" className="px-3 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all hover:scale-105"
+                style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}>
+                Buy Pack — ₹116.82
+              </Link>
+            )}
+          </div>
+        )}
 
         {error && (
           <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl mb-6 text-sm">

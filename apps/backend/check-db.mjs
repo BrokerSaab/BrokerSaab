@@ -1,0 +1,11 @@
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
+const admins   = await prisma.adminUsers.findMany({ select: { email: true, role: true } });
+const advisors = await prisma.advisor.findMany({ select: { id: true, fullName: true, email: true, verificationStatus: true, advisorType: true } });
+const users    = await prisma.user.count();
+console.log('=== AdminUsers ===');
+console.log(JSON.stringify(admins, null, 2));
+console.log('=== Advisors ===');
+console.log(JSON.stringify(advisors, null, 2));
+console.log('=== User count ===', users);
+await prisma.$disconnect();

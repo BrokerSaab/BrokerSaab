@@ -18,6 +18,19 @@
 /* ── Component Layer ── */
 @layer components {
 
+  /* Light dashboard theme */
+  .light-page-bg {
+    background-color: #F4F6FB;
+    min-height: 100vh;
+  }
+
+  .light-card {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #E8EDF5;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  }
+
   /* Glassmorphism card */
   .glass-card {
     background: rgba(11, 31, 58, 0.45);

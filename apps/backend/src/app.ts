@@ -15,6 +15,7 @@ import bookingRoutes from './routes/bookings';
 import paymentRoutes from './routes/payments';
 import adminRoutes from './routes/admin';
 import subscriptionRoutes, { webhookHandler } from './routes/subscriptions';
+import contactRoutes, { contactWebhookHandler } from './routes/contacts';
 
 const app = express();
 const server = http.createServer(app);
@@ -37,8 +38,9 @@ app.use(cors({
   credentials: true
 }));
 
-// Razorpay webhook needs raw body BEFORE express.json()
+// Razorpay webhooks need raw body BEFORE express.json()
 app.post('/api/v1/subscriptions/webhook', express.raw({ type: '*/*' }), webhookHandler);
+app.post('/api/v1/contacts/webhook', express.raw({ type: '*/*' }), contactWebhookHandler);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -53,6 +55,7 @@ app.use('/api/v1/bookings', bookingRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
+app.use('/api/v1/contacts', contactRoutes);
 
 // Health Check Endpoint
 app.get('/health', (req: Request, res: Response) => {

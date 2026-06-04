@@ -7,7 +7,7 @@ import {
   Search, UserCheck, CreditCard, MessageCircle, Star, ArrowRight,
   FileText, BadgeCheck, CheckCircle, ShieldCheck, Lock,
   Phone, Video, MessageSquare, MapPin, Wallet, AlertTriangle,
-  ChevronDown, ChevronUp, Building2, Scale, RefreshCw
+  ChevronDown, ChevronUp, Building2, Scale, RefreshCw, Sun, Moon
 } from 'lucide-react';
 
 type TabType = 'users' | 'advisors';
@@ -182,50 +182,89 @@ export default function HowWeWorkPage() {
   const hi = language === 'HI';
   const [activeTab, setActiveTab] = useState<TabType>('users');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const isDark = theme === 'dark';
+
+  /* convenience shorthand */
+  const th = (dark: string, light: string) => isDark ? dark : light;
+
+  /* theme-aware card style */
+  const glassCard = (accent?: string): React.CSSProperties => isDark ? {
+    background: 'linear-gradient(145deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))',
+    border: accent ? `1px solid ${accent}40` : '1px solid rgba(255,255,255,0.12)',
+    backdropFilter: 'blur(12px)',
+    boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+  } : {
+    background: 'rgba(255,255,255,0.97)',
+    border: accent ? `1px solid ${accent}35` : '1px solid rgba(0,0,0,0.08)',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.07)',
+  };
 
   const currentSteps = activeTab === 'users' ? userSteps : advisorSteps;
 
-  const CROSSHATCH_HWW = `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D4AF37' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`;
 
   return (
-    <div className="min-h-screen text-white relative" style={{
-      background: `${CROSSHATCH_HWW}, radial-gradient(ellipse 70% 40% at 15% 5%, rgba(212,175,55,0.14) 0%, transparent 50%), radial-gradient(ellipse 60% 40% at 85% 90%, rgba(59,130,246,0.12) 0%, transparent 50%), linear-gradient(160deg, #071527 0%, #050e1b 50%, #04111c 100%)`,
-    }}>
-      {/* Floating orbs (fixed, decorative) */}
-      <div className="fixed top-24 left-8 w-72 h-72 rounded-full pointer-events-none"
+    <div className={`min-h-screen ${th('text-slate-100 bg-[#050E1B]', 'text-slate-800 bg-[#F4F6FB]')} relative`} style={{ transition: 'background 0.4s ease' }}>
+      {/* Floating orbs (decorative, hidden on mobile to avoid iOS scroll artifacts) */}
+      <div className="hidden sm:block fixed top-24 left-8 w-72 h-72 rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.06) 0%, transparent 70%)', zIndex: 0 }} />
-      <div className="fixed bottom-32 right-8 w-96 h-96 rounded-full pointer-events-none"
+      <div className="hidden sm:block fixed bottom-32 right-8 w-96 h-96 rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.07) 0%, transparent 70%)', zIndex: 0 }} />
 
-      {/* ── Hero ── */}
-      <section className="relative overflow-hidden py-24 px-6" style={{ zIndex: 1 }}>
-        <div className="absolute inset-0 pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(212,175,55,0.15) 0%, transparent 70%)' }} />
+      {/* ── Hero — same style as home page hero ── */}
+      <section className={`relative overflow-hidden py-14 sm:py-24 px-4 sm:px-6 ${th('navy-gradient-bg', 'bg-white border-b border-slate-200')}`} style={{ zIndex: 1 }}>
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full pointer-events-none opacity-25"
+          style={{ background: 'radial-gradient(circle, rgba(212,175,55,0.20) 0%, transparent 65%)', transform: 'translate(30%, -30%)' }} />
+        <div className={`absolute bottom-0 left-0 w-80 h-80 rounded-full pointer-events-none ${th('opacity-20', 'opacity-10')}`}
+          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.25) 0%, transparent 65%)', transform: 'translate(-25%, 25%)' }} />
+        <div className="absolute inset-0 pointer-events-none opacity-[0.03]"
+          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+
+        {/* ── Theme toggle ── */}
+        <div className="absolute top-4 right-4 sm:top-5 sm:right-5 z-20">
+          <button
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+              isDark
+                ? 'bg-white/5 border-white/10 text-amber-400 hover:bg-white/10'
+                : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            {isDark
+              ? <><Sun size={13} className="text-amber-400 fill-amber-400/20" /><span>Light</span></>
+              : <><Moon size={13} className="text-slate-600" /><span>Dark</span></>}
+          </button>
+        </div>
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center gap-2 bg-gold-500/10 border border-gold-500/30 rounded-full px-4 py-1.5 mb-6">
-            <CheckCircle size={14} className="text-gold-400" />
-            <span className="text-gold-400 text-xs font-semibold tracking-widest uppercase">
+          <div className="inline-flex items-center gap-2 bg-gold-500/10 border border-gold-500/30 rounded-full px-4 py-1.5 mb-5">
+            <CheckCircle size={13} className="text-gold-400" />
+            <span className="text-gold-400 text-[10px] sm:text-xs font-semibold tracking-widest uppercase">
               {hi ? 'हमारी प्रक्रिया' : 'Our Process'}
             </span>
           </div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-5 sm:mb-6">
             <span className="gold-gradient-text">{hi ? 'सरल। पारदर्शी।' : 'Simple. Transparent.'}</span>
             <br />
-            <span className="text-white">{hi ? 'विश्वसनीय।' : 'Trusted.'}</span>
+            <span className={th('text-white', 'text-slate-900')}>{hi ? 'विश्वसनीय।' : 'Trusted.'}</span>
           </h1>
-          <p className="text-white/60 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className={`${th('text-slate-400', 'text-slate-600')} text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-8 sm:mb-10 leading-relaxed`}>
             {hi
               ? 'सही सलाहकार खोजने से लेकर अपना काम पूरा करने तक — यहां देखें BrokerSaab आपके लिए कैसे काम करता है।'
               : "From finding the right advisor to completing your work — here's exactly how BrokerSaab works for you."}
           </p>
           {/* Tab Switcher */}
-          <div className="inline-flex bg-navy-800/80 border border-white/10 rounded-2xl p-1.5 gap-1">
+          <div className="inline-flex rounded-2xl p-1.5 gap-1" style={{
+            background: th('rgba(11,31,58,0.8)', 'rgba(255,255,255,0.92)'),
+            border: th('1px solid rgba(255,255,255,0.10)', '1px solid rgba(0,0,0,0.08)'),
+            backdropFilter: 'blur(12px)',
+            boxShadow: th('0 2px 12px rgba(0,0,0,0.4)', '0 2px 12px rgba(0,0,0,0.06)'),
+          }}>
             <button
               onClick={() => setActiveTab('users')}
               className={`px-7 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 activeTab === 'users'
                   ? 'bg-gold-500 text-navy-900 shadow-lg'
-                  : 'text-white/60 hover:text-white'
+                  : th('text-slate-400 hover:text-white', 'text-slate-500 hover:text-slate-900')
               }`}
             >
               {hi ? 'उपयोगकर्ताओं के लिए' : 'For Users'}
@@ -235,7 +274,7 @@ export default function HowWeWorkPage() {
               className={`px-7 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 activeTab === 'advisors'
                   ? 'bg-gold-500 text-navy-900 shadow-lg'
-                  : 'text-white/60 hover:text-white'
+                  : th('text-slate-400 hover:text-white', 'text-slate-500 hover:text-slate-900')
               }`}
             >
               {hi ? 'सलाहकारों के लिए' : 'For Advisors'}
@@ -245,15 +284,15 @@ export default function HowWeWorkPage() {
       </section>
 
       {/* ── Step-by-Step Journey ── */}
-      <section className="py-20 px-6 relative" style={{ zIndex: 1 }}>
+      <section className="py-12 sm:py-20 px-4 sm:px-6 relative" style={{ zIndex: 1 }}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-4">
+            <h2 className={`text-3xl md:text-4xl font-black ${th('text-white', 'text-slate-900')} mb-4`}>
               {activeTab === 'users'
                 ? (hi ? 'आपकी 5-चरण यात्रा' : 'Your 5-Step Journey')
                 : (hi ? 'सलाहकार ऑनबोर्डिंग' : 'Advisor Onboarding Journey')}
             </h2>
-            <p className="text-white/50 text-lg max-w-xl mx-auto">
+            <p className={`${th('text-slate-400', 'text-slate-600')} text-lg max-w-xl mx-auto`}>
               {activeTab === 'users'
                 ? (hi ? 'खोज से लेकर परामर्श तक — पूरी तरह से मार्गदर्शित।' : 'From search to consultation — fully guided, fully protected.')
                 : (hi ? 'पंजीकरण से लेकर अपनी प्रैक्टिस बढ़ाने तक।' : 'From registration to growing your practice on BrokerSaab.')}
@@ -262,9 +301,10 @@ export default function HowWeWorkPage() {
           <div className="space-y-5">
             {currentSteps.map((step, i) => (
               <div key={step.number}
-                className={`glass-card rounded-2xl p-7 bg-gradient-to-r ${step.color} border ${step.border} flex flex-col sm:flex-row gap-6 items-start hover:scale-[1.01] transition-transform duration-300`}>
+                className={`rounded-2xl p-5 sm:p-7 border flex flex-col sm:flex-row gap-4 sm:gap-6 items-start hover:scale-[1.01] transition-transform duration-300 ${step.border}`}
+                style={glassCard()}>
                 <div className="flex items-center gap-5 shrink-0">
-                  <div className="w-14 h-14 bg-navy-800 rounded-2xl flex items-center justify-center border border-white/10 shrink-0">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center border shrink-0" style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.12)' }}>
                     <step.icon size={24} className={step.accent} />
                   </div>
                   <span className={`text-4xl font-black ${step.accent} opacity-40 sm:hidden`}>{step.number}</span>
@@ -272,17 +312,17 @@ export default function HowWeWorkPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-4 mb-2">
                     <span className={`text-3xl font-black ${step.accent} opacity-30 hidden sm:block`}>{step.number}</span>
-                    <h3 className="text-white font-black text-xl">
+                    <h3 className={`${th('text-white', 'text-slate-900')} font-black text-xl`}>
                       {hi ? step.titleHI : step.titleEN}
                     </h3>
                   </div>
-                  <p className="text-white/60 text-sm leading-relaxed mb-4">
+                  <p className={`${th('text-slate-400', 'text-slate-600')} text-sm leading-relaxed mb-4`}>
                     {hi ? step.descHI : step.descEN}
                   </p>
                   {'tags' in step && Array.isArray((step as any).tags) && (
                     <div className="flex flex-wrap gap-2">
                       {((step as any).tags as string[]).map((tag) => (
-                        <span key={tag} className={`text-xs font-semibold px-3 py-1 rounded-full bg-navy-800/60 ${step.accent} border border-white/5`}>
+                        <span key={tag} className={`text-xs font-semibold px-3 py-1 rounded-full ${step.accent} border`} style={{ background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.10)' }}>
                           {tag}
                         </span>
                       ))}
@@ -301,25 +341,26 @@ export default function HowWeWorkPage() {
       </section>
 
       {/* ── Consultation Modes ── */}
-      <section className="py-20 px-6 relative" style={{ zIndex: 1, background: 'rgba(11,31,58,0.3)' }}>
+      <section className="py-12 sm:py-20 px-4 sm:px-6 relative" style={{ zIndex: 1, background: 'rgba(11,31,58,0.35)' }}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-4">
+            <h2 className={`text-3xl md:text-4xl font-black ${th('text-white', 'text-slate-900')} mb-4`}>
               {hi ? '4 परामर्श मोड' : '4 Consultation Modes'}
             </h2>
-            <p className="text-white/50 text-lg max-w-xl mx-auto">
+            <p className={`${th('text-slate-400', 'text-slate-600')} text-lg max-w-xl mx-auto`}>
               {hi ? 'वह मोड चुनें जो आपके लिए सबसे अच्छा काम करे।' : 'Choose the mode that works best for your situation and preference.'}
             </p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
             {consultationModes.map((mode) => (
               <div key={mode.labelEN}
-                className="glass-card rounded-2xl p-6 border border-white/8 hover:border-gold-500/30 transition-all duration-300 text-center group">
-                <div className="w-14 h-14 bg-navy-800 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-gold-500/15 transition-colors">
+                className="rounded-2xl p-6 border hover:border-gold-400/40 transition-all duration-300 text-center group"
+                style={glassCard()}>
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-gold-500/15 transition-colors" style={{ background: 'rgba(212,175,55,0.10)' }}>
                   <mode.icon size={24} className="text-gold-400" />
                 </div>
-                <h3 className="text-white font-bold text-base mb-2">{hi ? mode.labelHI : mode.labelEN}</h3>
-                <p className="text-white/50 text-xs">{hi ? mode.descHI : mode.descEN}</p>
+                <h3 className={`${th('text-white', 'text-slate-900')} font-bold text-base mb-2`}>{hi ? mode.labelHI : mode.labelEN}</h3>
+                <p className={`${th('text-slate-400', 'text-slate-600')} text-xs`}>{hi ? mode.descHI : mode.descEN}</p>
               </div>
             ))}
           </div>
@@ -327,13 +368,13 @@ export default function HowWeWorkPage() {
       </section>
 
       {/* ── Escrow Payment Model ── */}
-      <section className="py-20 px-6 relative" style={{ zIndex: 1 }}>
+      <section className="py-12 sm:py-20 px-4 sm:px-6 relative" style={{ zIndex: 1 }}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-4">
+            <h2 className={`text-3xl md:text-4xl font-black ${th('text-white', 'text-slate-900')} mb-4`}>
               {hi ? 'एस्क्रो भुगतान मॉडल' : 'Escrow Payment Model'}
             </h2>
-            <p className="text-white/50 text-lg max-w-2xl mx-auto">
+            <p className={`${th('text-slate-400', 'text-slate-600')} text-lg max-w-2xl mx-auto`}>
               {hi
                 ? 'आपका पैसा परामर्श पूरा होने तक सुरक्षित है। यहां दिखाया गया है कि यह कैसे काम करता है।'
                 : 'Your money is protected until the consultation is complete. Here is exactly how the money flows.'}
@@ -341,7 +382,7 @@ export default function HowWeWorkPage() {
           </div>
 
           {/* Flow diagram */}
-          <div className="glass-card rounded-3xl p-8 border border-white/8 mb-8">
+          <div className="rounded-3xl p-5 sm:p-8 mb-8" style={glassCard()}>
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               {[
                 { icon: Wallet, label: hi ? 'ग्राहक भुगतान करता है' : 'Client Pays', sub: hi ? 'Wallet / Stripe / Razorpay' : 'Wallet · Stripe · Razorpay', color: 'bg-blue-500' },
@@ -354,11 +395,11 @@ export default function HowWeWorkPage() {
                     <div className={`w-14 h-14 ${node.color} rounded-2xl flex items-center justify-center mb-3 shadow-lg`}>
                       <node.icon size={22} className="text-white" />
                     </div>
-                    <div className="text-white font-bold text-sm mb-1">{node.label}</div>
-                    <div className="text-white/45 text-xs max-w-[120px]">{node.sub}</div>
+                    <div className={`${th('text-white', 'text-slate-800')} font-bold text-sm mb-1`}>{node.label}</div>
+                    <div className={`${th('text-white/80', 'text-slate-600')} text-xs max-w-[120px]`}>{node.sub}</div>
                   </div>
                   {i < arr.length - 1 && (
-                    <ArrowRight size={18} className="text-white/20 hidden md:block shrink-0 mx-2" />
+                    <ArrowRight size={18} className="text-slate-300 hidden md:block shrink-0 mx-2" />
                   )}
                 </div>
               ))}
@@ -366,15 +407,15 @@ export default function HowWeWorkPage() {
           </div>
 
           {/* Cancellation flow */}
-          <div className="bg-rose-500/8 border border-rose-500/20 rounded-2xl p-6 flex items-start gap-4">
+          <div className="border border-rose-500/25 rounded-2xl p-4 sm:p-6 flex items-start gap-3 sm:gap-4" style={{ background: 'rgba(244,63,94,0.08)', backdropFilter: 'blur(8px)' }}>
             <div className="w-10 h-10 bg-rose-500/15 rounded-xl flex items-center justify-center shrink-0">
               <RefreshCw size={18} className="text-rose-400" />
             </div>
             <div>
-              <h4 className="text-white font-bold mb-2">
+              <h4 className={`${th('text-white', 'text-slate-900')} font-bold mb-2`}>
                 {hi ? 'रद्दीकरण पर: स्वचालित पूर्ण वापसी' : 'On Cancellation: Automatic Full Refund'}
               </h4>
-              <p className="text-white/60 text-sm leading-relaxed">
+              <p className={`${th('text-slate-400', 'text-slate-700')} text-sm leading-relaxed`}>
                 {hi
                   ? 'यदि सेवा वितरण से पहले बुकिंग रद्द की जाती है, तो एस्क्रो से पूर्ण राशि तुरंत आपके BrokerSaab वॉलेट में वापस कर दी जाती है।'
                   : 'If a booking is cancelled before service delivery, the full escrow amount is instantly refunded to your BrokerSaab wallet — no waiting, no hassle.'}
@@ -385,10 +426,10 @@ export default function HowWeWorkPage() {
       </section>
 
       {/* ── Real-Time Consultation ── */}
-      <section className="py-20 px-6 relative" style={{ zIndex: 1, background: 'rgba(11,31,58,0.3)' }}>
+      <section className="py-12 sm:py-20 px-4 sm:px-6 relative" style={{ zIndex: 1, background: 'rgba(11,31,58,0.35)' }}>
         <div className="max-w-5xl mx-auto">
-          <div className="glass-card rounded-3xl p-10 border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-navy-900/40">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+          <div className="rounded-3xl p-6 sm:p-10" style={glassCard('#8b5cf6')}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-10 items-center">
               <div>
                 <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/30 rounded-full px-4 py-1.5 mb-6">
                   <MessageCircle size={13} className="text-violet-400" />
@@ -396,10 +437,10 @@ export default function HowWeWorkPage() {
                     {hi ? 'रियल-टाइम संचार' : 'Real-Time Communication'}
                   </span>
                 </div>
-                <h2 className="text-3xl font-black text-white mb-4">
+                <h2 className={`text-3xl font-black ${th('text-white', 'text-slate-900')} mb-4`}>
                   {hi ? 'प्रत्येक बुकिंग के साथ निजी चैट रूम' : 'Private Chat Room with Every Booking'}
                 </h2>
-                <p className="text-white/60 leading-relaxed mb-6">
+                <p className={`${th('text-slate-400', 'text-slate-600')} leading-relaxed mb-6`}>
                   {hi
                     ? 'जैसे ही आप बुकिंग करते हैं, आपके और आपके सलाहकार के लिए एक समर्पित, एन्क्रिप्टेड चैट रूम स्वचालित रूप से बनाया जाता है।'
                     : 'The moment a booking is confirmed, a dedicated, encrypted chat room is automatically created — accessible only to you and your advisor. No external apps needed.'}
@@ -413,7 +454,7 @@ export default function HowWeWorkPage() {
                   ].map((item, i) => (
                     <li key={i} className="flex items-center gap-3">
                       <CheckCircle size={16} className="text-violet-400 shrink-0" />
-                      <span className="text-white/70 text-sm">{hi ? item.HI : item.EN}</span>
+                      <span className={`${th('text-white/70', 'text-slate-600')} text-sm`}>{hi ? item.HI : item.EN}</span>
                     </li>
                   ))}
                 </ul>
@@ -425,7 +466,7 @@ export default function HowWeWorkPage() {
                     <div className="w-3 h-3 bg-amber-500 rounded-full" />
                     <div className="w-3 h-3 bg-emerald-500 rounded-full" />
                   </div>
-                  <span className="text-white/40 text-xs">BrokerSaab Consultation Chat</span>
+                  <span className="text-slate-400 text-xs">BrokerSaab Consultation Chat</span>
                 </div>
                 <div className="p-5 space-y-4">
                   {[
@@ -457,13 +498,13 @@ export default function HowWeWorkPage() {
       </section>
 
       {/* ── Trust & Safety Pillars ── */}
-      <section className="py-20 px-6 relative" style={{ zIndex: 1 }}>
+      <section className="py-12 sm:py-20 px-4 sm:px-6 relative" style={{ zIndex: 1 }}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-4">
+            <h2 className={`text-3xl md:text-4xl font-black ${th('text-white', 'text-slate-900')} mb-4`}>
               {hi ? 'विश्वास और सुरक्षा' : 'Trust & Safety'}
             </h2>
-            <p className="text-white/50 text-lg max-w-2xl mx-auto">
+            <p className={`${th('text-slate-400', 'text-slate-600')} text-lg max-w-2xl mx-auto`}>
               {hi
                 ? 'BrokerSaab पर हर लेनदेन और हर बातचीत इन छह स्तंभों द्वारा संरक्षित है।'
                 : 'Every transaction and every interaction on BrokerSaab is protected by these six pillars.'}
@@ -471,14 +512,14 @@ export default function HowWeWorkPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {trustPillars.map((pillar) => (
-              <div key={pillar.titleEN} className={`glass-card rounded-2xl p-7 border ${pillar.bg} hover:scale-[1.02] transition-transform duration-300`}>
-                <div className={`w-11 h-11 rounded-xl bg-navy-800 flex items-center justify-center mb-4 ${pillar.color}`}>
+              <div key={pillar.titleEN} className={`rounded-2xl p-7 border ${pillar.bg} hover:scale-[1.02] transition-transform duration-300`} style={glassCard()}>
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 ${pillar.color}`} style={{ background: th('rgba(11,31,58,0.8)', 'rgba(241,245,249,0.8)'), border: th('1px solid rgba(255,255,255,0.10)', '1px solid rgba(0,0,0,0.08)') }}>
                   <pillar.icon size={20} />
                 </div>
-                <h3 className="text-white font-bold text-base mb-3">
+                <h3 className={`${th('text-white', 'text-slate-900')} font-bold text-base mb-3`}>
                   {hi ? pillar.titleHI : pillar.titleEN}
                 </h3>
-                <p className="text-white/55 text-sm leading-relaxed">
+                <p className={`${th('text-white/55', 'text-slate-600')} text-sm leading-relaxed`}>
                   {hi ? pillar.descHI : pillar.descEN}
                 </p>
               </div>
@@ -488,17 +529,17 @@ export default function HowWeWorkPage() {
       </section>
 
       {/* ── Platform Role Disclaimer ── */}
-      <section className="py-12 px-6 relative" style={{ zIndex: 1 }}>
+      <section className="py-8 sm:py-12 px-4 sm:px-6 relative" style={{ zIndex: 1 }}>
         <div className="max-w-4xl mx-auto">
-          <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-7 flex items-start gap-4">
+          <div className="border border-amber-500/25 rounded-2xl p-5 sm:p-7 flex items-start gap-3 sm:gap-4" style={{ background: 'rgba(245,158,11,0.08)', backdropFilter: 'blur(8px)' }}>
             <div className="w-10 h-10 bg-amber-500/15 rounded-xl flex items-center justify-center shrink-0">
               <AlertTriangle size={20} className="text-amber-400" />
             </div>
             <div>
-              <h4 className="text-white font-bold mb-2">
+              <h4 className={`${th('text-white', 'text-slate-900')} font-bold mb-2`}>
                 {hi ? 'प्लेटफ़ॉर्म की भूमिका को समझें' : 'Understanding Our Platform Role'}
               </h4>
-              <p className="text-white/60 text-sm leading-relaxed">
+              <p className={`${th('text-slate-400', 'text-slate-700')} text-sm leading-relaxed`}>
                 {hi
                   ? 'BrokerSaab आपको पेशेवरों से जोड़ता है — हम सेवा प्रदाता नहीं हैं। हम क्रेडेंशियल सत्यापित करते हैं और आपके भुगतान को सुरक्षित करते हैं, लेकिन सलाह और परिणाम सलाहकार की स्वतंत्र जिम्मेदारी है।'
                   : 'BrokerSaab connects you with independent professionals — we are not the service provider. We verify credentials and secure your payment, but the advice, deliverables, and outcomes are the advisor\'s independent professional responsibility. We encourage all users to exercise independent judgement when selecting and acting on professional advice.'}
@@ -509,36 +550,36 @@ export default function HowWeWorkPage() {
       </section>
 
       {/* ── FAQ Accordion ── */}
-      <section className="py-20 px-6 relative" style={{ zIndex: 1 }}>
+      <section className="py-12 sm:py-20 px-4 sm:px-6 relative" style={{ zIndex: 1 }}>
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-4">
+            <h2 className={`text-3xl md:text-4xl font-black ${th('text-white', 'text-slate-900')} mb-4`}>
               {hi ? 'अक्सर पूछे जाने वाले प्रश्न' : 'Frequently Asked Questions'}
             </h2>
-            <p className="text-white/50 max-w-xl mx-auto">
+            <p className={`${th('text-slate-400', 'text-slate-600')} max-w-xl mx-auto`}>
               {hi ? 'आपके सबसे सामान्य प्रश्नों के उत्तर।' : 'Answers to the most common questions about BrokerSaab.'}
             </p>
           </div>
           <div className="space-y-3">
             {faqs.map((faq, i) => (
-              <div key={i} className="glass-card rounded-2xl border border-white/8 overflow-hidden hover:border-gold-500/20 transition-colors">
+              <div key={i} className="rounded-2xl overflow-hidden hover:border-gold-500/40 transition-colors" style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03))', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(12px)' }}>
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left"
                 >
-                  <span className="text-white font-semibold text-sm leading-relaxed">
+                  <span className={`${th('text-white', 'text-slate-900')} font-semibold text-sm leading-relaxed`}>
                     {hi ? faq.qHI : faq.q}
                   </span>
                   <div className="shrink-0">
                     {openFaq === i
                       ? <ChevronUp size={18} className="text-gold-400" />
-                      : <ChevronDown size={18} className="text-white/40" />
+                      : <ChevronDown size={18} className="text-slate-400" />
                     }
                   </div>
                 </button>
                 {openFaq === i && (
                   <div className="px-6 pb-5 border-t border-white/5">
-                    <p className="text-white/60 text-sm leading-relaxed pt-4">
+                    <p className={`${th('text-slate-400', 'text-slate-600')} text-sm leading-relaxed pt-4`}>
                       {hi ? faq.aHI : faq.a}
                     </p>
                   </div>
@@ -550,14 +591,14 @@ export default function HowWeWorkPage() {
       </section>
 
       {/* ── CTA Banner ── */}
-      <section className="py-20 px-6 relative overflow-hidden" style={{ zIndex: 1, background: 'linear-gradient(135deg, rgba(11,31,58,0.95), rgba(5,14,27,0.98))' }}>
+      <section className="py-12 sm:py-20 px-4 sm:px-6 relative overflow-hidden" style={{ zIndex: 1, background: 'linear-gradient(135deg, rgba(11,31,58,0.95), rgba(5,14,27,0.98))' }}>
         <div className="absolute inset-0 opacity-10 pointer-events-none"
           style={{ backgroundImage: 'radial-gradient(ellipse 80% 60% at 50% 100%, #D4AF37 0%, transparent 70%)' }} />
         <div className="max-w-3xl mx-auto text-center relative z-10">
           <h2 className="text-3xl md:text-4xl font-black text-white mb-4">
             {hi ? 'शुरू करने के लिए तैयार हैं?' : 'Ready to Get Started?'}
           </h2>
-          <p className="text-white/60 text-lg mb-10">
+          <p className="text-slate-300 text-lg mb-10">
             {hi
               ? 'आज एक सत्यापित सलाहकार खोजें — या BrokerSaab पर अपनी प्रैक्टिस बढ़ाएं।'
               : 'Find a verified advisor today — or grow your professional practice with BrokerSaab.'}

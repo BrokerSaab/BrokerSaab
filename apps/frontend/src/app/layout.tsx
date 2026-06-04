@@ -22,6 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -29,7 +30,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen flex flex-col bg-slate-950 text-slate-100 antialiased" style={{ fontFamily: "'Inter', sans-serif" }}>
+      <body className="min-h-screen flex flex-col bg-slate-950 text-slate-100 antialiased overflow-x-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
 
         <ClientProviders>
           {/* ── Sticky Navbar ── */}
@@ -42,8 +43,8 @@ export default function RootLayout({
         </ClientProviders>
 
         {/* ── Professional Footer ── */}
-        <footer className="bg-[#071222] text-white pt-14 pb-8">
-          <div className="max-w-7xl mx-auto px-6">
+        <footer className="bg-[#071222] text-white pt-10 sm:pt-14 pb-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
 
             {/* Footer Top Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
@@ -156,9 +157,9 @@ export default function RootLayout({
             <div className="h-px bg-white/10 mb-6"></div>
 
             {/* Footer Bottom */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-white/40">
+            <div className="flex flex-col items-center md:flex-row md:justify-between gap-3 text-xs text-white/40 text-center md:text-left">
               <p>© 2026 BROKERSAAB.COM. All rights reserved. Professional verification processes apply.</p>
-              <div className="flex gap-6">
+              <div className="flex flex-wrap gap-x-5 gap-y-2 justify-center">
                 <Link href="#" className="hover:text-gold-400 transition-colors">Terms & Conditions</Link>
                 <Link href="#" className="hover:text-gold-400 transition-colors">Privacy Policy</Link>
                 <Link href="#" className="hover:text-gold-400 transition-colors">Refund Policy</Link>

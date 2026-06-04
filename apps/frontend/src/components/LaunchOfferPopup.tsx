@@ -5,26 +5,16 @@ import Link from 'next/link';
 import { X, ArrowRight, Clock, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
-const SESSION_KEY = 'bs_offer_seen_v1';
-
 interface Props {
   forceOpen?: boolean;
   onForceClose?: () => void;
 }
 
 export default function LaunchOfferPopup({ forceOpen, onForceClose }: Props) {
-  const [autoOpen, setAutoOpen] = useState(false);
   const [countdown, setCountdown] = useState({ h: 23, m: 59, s: 59 });
   const { openLoginModal } = useAuth();
 
-  const open = forceOpen || autoOpen;
-
-  useEffect(() => {
-    if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(SESSION_KEY)) {
-      const t = setTimeout(() => setAutoOpen(true), 700);
-      return () => clearTimeout(t);
-    }
-  }, []);
+  const open = !!forceOpen;
 
   useEffect(() => {
     if (!open) return;
@@ -40,8 +30,6 @@ export default function LaunchOfferPopup({ forceOpen, onForceClose }: Props) {
   }, [open]);
 
   const close = () => {
-    setAutoOpen(false);
-    sessionStorage.setItem(SESSION_KEY, '1');
     onForceClose?.();
   };
 
