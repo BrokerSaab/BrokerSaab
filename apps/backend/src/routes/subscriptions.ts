@@ -200,4 +200,35 @@ router.get('/status', authenticateJWT, requireRole([Role.ADVISOR]), async (req: 
   }
 });
 
+// ── POST /subscriptions/test-payment (dev/testing only) ──────────────
+router.post('/test-payment', authenticateJWT, requireRole(['ADVISOR']), async (req: Request, res: Response) => {
+  try {
+    const advisorId = (req as any).user.advisorId;
+    if (!advisorId) return res.status(403).json({ success: false, message: 'Advisor profile required' });
+
+    const fakeOrderId  = `test_order_${Date.now()}`;
+    const fakePayId    = `test_pay_${Date.now()}`;
+    const now          = new Date();
+    const expiresAt    = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+
+    await prisma.advisorSubscription.create({
+      data: {
+        advisorId,
+        razorpayOrderId:   fakeOrderId,
+        razorpayPaymentId: fakePayId,
+        razorpaySignature: 'test_signature',
+        amount:            2358.82,
+        status:            TransactionStatus.SUCCESS,
+        subscribedAt:      now,
+        expiresAt,
+      },
+    });
+
+    return res.json({ success: true, message: 'Test payment recorded', paymentId: fakePayId });
+  } catch (err) {
+    console.error('[subscriptions/test-payment]', err);
+    return res.status(500).json({ success: false, message: 'Test payment failed' });
+  }
+});
+
 export default router;

@@ -2,11 +2,13 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Mail, Lock, ArrowRight, ShieldCheck, CheckCircle2, Loader2, KeyRound, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Mail, Lock, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2, Loader2, KeyRound, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 type LoginRole = 'admin' | 'advisor';
 
 export default function AdminLoginPage() {
+  const router = useRouter();
   const [role, setRole] = useState<LoginRole>('admin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -83,6 +85,16 @@ export default function AdminLoginPage() {
       />
 
       <div className="w-full max-w-md relative z-10">
+
+        {/* Back button */}
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => router.push('/auth')}
+          className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-6 text-sm font-medium"
+        >
+          <ArrowLeft size={16} /> Back to User Login
+        </button>
 
         {/* Logo */}
         <div className="text-center mb-8">
@@ -285,9 +297,9 @@ export default function AdminLoginPage() {
                   </Link>
                   <Link
                     href="/"
-                    className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                    className="text-sm text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center gap-1"
                   >
-                    ← Back to Home
+                    <ArrowLeft size={14} /> Back to Home
                   </Link>
                 </div>
               </div>

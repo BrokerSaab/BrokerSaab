@@ -346,6 +346,8 @@ export default function AuthPage() {
                 </button>
 
                 <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => { setStep('phone'); setOtp(['', '', '', '', '', '']); setError(''); }}
                   className="w-full text-gray-500 text-sm hover:text-gray-700 transition-colors py-2"
                 >

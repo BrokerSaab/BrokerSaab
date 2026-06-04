@@ -2257,6 +2257,41 @@ ${availLines ? `<div class="section">
             <p className="text-[11px] text-gray-400 text-center flex items-center justify-center gap-1">
               <ShieldCheck size={12} /> Secured by Razorpay · UPI, Cards, Net Banking accepted · 100% refund if rejected
             </p>
+
+            {/* Test mode bypass — remove before go-live */}
+            {!paymentDone && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={async () => {
+                  setPaymentLoading(true); setError('');
+                  try {
+                    const token = localStorage.getItem('accessToken') || uploadedToken;
+                    const res = await fetch(`${API}/subscriptions/test-payment`, {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      setPaymentDone(true);
+                      setInvoiceData({
+                        invoiceNo: `BS-TEST-${Date.now().toString().slice(-8)}`,
+                        paymentId: 'TEST_' + Date.now(),
+                        orderId: 'TEST_ORDER_' + Date.now(),
+                        paidAt: new Date(),
+                      });
+                      await handleSubmit();
+                    } else {
+                      setError(data.message || 'Test payment failed');
+                    }
+                  } catch { setError('Test payment error. Is the backend running?'); }
+                  finally { setPaymentLoading(false); }
+                }}
+                className="w-full py-3 rounded-xl border-2 border-dashed border-amber-300 text-amber-700 bg-amber-50 text-xs font-semibold hover:bg-amber-100 transition-all flex items-center justify-center gap-2"
+              >
+                🧪 Test Mode — Skip Payment (Dev/Testing Only)
+              </button>
+            )}
           </div>
         )}
 
