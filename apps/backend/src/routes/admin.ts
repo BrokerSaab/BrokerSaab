@@ -510,4 +510,62 @@ router.get('/export/:entity', ...ADMIN_GUARD, async (req: Request, res: Response
   }
 });
 
+// ── GET /admin/tickets ────────────────────────────────────────────
+router.get('/tickets', authenticateJWT, requireRole([Role.SUPER_ADMIN, Role.SUB_ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const status = (req.query.status as string) || 'ALL';
+    const search = (req.query.search as string) || '';
+    const limit  = Math.min(parseInt(req.query.limit as string) || 50, 100);
+
+    const where: any = {};
+    if (status !== 'ALL') where.status = status;
+    if (search) {
+      where.OR = [
+        { subject: { contains: search, mode: 'insensitive' } },
+        { user: { fullName: { contains: search, mode: 'insensitive' } } },
+        { user: { phoneNumber: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [tickets, total] = await Promise.all([
+      prisma.supportTickets.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        include: { user: { select: { fullName: true, phoneNumber: true, email: true } } },
+      }),
+      prisma.supportTickets.count({ where }),
+    ]);
+
+    return res.json({ success: true, tickets, total });
+  } catch (err) {
+    console.error('[admin/tickets GET]', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch tickets' });
+  }
+});
+
+// ── PATCH /admin/tickets/:id ──────────────────────────────────────
+router.patch('/tickets/:id', authenticateJWT, requireRole([Role.SUPER_ADMIN, Role.SUB_ADMIN]), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const allowed = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ success: false, message: `Invalid status. Allowed: ${allowed.join(', ')}` });
+    }
+
+    const ticket = await prisma.supportTickets.update({
+      where: { id },
+      data: { status },
+      include: { user: { select: { fullName: true, phoneNumber: true, email: true } } },
+    });
+
+    return res.json({ success: true, ticket });
+  } catch (err) {
+    console.error('[admin/tickets PATCH]', err);
+    return res.status(500).json({ success: false, message: 'Failed to update ticket' });
+  }
+});
+
 export default router;

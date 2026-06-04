@@ -5,12 +5,12 @@ import {
   Users, FileText, CheckCircle, XCircle, TrendingUp, AlertTriangle,
   ShieldCheck, BookOpen, Loader2, Calendar, Clock, RefreshCw, BadgeCheck,
   BarChart2, CreditCard, Download, ChevronDown, MapPin, X,
-  UserCheck, Award, Activity, Eye
+  UserCheck, Award, Activity, Eye, MessageSquare, TicketCheck
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
-type AdminTab = 'overview' | 'advisors' | 'users' | 'funnel' | 'subscriptions' | 'contact-packs' | 'bookings';
+type AdminTab = 'overview' | 'advisors' | 'users' | 'funnel' | 'subscriptions' | 'contact-packs' | 'bookings' | 'support';
 type BookingStatus = 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
 
 const STATUS_BADGE: Record<BookingStatus, string> = {
@@ -84,6 +84,15 @@ export default function AdminSuitePage() {
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [bookingFilter, setBookingFilter] = useState<BookingStatus | 'ALL'>('ALL');
 
+  // Support tickets tab
+  interface SupportTicket { id: string; subject: string; description: string; status: string; createdAt: string; user: { fullName?: string; phoneNumber: string; email?: string }; }
+  const [tickets, setTickets]                   = useState<SupportTicket[]>([]);
+  const [ticketsLoading, setTicketsLoading]     = useState(false);
+  const [ticketStatusFilter, setTicketStatusFilter] = useState('ALL');
+  const [selectedTicket, setSelectedTicket]     = useState<SupportTicket | null>(null);
+  const [ticketTotal, setTicketTotal]           = useState(0);
+  const [openTicketCount, setOpenTicketCount]   = useState(0);
+
   const token = () => (typeof localStorage !== 'undefined' ? localStorage.getItem('accessToken') || '' : '');
 
   const fetchDashboard = useCallback(async () => {
@@ -144,6 +153,34 @@ export default function AdminSuitePage() {
     } catch { /* empty */ } finally { setBookingsLoading(false); }
   }, []);
 
+  const fetchTickets = useCallback(async () => {
+    setTicketsLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: '100' });
+      if (ticketStatusFilter !== 'ALL') params.set('status', ticketStatusFilter);
+      const r = await fetch(`${API}/admin/tickets?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.success) { setTickets(d.tickets); setTicketTotal(d.total); }
+    } catch { /* empty */ } finally { setTicketsLoading(false); }
+  }, [ticketStatusFilter]);
+
+  const updateTicketStatus = useCallback(async (id: string, status: string) => {
+    try {
+      const r = await fetch(`${API}/admin/tickets/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ status }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        setTickets(prev => prev.map(t => t.id === id ? { ...t, status } : t));
+        setSelectedTicket(prev => (prev?.id === id ? { ...prev, status } : prev));
+        setLogs(prev => [`Ticket ${id.slice(-6).toUpperCase()} → ${status}`, ...prev]);
+        if (status !== 'OPEN') setOpenTicketCount(c => Math.max(0, c - 1));
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   const fetchContactSubs = useCallback(async () => {
     setContactSubsLoading(true);
     try {
@@ -162,6 +199,12 @@ export default function AdminSuitePage() {
   useEffect(() => { if (activeTab === 'subscriptions') fetchSubscriptions(); }, [activeTab, fetchSubscriptions]);
   useEffect(() => { if (activeTab === 'contact-packs') fetchContactSubs(); }, [activeTab, fetchContactSubs]);
   useEffect(() => { if (activeTab === 'bookings') fetchBookings(); }, [activeTab, fetchBookings]);
+  useEffect(() => { if (activeTab === 'support') fetchTickets(); }, [activeTab, fetchTickets]);
+  // Fetch open ticket count for badge on tab
+  useEffect(() => {
+    fetch(`${API}/admin/tickets?status=OPEN&limit=0`, { headers: { Authorization: `Bearer ${token()}` } })
+      .then(r => r.json()).then(d => { if (d.success) setOpenTicketCount(d.total); }).catch(() => {});
+  }, []);
 
   const handleVerify = async (id: string, action: 'APPROVE' | 'REJECT') => {
     setVerifying(id + action);
@@ -205,6 +248,7 @@ export default function AdminSuitePage() {
     { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
     { key: 'contact-packs', label: 'Contact Packs', icon: Eye },
     { key: 'bookings', label: 'Bookings', icon: BookOpen },
+    { key: 'support', label: openTicketCount > 0 ? `Support (${openTicketCount})` : 'Support', icon: MessageSquare },
   ];
 
   return (
@@ -648,6 +692,140 @@ export default function AdminSuitePage() {
           )}
         </div>
       )}
+      {/* ── SUPPORT TICKETS ── */}
+      {activeTab === 'support' && (
+        <div className="space-y-5">
+          {/* Header + filters */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <TicketCheck size={18} className="text-indigo-600" /> Support Tickets
+                {ticketTotal > 0 && <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-medium">{ticketTotal} total</span>}
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">User-submitted issues from the chatbot widget</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map(s => (
+                <button key={s} onClick={() => { setTicketStatusFilter(s); setSelectedTicket(null); }}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                    ticketStatusFilter === s
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'
+                  }`}>
+                  {s.replace('_', ' ')}
+                </button>
+              ))}
+              <button onClick={fetchTickets} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 transition-colors">
+                <RefreshCw size={13} /> Refresh
+              </button>
+            </div>
+          </div>
+
+          {ticketsLoading ? (
+            <div className="flex items-center justify-center py-16 text-slate-400">
+              <Loader2 size={22} className="animate-spin mr-3" /> Loading tickets…
+            </div>
+          ) : tickets.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
+              <MessageSquare size={40} className="mx-auto text-slate-300 mb-3" />
+              <p className="text-slate-400 text-sm">No support tickets found</p>
+              {ticketStatusFilter !== 'ALL' && (
+                <button onClick={() => setTicketStatusFilter('ALL')} className="mt-3 text-xs text-indigo-500 hover:underline">Clear filter</button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Ticket list */}
+              <div className="space-y-2">
+                {tickets.map(ticket => (
+                  <div
+                    key={ticket.id}
+                    onClick={() => setSelectedTicket(ticket)}
+                    className={`bg-white rounded-xl p-4 border cursor-pointer transition-all hover:shadow-md ${
+                      selectedTicket?.id === ticket.id
+                        ? 'border-indigo-400 shadow-md ring-1 ring-indigo-200'
+                        : 'border-slate-100 hover:border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-mono text-slate-400">BS-{ticket.id.slice(-8).toUpperCase()}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            ticket.status === 'OPEN' ? 'bg-red-50 text-red-600 border border-red-200' :
+                            ticket.status === 'IN_PROGRESS' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                            ticket.status === 'RESOLVED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
+                            'bg-slate-50 text-slate-500 border border-slate-200'
+                          }`}>{ticket.status.replace('_', ' ')}</span>
+                        </div>
+                        <p className="text-sm font-semibold text-slate-800 truncate">{ticket.subject}</p>
+                        <p className="text-xs text-slate-400 mt-0.5 truncate">
+                          {ticket.user.fullName || ticket.user.phoneNumber}
+                          {ticket.user.email ? ` · ${ticket.user.email}` : ''}
+                        </p>
+                      </div>
+                      <div className="text-[10px] text-slate-300 shrink-0 text-right">
+                        {new Date(ticket.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        <br />
+                        {new Date(ticket.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Ticket detail panel */}
+              {selectedTicket ? (
+                <div className="bg-white rounded-2xl border border-slate-100 p-6 space-y-5 h-fit sticky top-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-mono text-slate-400">BS-{selectedTicket.id.slice(-8).toUpperCase()}</span>
+                      <button onClick={() => setSelectedTicket(null)} className="text-slate-300 hover:text-slate-500">
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <h3 className="text-base font-bold text-slate-800">{selectedTicket.subject}</h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      From: <strong className="text-slate-600">{selectedTicket.user.fullName || 'User'}</strong>
+                      {' · '}{selectedTicket.user.phoneNumber}
+                      {selectedTicket.user.email && <> · {selectedTicket.user.email}</>}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border border-slate-100">
+                    {selectedTicket.description}
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Update Status</p>
+                    <div className="flex flex-wrap gap-2">
+                      {['IN_PROGRESS', 'RESOLVED', 'CLOSED'].map(s => (
+                        <button
+                          key={s}
+                          onClick={() => updateTicketStatus(selectedTicket.id, s)}
+                          disabled={selectedTicket.status === s}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                            s === 'IN_PROGRESS' ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100' :
+                            s === 'RESOLVED'    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' :
+                                                  'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {s === 'IN_PROGRESS' ? '🔄 In Progress' : s === 'RESOLVED' ? '✅ Resolved' : '🔒 Close'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="hidden lg:flex items-center justify-center bg-white rounded-2xl border border-dashed border-slate-200 h-48 text-slate-300 text-sm">
+                  ← Click a ticket to view details
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
     </div>
   );

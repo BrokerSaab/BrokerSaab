@@ -16,6 +16,7 @@ import paymentRoutes from './routes/payments';
 import adminRoutes from './routes/admin';
 import subscriptionRoutes, { webhookHandler } from './routes/subscriptions';
 import contactRoutes, { contactWebhookHandler } from './routes/contacts';
+import supportRoutes from './routes/support';
 
 const app = express();
 const server = http.createServer(app);
@@ -56,6 +57,7 @@ app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
 app.use('/api/v1/contacts', contactRoutes);
+app.use('/api/v1/support', supportRoutes);
 
 // Health Check Endpoint
 app.get('/health', (req: Request, res: Response) => {

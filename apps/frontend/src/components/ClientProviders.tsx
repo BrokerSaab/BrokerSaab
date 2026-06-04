@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import ChatbotWidget from './ChatbotWidget';
 
 export default function ClientProviders({ children }: { children: React.ReactNode }) {
   // useState keeps the QueryClient stable across renders (one instance per session)
@@ -21,7 +22,10 @@ export default function ClientProviders({ children }: { children: React.ReactNod
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <ChatbotWidget />
+        </AuthProvider>
       </LanguageProvider>
     </QueryClientProvider>
   );
