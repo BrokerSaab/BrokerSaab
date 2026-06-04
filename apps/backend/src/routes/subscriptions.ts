@@ -1,15 +1,15 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
-import { TransactionStatus } from '@prisma/client';
+import { TransactionStatus, Role } from '@prisma/client';
 import prisma from '../config/db';
 import { authenticateJWT, requireRole } from '../middlewares/auth';
 
 const router = Router();
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
+const getRazorpay = () => new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID!,
+  key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
 
 // Base ₹1,999 + CGST 9% + SGST 9% = ₹1,999 × 1.18 = ₹2,358.82
@@ -41,7 +41,7 @@ router.post('/create-order', authenticateJWT, requireRole(['ADVISOR']), async (r
       return res.status(400).json({ success: false, message: 'Active subscription already exists', expiresAt: activeSub.expiresAt });
     }
 
-    const order = await razorpay.orders.create({
+    const order = await getRazorpay().orders.create({
       amount: SUBSCRIPTION_AMOUNT_PAISE,
       currency: 'INR',
       receipt: `sub_${advisorId.slice(0, 8)}_${Date.now()}`,
@@ -175,5 +175,29 @@ export async function webhookHandler(req: Request, res: Response) {
     return res.status(500).send('Webhook error');
   }
 }
+
+// ── GET /subscriptions/status — advisor subscription validity ────
+router.get('/status', authenticateJWT, requireRole([Role.ADVISOR]), async (req: any, res: Response) => {
+  try {
+    const advisor = await prisma.advisor.findUnique({ where: { phoneNumber: req.user.phoneNumber } });
+    if (!advisor) return res.status(404).json({ success: false, message: 'Advisor profile not found' });
+
+    const sub = await prisma.advisorSubscription.findFirst({
+      where: { advisorId: advisor.id, status: TransactionStatus.SUCCESS },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const now = new Date();
+    const isActive = !!sub?.expiresAt && sub.expiresAt > now;
+    const daysLeft = isActive
+      ? Math.floor((sub!.expiresAt!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      : 0;
+
+    return res.json({ success: true, isActive, expiresAt: sub?.expiresAt ?? null, daysLeft });
+  } catch (err) {
+    console.error('[subscriptions/status]', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch subscription status' });
+  }
+});
 
 export default router;
