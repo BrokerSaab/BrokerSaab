@@ -5,27 +5,27 @@ import {
   Users, FileText, CheckCircle, XCircle, TrendingUp, AlertTriangle,
   ShieldCheck, BookOpen, Loader2, Calendar, Clock, RefreshCw, BadgeCheck,
   BarChart2, CreditCard, Download, ChevronDown, MapPin, X,
-  UserCheck, Award, Activity
+  UserCheck, Award, Activity, Eye
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
-type AdminTab = 'overview' | 'advisors' | 'users' | 'funnel' | 'subscriptions' | 'bookings';
+type AdminTab = 'overview' | 'advisors' | 'users' | 'funnel' | 'subscriptions' | 'contact-packs' | 'bookings';
 type BookingStatus = 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
 
 const STATUS_BADGE: Record<BookingStatus, string> = {
-  PENDING:   'bg-amber-500/10 text-amber-400',
-  ACCEPTED:  'bg-blue-500/10 text-blue-400',
-  COMPLETED: 'bg-emerald-500/10 text-emerald-400',
-  CANCELLED: 'bg-red-500/10 text-red-400',
-  DISPUTED:  'bg-orange-500/10 text-orange-400',
+  PENDING:   'bg-amber-100 text-amber-700',
+  ACCEPTED:  'bg-blue-100 text-blue-700',
+  COMPLETED: 'bg-emerald-100 text-emerald-700',
+  CANCELLED: 'bg-red-100 text-red-700',
+  DISPUTED:  'bg-orange-100 text-orange-700',
 };
 
 const VSTATUS_BADGE: Record<string, string> = {
-  PENDING:   'bg-amber-500/10 text-amber-400',
-  APPROVED:  'bg-emerald-500/10 text-emerald-400',
-  REJECTED:  'bg-red-500/10 text-red-400',
-  SUSPENDED: 'bg-orange-500/10 text-orange-400',
+  PENDING:   'bg-amber-100 text-amber-700',
+  APPROVED:  'bg-emerald-100 text-emerald-700',
+  REJECTED:  'bg-red-100 text-red-700',
+  SUSPENDED: 'bg-orange-100 text-orange-700',
 };
 
 interface Advisor {
@@ -72,6 +72,12 @@ export default function AdminSuitePage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [subLoading, setSubLoading] = useState(false);
   const [subStatusFilter, setSubStatusFilter] = useState('ALL');
+
+  // Contact Packs tab
+  interface ContactSub { id: string; userId: string; razorpayOrderId: string; razorpayPaymentId?: string; amount: string; status: string; creditsTotal: number; creditsUsed: number; subscribedAt?: string; expiresAt?: string; user: { fullName?: string; email?: string; phoneNumber: string }; }
+  const [contactSubs, setContactSubs]         = useState<ContactSub[]>([]);
+  const [contactSubsLoading, setContactSubsLoading] = useState(false);
+  const [contactSubStatusFilter, setContactSubStatusFilter] = useState('ALL');
 
   // Bookings tab
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
@@ -138,11 +144,23 @@ export default function AdminSuitePage() {
     } catch { /* empty */ } finally { setBookingsLoading(false); }
   }, []);
 
+  const fetchContactSubs = useCallback(async () => {
+    setContactSubsLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: '50' });
+      if (contactSubStatusFilter !== 'ALL') params.set('status', contactSubStatusFilter);
+      const r = await fetch(`${API}/admin/contact-subscriptions?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.success) setContactSubs(d.data);
+    } catch { /* empty */ } finally { setContactSubsLoading(false); }
+  }, [contactSubStatusFilter]);
+
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
   useEffect(() => { if (activeTab === 'advisors') fetchAdvisors(); }, [activeTab, fetchAdvisors]);
   useEffect(() => { if (activeTab === 'users') fetchUsers(); }, [activeTab, fetchUsers]);
   useEffect(() => { if (activeTab === 'funnel') fetchFunnel(); }, [activeTab, fetchFunnel]);
   useEffect(() => { if (activeTab === 'subscriptions') fetchSubscriptions(); }, [activeTab, fetchSubscriptions]);
+  useEffect(() => { if (activeTab === 'contact-packs') fetchContactSubs(); }, [activeTab, fetchContactSubs]);
   useEffect(() => { if (activeTab === 'bookings') fetchBookings(); }, [activeTab, fetchBookings]);
 
   const handleVerify = async (id: string, action: 'APPROVE' | 'REJECT') => {
@@ -185,24 +203,26 @@ export default function AdminSuitePage() {
     { key: 'users', label: 'Users', icon: UserCheck },
     { key: 'funnel', label: 'Onboarding Funnel', icon: Activity },
     { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
+    { key: 'contact-packs', label: 'Contact Packs', icon: Eye },
     { key: 'bookings', label: 'Bookings', icon: BookOpen },
   ];
 
   return (
-    <div className="space-y-6 py-6">
+    <div className="min-h-screen bg-[#F4F6FB]">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-extrabold text-slate-100 flex items-center gap-2">
+        <h1 className="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
           Admin Operations Suite
-          <span className="text-xs border border-gold-500/30 text-gold-400 font-semibold px-2 py-0.5 rounded bg-gold-500/5 uppercase tracking-wider">Super Admin</span>
+          <span className="text-xs border border-indigo-200 text-indigo-700 font-semibold px-2 py-0.5 rounded-md bg-indigo-50 uppercase tracking-wider">Super Admin</span>
         </h1>
-        <p className="text-slate-400 text-xs mt-1">Manage advisors, users, onboarding funnel, subscriptions, and bookings.</p>
+        <p className="text-slate-500 text-xs mt-1">Manage advisors, users, onboarding funnel, subscriptions, and bookings.</p>
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-gold-500/10 overflow-x-auto">
+      <div className="bg-white rounded-2xl p-1.5 shadow-sm border border-slate-100 flex gap-1 overflow-x-auto">
         {TABS.map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold border-b-2 whitespace-nowrap transition-all ${activeTab === key ? 'border-gold-500 text-gold-400' : 'border-transparent text-slate-400 hover:text-white'}`}>
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold whitespace-nowrap rounded-xl transition-all ${activeTab === key ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}>
             <Icon size={14} /> {label}
           </button>
         ))}
@@ -222,20 +242,20 @@ export default function AdminSuitePage() {
               { label: 'Abandoned Funnels', value: metrics.abandonedFunnels, sub: 'Started but not submitted', icon: XCircle, color: 'border-l-red-500' },
               { label: 'Completed Onboardings', value: metrics.completedOnboardings, sub: 'Fully submitted profiles', icon: CheckCircle, color: 'border-l-emerald-500' },
             ].map((w, i) => (
-              <div key={i} className={`glass-card rounded-xl p-4 border-l-4 ${w.color} space-y-1`}>
-                <div className="flex justify-between items-center text-slate-400">
+              <div key={i} className={`bg-white rounded-xl p-4 border-l-4 ${w.color} shadow-sm border border-slate-100 space-y-1`}>
+                <div className="flex justify-between items-center text-slate-500">
                   <span className="text-[10px] uppercase font-semibold">{w.label}</span>
-                  <w.icon size={14} className={`text-gold-500 ${(w as any).pulse ? 'animate-pulse' : ''}`} />
+                  <w.icon size={14} className={`text-indigo-400 ${(w as any).pulse ? 'animate-pulse' : ''}`} />
                 </div>
-                <p className="text-xl font-black text-slate-100">{w.value}</p>
+                <p className="text-xl font-black text-slate-800">{w.value}</p>
                 <span className="text-[10px] text-slate-500">{w.sub}</span>
               </div>
             ))}
           </div>
 
           {/* Audit log */}
-          <div className="glass-card rounded-xl p-5">
-            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-widest pb-3 border-b border-gold-500/10 mb-3">Audit Log</h4>
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+            <h4 className="text-xs font-bold text-slate-600 uppercase tracking-widest pb-3 border-b border-slate-100 mb-3">Audit Log</h4>
             <div className="space-y-1.5 max-h-40 overflow-y-auto font-mono text-[10px] text-slate-400">
               {logs.map((log, i) => (
                 <div key={i} className="flex gap-2">
@@ -255,21 +275,21 @@ export default function AdminSuitePage() {
             <div className="flex gap-2 flex-wrap">
               {['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED'].map(s => (
                 <button key={s} onClick={() => setAdvisorStatusFilter(s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${advisorStatusFilter === s ? 'bg-gold-500 text-navy-800 border-gold-500' : 'text-slate-400 border-slate-700 hover:border-gold-500/40'}`}>
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${advisorStatusFilter === s ? 'bg-gold-500 text-navy-800 border-gold-500' : 'text-slate-500 border-slate-200 bg-white hover:border-indigo-300'}`}>
                   {s === 'ALL' ? 'All Status' : s}
                 </button>
               ))}
               {['ALL', 'REGULAR', 'AUTHORIZED'].map(t => (
                 <button key={t} onClick={() => setAdvisorTypeFilter(t)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${advisorTypeFilter === t ? 'bg-blue-600 text-white border-blue-500' : 'text-slate-400 border-slate-700 hover:border-blue-500/40'}`}>
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${advisorTypeFilter === t ? 'bg-blue-600 text-white border-blue-500' : 'text-slate-500 border-slate-200 bg-white hover:border-indigo-300'}`}>
                   {t === 'ALL' ? 'All Types' : t}
                 </button>
               ))}
             </div>
             <div className="flex gap-2">
-              <button onClick={fetchAdvisors} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-gold-400 transition-colors"><RefreshCw size={13} /> Refresh</button>
+              <button onClick={fetchAdvisors} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 transition-colors"><RefreshCw size={13} /> Refresh</button>
               <a href={exportUrl('advisors')} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/20 border border-emerald-600/40 text-emerald-400 hover:bg-emerald-600/30 transition-all">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
                 <Download size={13} /> Export Excel
               </a>
             </div>
@@ -277,14 +297,14 @@ export default function AdminSuitePage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* List */}
-            <div className="lg:col-span-1 glass-card rounded-xl p-4 space-y-3 overflow-y-auto" style={{ maxHeight: 520 }}>
+            <div className="lg:col-span-1 bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-3 overflow-y-auto" style={{ maxHeight: 520 }}>
               {advisorsLoading ? (
                 <div className="flex items-center justify-center py-10 text-slate-500"><Loader2 size={18} className="animate-spin mr-2" /> Loading…</div>
               ) : advisors.length === 0 ? (
                 <div className="text-center py-10"><CheckCircle className="mx-auto text-gold-500/30 mb-2" size={32} /><p className="text-xs text-slate-400">No advisors found.</p></div>
               ) : advisors.map(adv => (
                 <button key={adv.id} onClick={() => setSelectedAdv(adv)}
-                  className={`w-full text-left p-3 rounded-xl border text-xs space-y-1.5 transition-all ${selectedAdv?.id === adv.id ? 'bg-gold-500/10 border-gold-500 text-gold-400' : 'bg-navy-800/20 border-gold-500/5 hover:border-gold-500/25 text-slate-300'}`}>
+                  className={`w-full text-left p-3 rounded-xl border text-xs space-y-1.5 transition-all ${selectedAdv?.id === adv.id ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-200'}`}>
                   <div className="flex items-center justify-between">
                     <span className="font-bold">{adv.fullName}</span>
                     <div className="flex gap-1">
@@ -302,10 +322,10 @@ export default function AdminSuitePage() {
             {/* Detail */}
             <div className="lg:col-span-2 space-y-4">
               {selectedAdv ? (
-                <div className="glass-card rounded-xl p-6 space-y-4">
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 space-y-4">
                   <div className="flex justify-between items-start border-b border-gold-500/10 pb-4 gap-4 flex-wrap">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-100">{selectedAdv.fullName}</h3>
+                      <h3 className="text-lg font-bold text-slate-800">{selectedAdv.fullName}</h3>
                       <p className="text-xs text-slate-400">{selectedAdv.location} · {selectedAdv.experienceYears}y exp · ₹{selectedAdv.consultationFee}/session</p>
                       <p className="text-[11px] text-slate-500 font-mono">{selectedAdv.email} · {selectedAdv.phoneNumber}</p>
                       {selectedAdv.aadhaarLast4 && <p className="text-[11px] text-slate-500">Aadhaar: {selectedAdv.aadhaarLast4}</p>}
@@ -332,11 +352,11 @@ export default function AdminSuitePage() {
                   {/* KYC documents */}
                   {selectedAdv.documents && selectedAdv.documents.length > 0 && (
                     <div>
-                      <p className="text-xs font-bold text-slate-300 mb-2">KYC Documents</p>
+                      <p className="text-xs font-bold text-slate-700 mb-2">KYC Documents</p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {selectedAdv.documents.map(doc => (
-                          <a key={doc.id} href={`http://localhost:5000${doc.documentUrl}`} target="_blank" rel="noreferrer"
-                            className="flex flex-col items-center gap-1 p-3 rounded-xl border border-gold-500/20 bg-gold-500/5 hover:bg-gold-500/10 transition-all cursor-pointer">
+                          <a key={doc.id} href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1','')||'http://localhost:5000'}${doc.documentUrl}`} target="_blank" rel="noreferrer"
+                            className="flex flex-col items-center gap-1 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-all cursor-pointer">
                             <FileText size={20} className="text-gold-400" />
                             <span className="text-[10px] text-slate-400 text-center leading-tight">{doc.documentType.replace(/_/g, ' ')}</span>
                             <span className={`text-[9px] px-1.5 py-0.5 rounded ${doc.verified ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
@@ -354,8 +374,8 @@ export default function AdminSuitePage() {
                 </div>
               )}
 
-              <div className="glass-card rounded-xl p-4 space-y-2">
-                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-widest pb-2 border-b border-gold-500/10">Audit Log</h4>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-2">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-widest pb-2 border-b border-gold-500/10">Audit Log</h4>
                 <div className="space-y-1 max-h-28 overflow-y-auto font-mono text-[10px] text-slate-400">
                   {logs.map((log, i) => (
                     <div key={i} className="flex gap-2">
@@ -374,11 +394,11 @@ export default function AdminSuitePage() {
       {activeTab === 'users' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <h2 className="text-sm font-bold text-slate-300 uppercase tracking-widest">All Registered Clients ({users.length})</h2>
+            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-widest">All Registered Clients ({users.length})</h2>
             <div className="flex gap-2">
-              <button onClick={fetchUsers} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-gold-400"><RefreshCw size={13} /> Refresh</button>
+              <button onClick={fetchUsers} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600"><RefreshCw size={13} /> Refresh</button>
               <a href={exportUrl('users')} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/20 border border-emerald-600/40 text-emerald-400 hover:bg-emerald-600/30 transition-all">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
                 <Download size={13} /> Export Excel
               </a>
             </div>
@@ -386,16 +406,16 @@ export default function AdminSuitePage() {
           {usersLoading ? (
             <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 size={22} className="animate-spin mr-3" /> Loading users…</div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-gold-500/10">
-              <table className="w-full text-xs text-slate-300">
-                <thead><tr className="bg-navy-800/60 text-slate-400 border-b border-gold-500/10">
+            <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+              <table className="w-full text-xs text-slate-700">
+                <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
                   {['Name', 'Phone', 'Email', 'State', 'Bookings', 'Joined'].map(h => (
                     <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-[10px]">{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {users.map((u, i) => (
-                    <tr key={u.id} className={`border-b border-gold-500/5 hover:bg-gold-500/5 transition-colors ${i % 2 === 0 ? '' : 'bg-navy-800/20'}`}>
+                    <tr key={u.id} className={`border-b border-slate-50 hover:bg-indigo-50/40 transition-colors ${i % 2 === 0 ? '' : 'bg-slate-50/60'}`}>
                       <td className="px-4 py-3 font-medium">{u.fullName || '—'}</td>
                       <td className="px-4 py-3 font-mono">{u.phoneNumber}</td>
                       <td className="px-4 py-3 text-slate-400">{u.email || '—'}</td>
@@ -416,11 +436,11 @@ export default function AdminSuitePage() {
       {activeTab === 'funnel' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <h2 className="text-sm font-bold text-slate-300 uppercase tracking-widest">Onboarding Funnel</h2>
+            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-widest">Onboarding Funnel</h2>
             <div className="flex gap-2">
-              <button onClick={fetchFunnel} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-gold-400"><RefreshCw size={13} /> Refresh</button>
+              <button onClick={fetchFunnel} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600"><RefreshCw size={13} /> Refresh</button>
               <a href={exportUrl('funnel')} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/20 border border-emerald-600/40 text-emerald-400 hover:bg-emerald-600/30 transition-all">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
                 <Download size={13} /> Export Excel
               </a>
             </div>
@@ -429,17 +449,17 @@ export default function AdminSuitePage() {
             <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 size={22} className="animate-spin mr-3" /> Loading funnel…</div>
           ) : (
             <>
-              <div className="glass-card rounded-xl p-5 space-y-3">
+              <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 space-y-3">
                 {funnelSteps.map((s, i) => {
                   const max = funnelSteps[0]?.count || 1;
                   const pct = Math.round((s.count / max) * 100);
                   return (
                     <div key={s.step} className="space-y-1">
                       <div className="flex justify-between text-xs">
-                        <span className="text-slate-300 font-semibold">Step {s.step}: {s.label}</span>
+                        <span className="text-slate-700 font-semibold">Step {s.step}: {s.label}</span>
                         <span className="text-gold-400 font-bold">{s.count} ({pct}%)</span>
                       </div>
-                      <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
                         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#D4AF37,#B48C22)' }} />
                       </div>
                     </div>
@@ -447,16 +467,16 @@ export default function AdminSuitePage() {
                 })}
               </div>
 
-              <div className="overflow-x-auto rounded-xl border border-gold-500/10">
-                <table className="w-full text-xs text-slate-300">
-                  <thead><tr className="bg-navy-800/60 text-slate-400 border-b border-gold-500/10">
+              <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                <table className="w-full text-xs text-slate-700">
+                  <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
                     {['Phone', 'Step Reached', 'Label', 'Last Active', 'Advisor Created'].map(h => (
                       <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-[10px]">{h}</th>
                     ))}
                   </tr></thead>
                   <tbody>
                     {funnelSessions.map((s, i) => (
-                      <tr key={s.id} className={`border-b border-gold-500/5 hover:bg-gold-500/5 ${i % 2 === 0 ? '' : 'bg-navy-800/20'}`}>
+                      <tr key={s.id} className={`border-b border-slate-50 hover:bg-indigo-50/40 ${i % 2 === 0 ? '' : 'bg-slate-50/60'}`}>
                         <td className="px-4 py-3 font-mono">{s.phoneNumber}</td>
                         <td className="px-4 py-3 text-center">{s.currentStep}/8</td>
                         <td className="px-4 py-3">{s.stepLabel}</td>
@@ -480,15 +500,15 @@ export default function AdminSuitePage() {
             <div className="flex gap-2 flex-wrap">
               {['ALL', 'PENDING', 'SUCCESS', 'FAILED'].map(s => (
                 <button key={s} onClick={() => setSubStatusFilter(s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${subStatusFilter === s ? 'bg-gold-500 text-navy-800 border-gold-500' : 'text-slate-400 border-slate-700 hover:border-gold-500/40'}`}>
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${subStatusFilter === s ? 'bg-gold-500 text-navy-800 border-gold-500' : 'text-slate-500 border-slate-200 bg-white hover:border-indigo-300'}`}>
                   {s === 'ALL' ? 'All Payments' : s}
                 </button>
               ))}
             </div>
             <div className="flex gap-2">
-              <button onClick={fetchSubscriptions} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-gold-400"><RefreshCw size={13} /> Refresh</button>
+              <button onClick={fetchSubscriptions} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600"><RefreshCw size={13} /> Refresh</button>
               <a href={exportUrl('subscriptions')} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/20 border border-emerald-600/40 text-emerald-400 hover:bg-emerald-600/30 transition-all">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
                 <Download size={13} /> Export Excel
               </a>
             </div>
@@ -496,16 +516,16 @@ export default function AdminSuitePage() {
           {subLoading ? (
             <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 size={22} className="animate-spin mr-3" /> Loading…</div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-gold-500/10">
-              <table className="w-full text-xs text-slate-300">
-                <thead><tr className="bg-navy-800/60 text-slate-400 border-b border-gold-500/10">
+            <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+              <table className="w-full text-xs text-slate-700">
+                <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
                   {['Advisor', 'Type', 'Razorpay Order', 'Razorpay Payment', 'Amount', 'Status', 'Subscribed', 'Expires'].map(h => (
                     <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-[10px]">{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {subscriptions.map((s, i) => (
-                    <tr key={s.id} className={`border-b border-gold-500/5 hover:bg-gold-500/5 ${i % 2 === 0 ? '' : 'bg-navy-800/20'}`}>
+                    <tr key={s.id} className={`border-b border-slate-50 hover:bg-indigo-50/40 ${i % 2 === 0 ? '' : 'bg-slate-50/60'}`}>
                       <td className="px-4 py-3 font-medium">{s.advisor.fullName}<div className="text-[10px] text-slate-500">{s.advisor.email}</div></td>
                       <td className="px-4 py-3">{s.advisor.advisorType}</td>
                       <td className="px-4 py-3 font-mono text-[10px] text-slate-500">{s.razorpayOrderId}</td>
@@ -526,6 +546,60 @@ export default function AdminSuitePage() {
         </div>
       )}
 
+      {/* ── CONTACT PACKS ── */}
+      {activeTab === 'contact-packs' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex gap-2 flex-wrap">
+              {['ALL', 'PENDING', 'SUCCESS', 'FAILED'].map(s => (
+                <button key={s} onClick={() => setContactSubStatusFilter(s)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${contactSubStatusFilter === s ? 'bg-gold-500 text-navy-800 border-gold-500' : 'text-slate-500 border-slate-200 bg-white hover:border-indigo-300'}`}>
+                  {s === 'ALL' ? 'All Packs' : s}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={fetchContactSubs} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600"><RefreshCw size={13} /> Refresh</button>
+              <a href={exportUrl('contact-subscriptions')} target="_blank" rel="noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
+                <Download size={13} /> Export Excel
+              </a>
+            </div>
+          </div>
+          {contactSubsLoading ? (
+            <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 size={22} className="animate-spin mr-3" /> Loading…</div>
+          ) : (
+            <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+              <table className="w-full text-xs text-slate-700">
+                <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
+                  {['User', 'Phone', 'Order ID', 'Payment ID', 'Amount', 'Credits (Used/Total)', 'Status', 'Subscribed', 'Expires'].map(h => (
+                    <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-[10px]">{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {contactSubs.map((s, i) => (
+                    <tr key={s.id} className={`border-b border-slate-50 hover:bg-indigo-50/40 ${i % 2 === 0 ? '' : 'bg-slate-50/60'}`}>
+                      <td className="px-4 py-3 font-medium">{s.user.fullName || '—'}<div className="text-[10px] text-slate-500">{s.user.email}</div></td>
+                      <td className="px-4 py-3 font-mono">{s.user.phoneNumber}</td>
+                      <td className="px-4 py-3 font-mono text-[10px] text-slate-500">{s.razorpayOrderId}</td>
+                      <td className="px-4 py-3 font-mono text-[10px] text-slate-500">{s.razorpayPaymentId || '—'}</td>
+                      <td className="px-4 py-3 text-gold-400 font-bold">₹{s.amount}</td>
+                      <td className="px-4 py-3 text-center">{s.creditsUsed}/{s.creditsTotal}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${s.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-400' : s.status === 'PENDING' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'}`}>{s.status}</span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">{s.subscribedAt ? new Date(s.subscribedAt).toLocaleDateString('en-IN') : '—'}</td>
+                      <td className="px-4 py-3 text-slate-500">{s.expiresAt ? new Date(s.expiresAt).toLocaleDateString('en-IN') : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {contactSubs.length === 0 && <p className="text-center py-12 text-slate-500 text-sm">No contact pack purchases found.</p>}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── BOOKINGS ── */}
       {activeTab === 'bookings' && (
         <div className="space-y-4">
@@ -539,9 +613,9 @@ export default function AdminSuitePage() {
               ))}
             </div>
             <div className="flex gap-2">
-              <button onClick={fetchBookings} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-gold-400"><RefreshCw size={13} /> Refresh</button>
+              <button onClick={fetchBookings} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600"><RefreshCw size={13} /> Refresh</button>
               <a href={exportUrl('bookings')} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/20 border border-emerald-600/40 text-emerald-400 hover:bg-emerald-600/30 transition-all">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
                 <Download size={13} /> Export Excel
               </a>
             </div>
@@ -551,7 +625,7 @@ export default function AdminSuitePage() {
           ) : (
             <div className="space-y-3">
               {(bookingFilter === 'ALL' ? allBookings : allBookings.filter(b => b.status === bookingFilter)).map(b => (
-                <div key={b.id} className="glass-card rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div key={b.id} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono text-slate-500">{b.bookingNumber}</span>
@@ -568,12 +642,13 @@ export default function AdminSuitePage() {
                 </div>
               ))}
               {(bookingFilter === 'ALL' ? allBookings : allBookings.filter(b => b.status === bookingFilter)).length === 0 && (
-                <div className="text-center py-16 glass-card rounded-2xl"><BookOpen size={40} className="text-slate-600 mx-auto mb-3" /><p className="text-slate-400 text-sm">No bookings found.</p></div>
+                <div className="text-center py-16 bg-white rounded-2xl border border-slate-100"><BookOpen size={40} className="text-slate-300 mx-auto mb-3" /><p className="text-slate-500 text-sm">No bookings found.</p></div>
               )}
             </div>
           )}
         </div>
       )}
+    </div>
     </div>
   );
 }
