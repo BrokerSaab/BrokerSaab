@@ -5,6 +5,7 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/client"
 }
 
 enum Role {
@@ -75,15 +76,17 @@ model User {
   updatedAt         DateTime           @updatedAt
   
   // Relations
-  wallet            Wallet?
-  bookings          Booking[]          @relation("ClientBookings")
-  reviews           Review[]
-  ratingsGiven      Rating[]
-  supportTickets    SupportTickets[]
-  messagesSent      Message[]
-  chatRoomsJoined   ChatRoomParticipant[]
-  auditLogs         AuditLog[]
-  transactions      Transaction[]
+  wallet                 Wallet?
+  bookings               Booking[]                @relation("ClientBookings")
+  reviews                Review[]
+  ratingsGiven           Rating[]
+  supportTickets         SupportTickets[]
+  messagesSent           Message[]
+  chatRoomsJoined        ChatRoomParticipant[]
+  auditLogs              AuditLog[]
+  transactions           Transaction[]
+  contactSubscriptions   UserContactSubscription[]
+  contactUnlocks         ContactUnlock[]
 
   @@index([phoneNumber])
 }
@@ -124,6 +127,7 @@ model Advisor {
   payouts            Payout[]
   auditLogs          AuditLog[]         @relation("AdvisorAuditLogs")
   subscriptions      AdvisorSubscription[]
+  contactUnlocks     ContactUnlock[]
 
   @@index([verificationStatus])
   @@index([location])
@@ -173,6 +177,44 @@ model OnboardingSession {
 
   @@index([phoneNumber])
   @@index([currentStep])
+}
+
+model UserContactSubscription {
+  id                 String            @id @default(uuid())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  razorpayOrderId    String            @unique
+  razorpayPaymentId  String?           @unique
+  razorpaySignature  String?
+  amount             Decimal           @db.Decimal(10, 2)
+  status             TransactionStatus @default(PENDING)
+  creditsTotal       Int               @default(20)
+  creditsUsed        Int               @default(0)
+  subscribedAt       DateTime?
+  expiresAt          DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  unlocks            ContactUnlock[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model ContactUnlock {
+  id             String                    @id @default(uuid())
+  userId         String
+  user           User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  advisorId      String
+  advisor        Advisor                   @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  subscriptionId String?
+  subscription   UserContactSubscription?  @relation(fields: [subscriptionId], references: [id])
+  isFree         Boolean                   @default(false)
+  createdAt      DateTime                  @default(now())
+
+  @@unique([userId, advisorId])
+  @@index([userId])
+  @@index([advisorId])
 }
 
 model Category {
