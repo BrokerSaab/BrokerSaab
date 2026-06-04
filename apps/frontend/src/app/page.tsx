@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
@@ -358,6 +358,34 @@ function TickerContent() {
   );
 }
 
+/* ── Hero slideshow — 4 AI-style professional photos, rotate every 5 s ── */
+const HERO_SLIDES = [
+  {
+    src: '/hero-professionals.png',
+    alt: 'Verified professionals collaborating',
+    labelEN: 'Collaborating Advisors',  labelHI: 'सहयोगी सलाहकार',
+    titleEN: 'Verified Experts',        titleHI: 'सत्यापित विशेषज्ञ',
+  },
+  {
+    src: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80',
+    alt: 'Property & real estate advisory',
+    labelEN: 'Property Experts',        labelHI: 'संपत्ति विशेषज्ञ',
+    titleEN: 'Verified Brokers',        titleHI: 'सत्यापित ब्रोकर',
+  },
+  {
+    src: 'https://images.unsplash.com/photo-1589578228447-e1a4e481c6c8?w=800&q=80',
+    alt: 'Legal & court advisory',
+    labelEN: 'Legal Advisors',          labelHI: 'कानूनी सलाहकार',
+    titleEN: 'Licensed Advocates',      titleHI: 'लाइसेंसी अधिवक्ता',
+  },
+  {
+    src: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&q=80',
+    alt: 'Financial & tax advisory',
+    labelEN: 'Financial Advisors',      labelHI: 'वित्तीय सलाहकार',
+    titleEN: 'CA & Tax Experts',        titleHI: 'CA और टैक्स विशेषज्ञ',
+  },
+];
+
 export default function DiscoverPage() {
   const { isLoggedIn, openLoginModal } = useAuth();
   const { language, t } = useLanguage();
@@ -368,6 +396,14 @@ export default function DiscoverPage() {
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
 
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveSlide(prev => (prev + 1) % HERO_SLIDES.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
   const [viewMode, setViewMode] = useState<'user' | 'advisor'>('user');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -936,36 +972,70 @@ export default function DiscoverPage() {
               </div>
             </div>
 
-            {/* Right Column - AI Generated Image */}
+            {/* Right Column — Auto-rotating image carousel */}
             <div className="lg:col-span-5 relative w-full flex justify-center lg:justify-end mt-4 lg:mt-0 hidden sm:flex">
-              {/* Glow effects in background */}
-              <div className="absolute w-72 h-72 bg-gold-500/10 rounded-full blur-3xl -top-12 -right-12 pointer-events-none animate-pulse duration-4000" />
-              <div className="absolute w-72 h-72 bg-blue-500/10 rounded-full blur-3xl -bottom-12 -left-12 pointer-events-none animate-pulse duration-6000" />
-              
-              <div className="relative group overflow-hidden rounded-2xl border border-gold-500/20 shadow-2xl transition-all duration-500 hover:scale-[1.02] hover:border-gold-500/40 w-full max-w-lg">
-                <img
-                  src="/hero-professionals.png"
-                  alt="Verified Professionals Collaborating"
-                  className="w-full h-auto object-cover max-h-[420px] aspect-[4/3] sm:aspect-video lg:aspect-square rounded-2xl"
-                />
-                {/* Visual Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#050E1B]/80 via-transparent to-transparent opacity-60 pointer-events-none" />
-                
-                {/* Floating Card inside the Image */}
-                <div className="absolute bottom-4 left-4 right-4 bg-navy-900/90 backdrop-blur-md border border-gold-500/20 p-4 rounded-xl flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] text-gold-400 font-bold uppercase tracking-wider">
-                      {language === 'EN' ? 'Collaborating Advisors' : 'सहयोगी सलाहकार'}
+              {/* Background glow orbs */}
+              <div className="absolute w-72 h-72 bg-gold-500/10 rounded-full blur-3xl -top-12 -right-12 pointer-events-none animate-pulse" />
+              <div className="absolute w-72 h-72 bg-blue-500/10 rounded-full blur-3xl -bottom-12 -left-12 pointer-events-none animate-pulse" />
+
+              <div className="relative w-full max-w-lg">
+                {/* Slide container */}
+                <div className="relative overflow-hidden rounded-2xl border border-gold-500/20 shadow-2xl w-full" style={{ aspectRatio: '1/1' }}>
+
+                  {/* All slides stacked; active one fades in */}
+                  {HERO_SLIDES.map((slide, idx) => (
+                    <div
+                      key={idx}
+                      className="absolute inset-0 transition-opacity duration-1000"
+                      style={{ opacity: idx === activeSlide ? 1 : 0, zIndex: idx === activeSlide ? 1 : 0 }}
+                    >
+                      <img
+                        src={slide.src}
+                        alt={slide.alt}
+                        className="w-full h-full object-cover"
+                        loading={idx === 0 ? 'eager' : 'lazy'}
+                      />
                     </div>
-                    <div className="text-sm font-semibold text-white">
-                      {language === 'EN' ? 'Verified Experts' : 'सत्यापित विशेषज्ञ'}
+                  ))}
+
+                  {/* Persistent dark gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#050E1B]/85 via-transparent to-transparent pointer-events-none" style={{ zIndex: 2 }} />
+
+                  {/* Floating info card — label updates per slide */}
+                  <div className="absolute bottom-4 left-4 right-4 bg-navy-900/90 backdrop-blur-md border border-gold-500/20 p-4 rounded-xl flex items-center justify-between" style={{ zIndex: 3 }}>
+                    <div>
+                      <div className="text-[10px] text-gold-400 font-bold uppercase tracking-wider transition-all duration-500">
+                        {language === 'EN' ? HERO_SLIDES[activeSlide].labelEN : HERO_SLIDES[activeSlide].labelHI}
+                      </div>
+                      <div className="text-sm font-semibold text-white transition-all duration-500">
+                        {language === 'EN' ? HERO_SLIDES[activeSlide].titleEN : HERO_SLIDES[activeSlide].titleHI}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex -space-x-2">
-                    <div className="w-8 h-8 rounded-full bg-blue-500 border-2 border-navy-900 flex items-center justify-center text-[10px] font-bold text-white">R</div>
-                    <div className="w-8 h-8 rounded-full bg-emerald-500 border-2 border-navy-900 flex items-center justify-center text-[10px] font-bold text-white">M</div>
-                    <div className="w-8 h-8 rounded-full bg-rose-500 border-2 border-navy-900 flex items-center justify-center text-[10px] font-bold text-white">A</div>
-                    <div className="w-8 h-8 rounded-full bg-gold-500 border-2 border-navy-900 flex items-center justify-center text-[10px] font-bold text-navy-950 font-black">+</div>
+                    <div className="flex items-center gap-3">
+                      {/* Dot indicators */}
+                      <div className="flex gap-1.5">
+                        {HERO_SLIDES.map((_, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setActiveSlide(idx)}
+                            className="rounded-full transition-all duration-300"
+                            style={{
+                              width: idx === activeSlide ? '18px' : '6px',
+                              height: '6px',
+                              background: idx === activeSlide ? '#D4AF37' : 'rgba(255,255,255,0.35)',
+                            }}
+                            aria-label={`Slide ${idx + 1}`}
+                          />
+                        ))}
+                      </div>
+                      {/* Avatar stack */}
+                      <div className="flex -space-x-2">
+                        <div className="w-7 h-7 rounded-full bg-blue-500 border-2 border-navy-900 flex items-center justify-center text-[9px] font-bold text-white">R</div>
+                        <div className="w-7 h-7 rounded-full bg-emerald-500 border-2 border-navy-900 flex items-center justify-center text-[9px] font-bold text-white">M</div>
+                        <div className="w-7 h-7 rounded-full bg-rose-500 border-2 border-navy-900 flex items-center justify-center text-[9px] font-bold text-white">A</div>
+                        <div className="w-7 h-7 rounded-full bg-gold-500 border-2 border-navy-900 flex items-center justify-center text-[9px] font-bold text-navy-950">+</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
