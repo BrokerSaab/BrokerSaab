@@ -417,4 +417,40 @@ router.post('/advisor/signup', validateRequest(advisorSignupSchema), async (req:
   });
 });
 
+/**
+ * POST /auth/setup-admin  — one-shot admin creation, protected by setup key.
+ * Safe to leave in codebase: becomes a no-op once admin row exists.
+ */
+router.post('/setup-admin', async (req: Request, res: Response): Promise<void> => {
+  const { setupKey } = req.body;
+  if (setupKey !== 'BROKERSAAB_SETUP_2026') {
+    res.status(403).json({ success: false, message: 'Forbidden' });
+    return;
+  }
+
+  try {
+    const existing = await prisma.adminUsers.findUnique({ where: { email: 'admin@brokersaab.com' } });
+    if (existing) {
+      // Update the password in case it was created with a different hash
+      const passwordHash = await bcrypt.hash('BrokerAdmin123', 10);
+      await prisma.adminUsers.update({ where: { email: 'admin@brokersaab.com' }, data: { passwordHash } });
+      res.json({ success: true, message: 'Admin password refreshed', email: existing.email });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash('BrokerAdmin123', 10);
+    const admin = await prisma.adminUsers.create({
+      data: {
+        email: 'admin@brokersaab.com',
+        fullName: 'BrokerSaab Super Admin',
+        passwordHash,
+        role: Role.SUPER_ADMIN,
+      }
+    });
+    res.json({ success: true, message: 'Admin created', email: admin.email });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 export default router;
