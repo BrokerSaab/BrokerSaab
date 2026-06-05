@@ -42,6 +42,8 @@ export default function AdminLoginPage() {
         localStorage.setItem('user', JSON.stringify(data.user));
         setUserName(data.user.fullName || data.user.email);
         setSuccess(true);
+        // Full reload so AuthContext re-hydrates from localStorage (shows user name in navbar)
+        setTimeout(() => { window.location.href = data.user.role === 'ADVISOR' ? '/advisors/onboarding' : '/admin'; }, 1500);
       } else {
         setError(data.message || 'Invalid credentials');
       }
@@ -55,6 +57,7 @@ export default function AdminLoginPage() {
         }));
         setUserName('Super Admin');
         setSuccess(true);
+        setTimeout(() => { window.location.href = '/admin'; }, 1500);
       } else if (role === 'advisor') {
         localStorage.setItem('user', JSON.stringify({
           fullName: 'Demo Advisor',
@@ -63,6 +66,7 @@ export default function AdminLoginPage() {
         }));
         setUserName('Demo Advisor');
         setSuccess(true);
+        setTimeout(() => { window.location.href = '/advisors/onboarding'; }, 1500);
       } else {
         setError('Unable to connect to server. Credentials: admin@brokersaab.com / BrokerAdmin123');
       }
@@ -291,13 +295,13 @@ export default function AdminLoginPage() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Link
-                    href={role === 'admin' ? '/admin' : '/advisors/onboarding'}
+                  <button
+                    onClick={() => { window.location.href = role === 'admin' ? '/admin' : '/advisors/onboarding'; }}
                     className="inline-flex items-center justify-center gap-2 bg-gold-500 text-navy-800 font-bold px-8 py-3 rounded-xl text-sm hover:bg-gold-400 shadow-lg shadow-gold-500/20 transition-all"
                   >
                     {role === 'admin' ? 'Go to Admin Dashboard' : 'Go to Advisor Workspace'}
                     <ArrowRight size={16} />
-                  </Link>
+                  </button>
                   <Link
                     href="/"
                     className="text-sm text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center gap-1"

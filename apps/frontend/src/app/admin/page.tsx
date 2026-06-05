@@ -42,7 +42,7 @@ interface Advisor {
   id: string; seqId?: number; fullName: string; email: string; phoneNumber: string;
   businessName?: string; licenseNumber?: string; gstNumber?: string;
   aadhaarLast4?: string; advisorType: string; verificationStatus: string;
-  isAuthorizedDealer?: boolean; dealerAuthorizedAt?: string;
+  isAuthorizedDealer?: boolean; dealerAuthorizedAt?: string; avatarUrl?: string;
   experienceYears: number; location: string; state?: string;
   consultationFee: string; createdAt: string;
   rejectionComment?: string; subAdminNote?: string;
@@ -473,6 +473,16 @@ export default function AdminSuitePage() {
     } catch { /* ignore */ }
   };
 
+  const BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:5000';
+
+  const getAdvisorAvatar = (adv: Advisor): string | null => {
+    if (adv.avatarUrl) return adv.avatarUrl.startsWith('http') ? adv.avatarUrl : `${BASE_URL}${adv.avatarUrl}`;
+    const photo = adv.documents?.find(d => d.documentType === 'PASSPORT_PHOTO');
+    return photo ? `${BASE_URL}${photo.documentUrl}` : null;
+  };
+
+  const getDocUrl = (docUrl: string) => `${BASE_URL}${docUrl}`;
+
   const [exporting, setExporting] = useState<string | null>(null);
 
   const handleExport = async (entity: string) => {
@@ -700,18 +710,29 @@ export default function AdminSuitePage() {
                   )}
                   <button onClick={() => setSelectedAdv(adv)}
                     className={`w-full text-left p-3 ${isSuperAdmin && (advisorStatusFilter === 'PENDING' || advisorStatusFilter === 'ALL') ? 'pl-8' : ''} rounded-xl border text-xs space-y-1.5 transition-all ${selectedAdv?.id === adv.id ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-200'}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="font-bold truncate">{adv.fullName}</span>
-                        <span className="text-[8px] font-bold text-indigo-400 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded shrink-0">{genDisplayId('advisor', adv.seqId)}</span>
+                    <div className="flex items-center gap-2">
+                      {/* Avatar */}
+                      <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-200 shrink-0 border border-slate-100">
+                        {getAdvisorAvatar(adv)
+                          ? <img src={getAdvisorAvatar(adv)!} alt={adv.fullName} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
+                          : <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-slate-500">{adv.fullName[0]?.toUpperCase()}</div>
+                        }
                       </div>
-                      <div className="flex gap-1 items-center shrink-0">
-                        {adv.isAuthorizedDealer && <BadgeCheck size={12} className="text-amber-400" />}
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${VSTATUS_BADGE[adv.verificationStatus] || 'bg-slate-500/10 text-slate-400'}`}>{adv.verificationStatus.replace(/_/g, ' ')}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="font-bold truncate text-[12px]">{adv.fullName}</span>
+                            <span className="text-[8px] font-bold text-indigo-400 bg-indigo-50 border border-indigo-200 px-1 py-0.5 rounded shrink-0">{genDisplayId('advisor', adv.seqId)}</span>
+                          </div>
+                          <div className="flex gap-1 items-center shrink-0 ml-1">
+                            {adv.isAuthorizedDealer && <BadgeCheck size={11} className="text-amber-400" />}
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${VSTATUS_BADGE[adv.verificationStatus] || 'bg-slate-500/10 text-slate-400'}`}>{adv.verificationStatus.replace(/_/g, ' ')}</span>
+                          </div>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                          <span>{adv.advisorType}</span><span>{adv.state || adv.location}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex justify-between text-[10px] text-slate-500">
-                      <span>{adv.advisorType}</span><span>{adv.state || adv.location}</span>
                     </div>
                     {adv.assignedSubAdmin && <p className="text-[9px] text-blue-500">Assigned: {adv.assignedSubAdmin.fullName}</p>}
                   </button>
@@ -724,19 +745,28 @@ export default function AdminSuitePage() {
               {selectedAdv ? (
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 space-y-4">
                   <div className="flex justify-between items-start border-b border-gold-500/10 pb-4 gap-4 flex-wrap">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-lg font-bold text-slate-800">{selectedAdv.fullName}</h3>
-                        <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">{genDisplayId('advisor', selectedAdv.seqId)}</span>
+                    <div className="flex items-start gap-3">
+                      {/* Profile photo */}
+                      <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 shrink-0 border-2 border-slate-200">
+                        {getAdvisorAvatar(selectedAdv)
+                          ? <img src={getAdvisorAvatar(selectedAdv)!} alt={selectedAdv.fullName} className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = ''; }} />
+                          : <div className="w-full h-full flex items-center justify-center text-xl font-black text-slate-400">{selectedAdv.fullName[0]?.toUpperCase()}</div>
+                        }
                       </div>
-                      <p className="text-xs text-slate-400">{selectedAdv.location} · {selectedAdv.experienceYears}y exp · ₹{selectedAdv.consultationFee}/session</p>
-                      <p className="text-[11px] text-slate-500 font-mono">{selectedAdv.email} · {selectedAdv.phoneNumber}</p>
-                      {selectedAdv.aadhaarLast4 && <p className="text-[11px] text-slate-500">Aadhaar: ****{selectedAdv.aadhaarLast4}</p>}
-                      {selectedAdv.licenseNumber && <p className="text-[11px] text-slate-500">License: {selectedAdv.licenseNumber}</p>}
-                      {selectedAdv.gstNumber && <p className="text-[11px] text-slate-500">GST: {selectedAdv.gstNumber}</p>}
-                      {selectedAdv.assignedSubAdmin && (
-                        <p className="text-[11px] text-blue-600 font-semibold mt-1">Reviewer: {selectedAdv.assignedSubAdmin.fullName}</p>
-                      )}
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-lg font-bold text-slate-800">{selectedAdv.fullName}</h3>
+                          <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">{genDisplayId('advisor', selectedAdv.seqId)}</span>
+                        </div>
+                        <p className="text-xs text-slate-400">{selectedAdv.location} · {selectedAdv.experienceYears}y exp · ₹{selectedAdv.consultationFee}/session</p>
+                        <p className="text-[11px] text-slate-500 font-mono">{selectedAdv.email} · {selectedAdv.phoneNumber}</p>
+                        {selectedAdv.aadhaarLast4 && <p className="text-[11px] text-slate-500">Aadhaar: ****{selectedAdv.aadhaarLast4}</p>}
+                        {selectedAdv.licenseNumber && <p className="text-[11px] text-slate-500">License: {selectedAdv.licenseNumber}</p>}
+                        {selectedAdv.gstNumber && <p className="text-[11px] text-slate-500">GST: {selectedAdv.gstNumber}</p>}
+                        {selectedAdv.assignedSubAdmin && (
+                          <p className="text-[11px] text-blue-600 font-semibold mt-1">Reviewer: {selectedAdv.assignedSubAdmin.fullName}</p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -791,48 +821,55 @@ export default function AdminSuitePage() {
                     </div>
                   )}
 
-                  {/* KYC Documents */}
-                  {selectedAdv.documents && selectedAdv.documents.length > 0 && (
-                    <div>
-                      <p className="text-xs font-bold text-slate-700 mb-2">KYC Documents</p>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {/* KYC Documents — always shown */}
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
+                      <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <FileText size={13} className="text-gold-500" /> KYC Documents
+                      </p>
+                      <span className="text-[10px] text-slate-400">{selectedAdv.documents?.length ?? 0} file{(selectedAdv.documents?.length ?? 0) !== 1 ? 's' : ''}</span>
+                    </div>
+                    {(!selectedAdv.documents || selectedAdv.documents.length === 0) ? (
+                      <div className="p-4 text-center text-xs text-slate-400">
+                        <FileText size={22} className="mx-auto text-slate-200 mb-1" />
+                        No documents uploaded yet
+                      </div>
+                    ) : (
+                      <div className="p-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {selectedAdv.documents.map(doc => {
-                          const fileUrl = getDocDownloadUrl(doc.documentUrl);
+                          const fileUrl = getDocUrl(doc.documentUrl);
                           const filename = doc.documentType.toLowerCase().replace(/_/g, '-') + doc.documentUrl.slice(doc.documentUrl.lastIndexOf('.'));
                           return (
-                            <div key={doc.id} className="flex flex-col gap-1.5 p-3 rounded-xl border border-slate-200 bg-slate-50">
+                            <div key={doc.id} className="flex flex-col gap-1.5 p-2.5 rounded-xl border border-slate-200 bg-white shadow-sm">
                               <div className="flex items-center justify-between">
-                                <FileText size={18} className="text-gold-400" />
+                                <FileText size={16} className="text-gold-400" />
                                 <label className="flex items-center gap-1 cursor-pointer" title="Mark as verified">
-                                  <input
-                                    type="checkbox"
-                                    checked={doc.verified}
+                                  <input type="checkbox" checked={doc.verified}
                                     onChange={e => toggleDocVerified(selectedAdv.id, doc.id, e.target.checked)}
-                                    className="w-3 h-3 accent-emerald-600"
-                                  />
+                                    className="w-3 h-3 accent-emerald-600" />
                                   <span className="text-[9px] text-slate-400">Verified</span>
                                 </label>
                               </div>
-                              <span className="text-[10px] text-slate-500 text-center leading-tight">{doc.documentType.replace(/_/g, ' ')}</span>
-                              <span className={`text-[9px] px-1.5 py-0.5 rounded text-center ${doc.verified ? 'bg-emerald-500/10 text-emerald-600 font-semibold' : 'bg-amber-500/10 text-amber-500'}`}>
-                                {doc.verified ? '✓ Verified' : 'Pending'}
+                              <span className="text-[10px] text-slate-600 font-medium leading-tight">{doc.documentType.replace(/_/g, ' ')}</span>
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded text-center font-semibold ${doc.verified ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-amber-50 text-amber-600 border border-amber-200'}`}>
+                                {doc.verified ? '✓ Verified' : '⏳ Pending'}
                               </span>
-                              <div className="flex gap-1 mt-1">
+                              <div className="flex gap-1">
                                 <a href={fileUrl} target="_blank" rel="noreferrer"
-                                  className="flex-1 flex items-center justify-center gap-1 text-[9px] text-indigo-600 hover:text-indigo-800 bg-indigo-50 rounded py-1 transition-colors">
-                                  <Eye size={10} /> View
+                                  className="flex-1 flex items-center justify-center gap-1 text-[9px] font-semibold text-indigo-600 hover:text-white hover:bg-indigo-600 bg-indigo-50 border border-indigo-200 rounded py-1 transition-all">
+                                  <Eye size={9} /> View
                                 </a>
                                 <a href={fileUrl} download={filename}
-                                  className="flex-1 flex items-center justify-center gap-1 text-[9px] text-emerald-600 hover:text-emerald-800 bg-emerald-50 rounded py-1 transition-colors">
-                                  <Download size={10} /> Download
+                                  className="flex-1 flex items-center justify-center gap-1 text-[9px] font-semibold text-emerald-600 hover:text-white hover:bg-emerald-600 bg-emerald-50 border border-emerald-200 rounded py-1 transition-all">
+                                  <Download size={9} /> Download
                                 </a>
                               </div>
                             </div>
                           );
                         })}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="glass-card rounded-xl p-16 text-center text-slate-400 text-sm">
