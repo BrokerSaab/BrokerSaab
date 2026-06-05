@@ -21,13 +21,19 @@ const TOTAL_AMOUNT = Math.round((BASE_AMOUNT + GST_AMOUNT) * 100) / 100;        
 const SUBSCRIPTION_AMOUNT_PAISE = Math.round(TOTAL_AMOUNT * 100);                  // 235882 paise
 const SUBSCRIPTION_AMOUNT = TOTAL_AMOUNT;
 
+// helper: resolve advisor from JWT (supports old tokens without advisorId + new tokens with it)
+async function resolveAdvisor(req: Request) {
+  const user = (req as any).user;
+  if (user.advisorId) return prisma.advisor.findUnique({ where: { id: user.advisorId } });
+  return prisma.advisor.findUnique({ where: { phoneNumber: user.phoneNumber } });
+}
+
 // ── POST /subscriptions/create-order ──────────────────────────────
 router.post('/create-order', authenticateJWT, requireRole(['ADVISOR']), async (req: Request, res: Response) => {
   try {
-    const advisorId = (req as any).user.advisorId;
+    const advisor = await resolveAdvisor(req);
+    const advisorId = advisor?.id;
     if (!advisorId) return res.status(403).json({ success: false, message: 'Advisor profile required' });
-
-    const advisor = await prisma.advisor.findUnique({ where: { id: advisorId } });
     if (!advisor) return res.status(404).json({ success: false, message: 'Advisor not found' });
     if (advisor.advisorType !== 'AUTHORIZED') {
       return res.status(400).json({ success: false, message: 'Only Authorized advisors can subscribe' });
@@ -203,7 +209,8 @@ router.get('/status', authenticateJWT, requireRole([Role.ADVISOR]), async (req: 
 // ── POST /subscriptions/test-payment (dev/testing only) ──────────────
 router.post('/test-payment', authenticateJWT, requireRole(['ADVISOR']), async (req: Request, res: Response) => {
   try {
-    const advisorId = (req as any).user.advisorId;
+    const advisor = await resolveAdvisor(req);
+    const advisorId = advisor?.id;
     if (!advisorId) return res.status(403).json({ success: false, message: 'Advisor profile required' });
 
     const fakeOrderId  = `test_order_${Date.now()}`;

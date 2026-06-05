@@ -63,17 +63,11 @@ const advisorSignupSchema = z.object({
 });
 
 // Helper: Token Generator
-const generateTokens = (user: { id: string; phoneNumber: string; role: Role }) => {
-  const accessToken = jwt.sign(
-    { id: user.id, phoneNumber: user.phoneNumber, role: user.role },
-    JWT_ACCESS_SECRET,
-    { expiresIn: '1h' }
-  );
-  const refreshToken = jwt.sign(
-    { id: user.id, phoneNumber: user.phoneNumber, role: user.role },
-    JWT_REFRESH_SECRET,
-    { expiresIn: '7d' }
-  );
+const generateTokens = (user: { id: string; phoneNumber: string; role: Role }, advisorId?: string) => {
+  const payload: any = { id: user.id, phoneNumber: user.phoneNumber, role: user.role };
+  if (advisorId) payload.advisorId = advisorId;
+  const accessToken = jwt.sign(payload, JWT_ACCESS_SECRET, { expiresIn: '24h' });
+  const refreshToken = jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: '30d' });
   return { accessToken, refreshToken };
 };
 
@@ -401,7 +395,7 @@ router.post('/advisor/signup', validateRequest(advisorSignupSchema), async (req:
 
   await logAuditEvent('REGISTER', result.user.id, { role: Role.ADVISOR }, result.advisor.id, req);
 
-  const tokens = generateTokens(result.user);
+  const tokens = generateTokens(result.user, result.advisor.id);
   res.status(201).json({
     success: true,
     tokens,

@@ -2270,16 +2270,22 @@ ${availLines ? `<div class="section">
                 onClick={async () => {
                   setPaymentLoading(true); setError('');
                   try {
-                    // Account is already created (handleSubmit ran on "Proceed to Payment")
-                    // uploadedToken or localStorage has the real advisor JWT
-                    const token = uploadedToken || localStorage.getItem('accessToken') || '';
+                    // Prefer uploadedToken (set by handleSubmit this session);
+                    // fall back to localStorage which persists across re-renders
+                    const token = uploadedToken
+                      || (typeof localStorage !== 'undefined' ? localStorage.getItem('accessToken') : null)
+                      || '';
                     if (!token) {
-                      setError('Session token missing. Please go back and try again.');
+                      setError('Session expired — please go back to the previous step and try again.');
+                      setPaymentLoading(false);
                       return;
                     }
                     const res = await fetch(`${API}/subscriptions/test-payment`, {
                       method: 'POST',
-                      headers: { Authorization: `Bearer ${token}` },
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                      },
                     });
                     const data = await res.json();
                     if (data.success) {
@@ -2294,8 +2300,9 @@ ${availLines ? `<div class="section">
                     } else {
                       setError(data.message || 'Test payment failed');
                     }
-                  } catch { setError('Test payment error. Is the backend running?'); }
-                  finally { setPaymentLoading(false); }
+                  } catch (e: any) {
+                    setError(e?.message || 'Network error — check your connection.');
+                  } finally { setPaymentLoading(false); }
                 }}
                 className="w-full py-3 rounded-xl border-2 border-dashed border-amber-300 text-amber-700 bg-amber-50 text-xs font-semibold hover:bg-amber-100 transition-all flex items-center justify-center gap-2"
               >
