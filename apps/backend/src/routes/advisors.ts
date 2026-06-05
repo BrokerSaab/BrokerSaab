@@ -115,14 +115,10 @@ router.get('/', validateRequest(searchAdvisorsQuerySchema), async (req: Request,
     whereConditions.experienceYears = { gte: parseInt(minExperience as string) };
   }
 
-  // Category filter
+  // Category filter — strict: only advisors explicitly assigned this category
   if (category) {
     whereConditions.categories = {
-      some: {
-        category: {
-          slug: category as string
-        }
-      }
+      some: { category: { slug: category as string } }
     };
   }
 
@@ -137,7 +133,7 @@ router.get('/', validateRequest(searchAdvisorsQuerySchema), async (req: Request,
     };
   }
 
-  // Full-text search
+  // Full-text search (uses OR on separate fields, safe since category now uses direct key)
   if (search) {
     whereConditions.OR = [
       { fullName: { contains: search as string, mode: 'insensitive' } },

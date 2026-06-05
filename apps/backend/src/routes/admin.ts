@@ -810,6 +810,53 @@ router.get('/sub-admins', ...SUPER_ADMIN_ONLY, async (_req: Request, res: Respon
   }
 });
 
+// ── POST /admin/repair-categories ─────────────────────────────────────
+// Auto-assigns categories to approved advisors who have none by inferring
+// the parent module (m1-m19) from their specialization slugs (s1-2 → m1).
+router.post('/repair-categories', ...SUPER_ADMIN_ONLY, async (_req: Request, res: Response) => {
+  try {
+    const advisorsWithNoCategories = await prisma.advisor.findMany({
+      where: { verificationStatus: VerificationStatus.APPROVED, categories: { none: {} } },
+      include: { specializations: true },
+    });
+
+    let repaired = 0;
+    const details: string[] = [];
+
+    for (const advisor of advisorsWithNoCategories) {
+      // Infer module slugs from specialization slugs (pattern: sN-M → mN)
+      const moduleSlugs = [...new Set(
+        advisor.specializations
+          .map(s => { const m = s.slug.match(/^s(\d+)-/); return m ? `m${m[1]}` : null; })
+          .filter((s): s is string => !!s)
+      )];
+
+      if (moduleSlugs.length === 0) {
+        details.push(`${advisor.fullName}: no specializations to infer from`);
+        continue;
+      }
+
+      const categories = await prisma.category.findMany({ where: { slug: { in: moduleSlugs } } });
+      if (categories.length === 0) {
+        details.push(`${advisor.fullName}: no matching categories for ${moduleSlugs.join(', ')}`);
+        continue;
+      }
+
+      await prisma.advisorCategory.createMany({
+        data: categories.map(c => ({ advisorId: advisor.id, categoryId: c.id })),
+        skipDuplicates: true,
+      });
+      repaired++;
+      details.push(`${advisor.fullName}: assigned ${categories.map(c => c.slug).join(', ')}`);
+    }
+
+    res.json({ success: true, totalFixed: repaired, total: advisorsWithNoCategories.length, details });
+  } catch (err) {
+    console.error('[repair-categories]', err);
+    res.status(500).json({ success: false, message: 'Repair failed' });
+  }
+});
+
 // ── POST /admin/sub-admins ────────────────────────────────────────────
 router.post('/sub-admins', ...SUPER_ADMIN_ONLY,
   validateRequest(z.object({ body: z.object({ fullName: z.string().min(2), email: z.string().email(), password: z.string().min(8) }) })),

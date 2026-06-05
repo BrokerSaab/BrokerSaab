@@ -29,9 +29,7 @@ export default function LaunchOfferPopup({ forceOpen, onForceClose }: Props) {
     return () => clearInterval(id);
   }, [open]);
 
-  const close = () => {
-    onForceClose?.();
-  };
+  const close = () => { onForceClose?.(); };
 
   if (!open) return null;
 
@@ -43,196 +41,171 @@ export default function LaunchOfferPopup({ forceOpen, onForceClose }: Props) {
       onClick={(e) => { if (e.target === e.currentTarget) close(); }}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
 
       {/* ── POPUP CARD ── */}
-      <div className="relative w-full max-w-2xl animate-popIn overflow-hidden rounded-3xl"
-        style={{ boxShadow: '0 30px 80px rgba(0,0,0,0.7), 0 0 0 2px rgba(255,255,255,0.1)' }}>
+      <div
+        className="relative w-full max-w-md animate-popIn rounded-2xl overflow-hidden"
+        style={{
+          maxHeight: '92vh',
+          overflowY: 'auto',
+          background: 'linear-gradient(145deg, #0f172a 0%, #1e1b4b 50%, #0c1445 100%)',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(99,102,241,0.35), 0 0 40px rgba(99,102,241,0.12)',
+        }}
+      >
+        {/* Indigo glow top-right */}
+        <div className="absolute top-0 right-0 w-52 h-52 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.3) 0%, transparent 70%)', transform: 'translate(30%,-30%)' }} />
+        {/* Gold glow bottom-left */}
+        <div className="absolute bottom-0 left-0 w-44 h-44 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.18) 0%, transparent 70%)', transform: 'translate(-30%,30%)' }} />
 
-        {/* ── MEGA BACKGROUND (teal-to-green gradient like reference) ── */}
-        <div className="absolute inset-0"
-          style={{ background: 'linear-gradient(135deg, #007a6e 0%, #00b89f 40%, #00d4a8 100%)' }} />
-
-        {/* ── DIAGONAL COLOURED SHAPES (like the reference image) ── */}
-        {/* Yellow diagonal strip */}
-        <div className="absolute pointer-events-none"
-          style={{ width: '55%', height: '200%', top: '-40%', left: '20%', background: '#FFD600', transform: 'rotate(-35deg)', opacity: 0.9, zIndex: 1 }} />
-        {/* Red strip over yellow */}
-        <div className="absolute pointer-events-none"
-          style={{ width: '30%', height: '200%', top: '-40%', left: '36%', background: '#FF1744', transform: 'rotate(-35deg)', opacity: 0.95, zIndex: 2 }} />
-        {/* Purple strip */}
-        <div className="absolute pointer-events-none"
-          style={{ width: '28%', height: '200%', top: '-40%', left: '54%', background: '#9C27B0', transform: 'rotate(-35deg)', opacity: 0.9, zIndex: 2 }} />
-        {/* Teal overlay on right */}
-        <div className="absolute pointer-events-none"
-          style={{ width: '25%', height: '200%', top: '-40%', left: '72%', background: '#00BCD4', transform: 'rotate(-35deg)', opacity: 0.8, zIndex: 1 }} />
-
-        {/* Dark overlay to ensure text readability in left & right zones */}
-        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 3,
-          background: 'linear-gradient(90deg, rgba(0,80,70,0.55) 0%, transparent 30%, transparent 70%, rgba(0,60,80,0.5) 100%)' }} />
-
-        {/* ── CONTENT ── z-10 above all shapes */}
+        {/* ── CONTENT ── */}
         <div className="relative z-10">
 
           {/* Close button */}
           <button onClick={close}
-            className="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110"
-            style={{ background: 'rgba(0,0,0,0.35)', border: '1.5px solid rgba(255,255,255,0.3)', color: 'white' }}>
-            <X size={16} />
+            className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 hover:bg-white/20"
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: 'white' }}>
+            <X size={14} />
           </button>
 
-          {/* ── TOP SECTION ── */}
-          <div className="px-7 pt-7 pb-2 text-center">
+          {/* ── HEADER ── */}
+          <div className="px-6 pt-6 pb-3 text-center">
 
-            {/* MEGA SALE badge — bold outlined style */}
-            <div className="inline-flex items-center gap-2 mb-3">
-              <Zap size={16} className="text-yellow-300 fill-yellow-300" />
-              <span className="font-black text-white text-sm sm:text-base uppercase tracking-[0.25em]"
-                style={{ textShadow: '0 2px 8px rgba(0,0,0,0.6), 2px 2px 0 rgba(0,0,0,0.4)', letterSpacing: '0.22em' }}>
-                MEGA LAUNCH OFFER
-              </span>
-              <Zap size={16} className="text-yellow-300 fill-yellow-300" />
+            {/* Badge */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-3"
+              style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)' }}>
+              <Zap size={11} className="text-amber-400 fill-amber-400" />
+              <span className="text-amber-300 text-[10px] font-black uppercase tracking-[0.2em]">MEGA LAUNCH OFFER</span>
+              <Zap size={11} className="text-amber-400 fill-amber-400" />
             </div>
 
-            {/* GIANT 90% OFF */}
-            <div className="mb-1">
-              <span
-                className="block font-black leading-none text-white select-none"
-                style={{
-                  fontSize: 'clamp(72px, 16vw, 108px)',
-                  WebkitTextStroke: '3px rgba(0,0,0,0.6)',
-                  textShadow: '4px 4px 0 rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3)',
-                  letterSpacing: '-2px',
-                }}
-              >
+            {/* 90% OFF — compact but bold */}
+            <div className="flex items-baseline justify-center gap-2 mb-2">
+              <span className="font-black text-white leading-none select-none"
+                style={{ fontSize: 'clamp(46px, 11vw, 64px)', letterSpacing: '-2px', textShadow: '0 0 28px rgba(99,102,241,0.55)' }}>
                 90%
               </span>
-              <span
-                className="block font-black leading-none text-white select-none -mt-3 sm:-mt-4"
-                style={{
-                  fontSize: 'clamp(56px, 13vw, 90px)',
-                  WebkitTextStroke: '3px rgba(0,0,0,0.5)',
-                  textShadow: '4px 4px 0 rgba(0,0,0,0.4), 0 6px 20px rgba(0,0,0,0.3)',
-                  letterSpacing: '-1px',
-                }}
-              >
+              <span className="font-black leading-none select-none"
+                style={{ fontSize: 'clamp(34px, 8vw, 48px)', color: '#F59E0B', letterSpacing: '-1px', textShadow: '0 0 18px rgba(245,158,11,0.5)' }}>
                 OFF
               </span>
             </div>
 
-            {/* BIGGEST DISCOUNTS subtitle */}
-            <p className="font-black text-white text-sm sm:text-base uppercase tracking-[0.2em] mb-1"
-              style={{ textShadow: '0 2px 6px rgba(0,0,0,0.5)', letterSpacing: '0.18em' }}>
-              BIGGEST DISCOUNTS — 1 YEAR VALIDITY
+            {/* Subtitle */}
+            <p className="text-indigo-300 text-[11px] font-bold uppercase tracking-[0.15em]">
+              Biggest Discounts · 1 Year Validity
             </p>
           </div>
 
           {/* ── COUNTDOWN ── */}
-          <div className="flex items-center justify-center gap-3 px-7 pb-4">
-            <Clock size={14} className="text-yellow-300 shrink-0" />
-            <span className="text-yellow-200 text-xs font-bold uppercase tracking-widest">Offer ends in</span>
+          <div className="flex items-center justify-center gap-2 px-6 py-3">
+            <Clock size={12} className="text-amber-400 shrink-0" />
+            <span className="text-amber-300/80 text-[10px] font-bold uppercase tracking-wider">Offer ends in</span>
             {[{ v: countdown.h, l: 'HRS' }, { v: countdown.m, l: 'MIN' }, { v: countdown.s, l: 'SEC' }].map((u, i, arr) => (
               <span key={u.l} className="flex items-center gap-1.5">
                 <span className="flex flex-col items-center">
-                  <span className="text-white font-black text-lg sm:text-xl w-10 text-center rounded-lg py-1 tabular-nums"
-                    style={{ background: 'rgba(0,0,0,0.35)', border: '1.5px solid rgba(255,255,255,0.25)', textShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
+                  <span className="text-white font-black text-base w-9 text-center rounded-lg py-1 tabular-nums"
+                    style={{ background: 'rgba(99,102,241,0.25)', border: '1px solid rgba(99,102,241,0.5)' }}>
                     {pad(u.v)}
                   </span>
-                  <span className="text-white/60 text-[8px] font-bold mt-0.5">{u.l}</span>
+                  <span className="text-white/40 text-[8px] font-bold mt-0.5">{u.l}</span>
                 </span>
-                {i < arr.length - 1 && <span className="text-yellow-300 font-black text-xl pb-4">:</span>}
+                {i < arr.length - 1 && <span className="text-amber-400 font-black text-base pb-3">:</span>}
               </span>
             ))}
           </div>
 
+          {/* Gold divider */}
+          <div className="mx-6 mb-4 h-px"
+            style={{ background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.45), transparent)' }} />
+
           {/* ── TWO PLAN CARDS ── */}
-          <div className="grid grid-cols-2 gap-3 px-5 pb-5">
+          <div className="grid grid-cols-2 gap-3 px-5 pb-4">
 
             {/* User Plan */}
-            <div className="rounded-2xl overflow-hidden"
-              style={{ background: 'rgba(0,0,0,0.45)', border: '2px solid rgba(255,255,255,0.25)', backdropFilter: 'blur(8px)' }}>
-              <div className="px-4 py-3 text-center border-b border-white/10"
-                style={{ background: 'rgba(255,255,255,0.08)' }}>
-                <div className="text-xs font-black uppercase tracking-widest text-yellow-300 mb-0.5">👤 For Users</div>
-                <div className="text-white/50 line-through text-xs font-semibold">₹999/year</div>
-                <div className="flex items-baseline justify-center gap-1 mt-0.5">
-                  <span className="text-4xl font-black text-white leading-none"
-                    style={{ textShadow: '0 0 20px rgba(255,255,255,0.5)' }}>₹99</span>
-                  <span className="text-white/60 text-xs font-bold">/yr</span>
+            <div className="rounded-xl overflow-hidden flex flex-col"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1.5px solid rgba(99,102,241,0.45)', backdropFilter: 'blur(8px)' }}>
+              <div className="px-3 py-2.5 text-center border-b border-indigo-500/20"
+                style={{ background: 'rgba(99,102,241,0.12)' }}>
+                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-0.5">👤 For Users</p>
+                <p className="text-white/40 line-through text-[10px] font-semibold">₹999/year</p>
+                <div className="flex items-baseline justify-center gap-0.5 mt-0.5">
+                  <span className="text-3xl font-black text-white leading-none">₹99</span>
+                  <span className="text-white/50 text-[10px] font-bold">/yr</span>
                 </div>
-                <div className="inline-flex items-center gap-1 mt-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black"
-                  style={{ background: '#22c55e', color: '#fff' }}>
+                <div className="inline-flex items-center gap-0.5 mt-1.5 px-2 py-0.5 rounded-full text-[9px] font-black"
+                  style={{ background: '#16a34a', color: '#fff' }}>
                   SAVE ₹900 · 90% OFF
                 </div>
               </div>
-              <ul className="px-4 py-3 space-y-1.5 text-xs text-white/75">
+              <ul className="px-3 py-2.5 space-y-1.5 text-[10px] text-white/70 flex-1">
                 {['Priority advisor access', 'Escrow-protected bookings', 'Premium support', '1 year validity'].map((f, i) => (
-                  <li key={i} className="flex items-center gap-2">
-                    <span className="text-yellow-300 text-xs">✓</span>{f}
+                  <li key={i} className="flex items-center gap-1.5">
+                    <span className="text-indigo-400 font-bold">✓</span>{f}
                   </li>
                 ))}
               </ul>
-              <div className="px-4 pb-4">
+              <div className="px-3 pb-3">
                 <button
                   onClick={() => { close(); openLoginModal(); }}
-                  className="w-full py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02] active:scale-95"
-                  style={{ background: 'white', color: '#1a0533', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
-                  GRAB NOW <ArrowRight size={14} />
+                  className="w-full py-2 rounded-lg font-black text-xs flex items-center justify-center gap-1 transition-all hover:scale-[1.02] active:scale-95"
+                  style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white', boxShadow: '0 4px 12px rgba(99,102,241,0.4)' }}>
+                  GRAB NOW <ArrowRight size={12} />
                 </button>
               </div>
             </div>
 
             {/* Advisor Plan */}
-            <div className="rounded-2xl overflow-hidden"
-              style={{ background: 'rgba(0,0,0,0.45)', border: '2px solid #FFD600', backdropFilter: 'blur(8px)', boxShadow: '0 0 20px rgba(255,214,0,0.3)' }}>
+            <div className="rounded-xl overflow-hidden flex flex-col"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1.5px solid rgba(245,158,11,0.55)', backdropFilter: 'blur(8px)', boxShadow: '0 0 16px rgba(245,158,11,0.18)' }}>
               {/* Best Value ribbon */}
-              <div className="text-center py-1 text-[10px] font-black uppercase tracking-widest"
-                style={{ background: '#FFD600', color: '#000' }}>
+              <div className="text-center py-1 text-[9px] font-black uppercase tracking-widest"
+                style={{ background: 'linear-gradient(90deg, #b45309, #f59e0b, #b45309)', color: '#000' }}>
                 ⭐ BEST VALUE
               </div>
-              <div className="px-4 py-3 text-center border-b border-white/10"
-                style={{ background: 'rgba(255,255,255,0.08)' }}>
-                <div className="text-xs font-black uppercase tracking-widest text-yellow-300 mb-0.5">🤝 For Advisors</div>
-                <div className="text-white/50 line-through text-xs font-semibold">₹4,999/year</div>
-                <div className="flex items-baseline justify-center gap-1 mt-0.5">
-                  <span className="text-4xl font-black text-white leading-none"
-                    style={{ textShadow: '0 0 20px rgba(255,214,0,0.7)', color: '#FFD600' }}>₹499</span>
-                  <span className="text-white/60 text-xs font-bold">/yr</span>
+              <div className="px-3 py-2.5 text-center border-b border-amber-500/20"
+                style={{ background: 'rgba(245,158,11,0.08)' }}>
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-300 mb-0.5">🤝 For Advisors</p>
+                <p className="text-white/40 line-through text-[10px] font-semibold">₹4,999/year</p>
+                <div className="flex items-baseline justify-center gap-0.5 mt-0.5">
+                  <span className="text-3xl font-black leading-none" style={{ color: '#F59E0B' }}>₹499</span>
+                  <span className="text-white/50 text-[10px] font-bold">/yr</span>
                 </div>
-                <div className="inline-flex items-center gap-1 mt-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black"
-                  style={{ background: '#22c55e', color: '#fff' }}>
+                <div className="inline-flex items-center gap-0.5 mt-1.5 px-2 py-0.5 rounded-full text-[9px] font-black"
+                  style={{ background: '#16a34a', color: '#fff' }}>
                   SAVE ₹4,500 · 90% OFF
                 </div>
               </div>
-              <ul className="px-4 py-3 space-y-1.5 text-xs text-white/75">
+              <ul className="px-3 py-2.5 space-y-1.5 text-[10px] text-white/70 flex-1">
                 {['Priority listing in search', 'Verified badge on profile', 'Unlimited bookings', '1 year validity'].map((f, i) => (
-                  <li key={i} className="flex items-center gap-2">
-                    <span className="text-yellow-300 text-xs">✓</span>{f}
+                  <li key={i} className="flex items-center gap-1.5">
+                    <span className="text-amber-400 font-bold">✓</span>{f}
                   </li>
                 ))}
               </ul>
-              <div className="px-4 pb-4">
+              <div className="px-3 pb-3">
                 <Link href="/advisors/onboarding" onClick={close}
-                  className="w-full py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02] active:scale-95"
-                  style={{ background: '#FFD600', color: '#000', boxShadow: '0 4px 12px rgba(255,214,0,0.4)' }}>
-                  GRAB NOW <ArrowRight size={14} />
+                  className="w-full py-2 rounded-lg font-black text-xs flex items-center justify-center gap-1 transition-all hover:scale-[1.02] active:scale-95"
+                  style={{ background: 'linear-gradient(135deg, #d97706, #f59e0b)', color: '#000', boxShadow: '0 4px 12px rgba(245,158,11,0.4)' }}>
+                  GRAB NOW <ArrowRight size={12} />
                 </Link>
               </div>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="px-5 pb-5 text-center space-y-1">
-            <p className="text-white/30 text-[10px]">
+          <div className="px-5 pb-5 text-center space-y-1.5">
+            <p className="text-white/25 text-[9px]">
               Launching offer · Valid for 1 year from purchase · No refunds on discounted plans
             </p>
             <button onClick={close}
-              className="text-white/40 text-xs hover:text-white/70 transition-colors underline underline-offset-2">
+              className="text-white/35 text-[10px] hover:text-white/65 transition-colors underline underline-offset-2">
               No thanks, remind me later
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );

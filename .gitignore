@@ -38,3 +38,12 @@ Thumbs.db
 *.pem
 coverage/
 .nyc_output/
+
+# Root-level screenshots and one-off debug/verify scripts
+chk-*.png
+verify-*.png
+final-*.png
+get-token*.mjs
+get-token*.js
+verify-*.js
+verify-all.js
