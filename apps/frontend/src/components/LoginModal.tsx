@@ -196,13 +196,11 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
               style={{ background: 'linear-gradient(90deg, #ef4444, #f59e0b, #8b5cf6)' }} />
           )}
           <div className="flex items-center gap-2 mb-1">
-            {step === 'terms'
-              ? <Scale size={15} className="text-amber-400" />
-              : <ShieldCheck size={16} className="text-gold-400" />
-            }
-            <span className="text-xs font-bold uppercase tracking-wider"
-              style={{ color: step === 'terms' ? '#f59e0b' : '#d4af37' }}>
-              BrokerSaab
+            <div className="w-6 h-6 bg-white rounded-lg overflow-hidden p-0.5 shrink-0">
+              <img src="/logo-icon.png" alt="BrokerSaab" className="w-full h-full object-contain" />
+            </div>
+            <span className="text-sm font-black tracking-tight text-white">
+              Broker<span style={{ color: '#D4AF37' }}>Saab</span>
             </span>
           </div>
           <h2 className="text-lg font-black text-white">{stepTitles[step]}</h2>

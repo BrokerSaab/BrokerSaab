@@ -132,12 +132,18 @@ export default function AdvisorDashboard() {
       {/* Header */}
       <div className="bg-white border-b border-slate-100 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 flex items-center gap-4">
-          <Link href="/" className="text-slate-400 hover:text-slate-700 transition-colors">
-            <ArrowLeft size={20} />
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <div className="w-8 h-8 bg-navy-800 rounded-lg overflow-hidden p-1 shrink-0">
+              <img src="/logo-icon.png" alt="BrokerSaab" className="w-full h-full object-contain" />
+            </div>
+            <span className="text-navy-800 font-black text-base tracking-tight hidden sm:block">
+              Broker<span className="text-gold-500">Saab</span>
+            </span>
           </Link>
+          <div className="w-px h-6 bg-slate-200 mx-1" />
           <div>
-            <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <LayoutDashboard size={18} className="text-gold-400" />
+            <h1 className="text-base font-bold text-slate-800 flex items-center gap-2">
+              <LayoutDashboard size={16} className="text-gold-400" />
               Advisor Dashboard
             </h1>
             <p className="text-slate-500 text-xs mt-0.5">

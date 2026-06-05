@@ -531,8 +531,11 @@ export default function AdvisorOnboarding() {
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; color: #111827; background: #fff; padding: 32px; max-width: 800px; margin: 0 auto; }
   .header { display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #D4AF37; padding-bottom:16px; margin-bottom:24px; }
-  .logo { font-size:22px; font-weight:900; color:#0B1F3A; }
-  .logo span { color:#D4AF37; }
+  .logo { display:flex; align-items:center; gap:10px; font-size:22px; font-weight:900; color:#fff; }
+  .logo-img { width:40px; height:40px; object-fit:contain; background:#0B1F3A; border-radius:10px; padding:4px; }
+  .logo-text { color:#fff; }
+  .logo-text span { color:#D4AF37; }
+  .logo-sub { font-size:13px; font-weight:600; color:#6b7280; display:block; margin-top:2px; }
   .badge { background:linear-gradient(135deg,#D4AF37,#B48C22); color:#0B1F3A; font-weight:800; font-size:11px; padding:4px 12px; border-radius:20px; }
   .section { margin-bottom:20px; border:2px solid #e5e7eb; border-radius:12px; overflow:hidden; }
   .section-header { padding:8px 16px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
@@ -547,9 +550,12 @@ export default function AdvisorOnboarding() {
   .footer { margin-top:28px; border-top:1px solid #e5e7eb; padding-top:12px; display:flex; justify-content:space-between; font-size:10px; color:#9ca3af; }
   @media print { body { padding:20px; } }
 </style></head><body>
-<div class="header">
-  <div class="logo">Broker<span>Saab</span> <span style="font-size:13px;font-weight:600;color:#6b7280;">Advisor Application</span></div>
-  ${formData.advisorType === 'AUTHORIZED' ? '<span class="badge">★ Authorized Advisor</span>' : '<span style="font-size:11px;color:#6b7280;font-weight:600;">Regular Advisor</span>'}
+<div class="header" style="background:#0B1F3A;padding:16px 20px;border-radius:10px 10px 0 0;margin:-32px -32px 24px;border-bottom:3px solid #D4AF37;">
+  <div class="logo">
+    <img src="${window.location.origin}/logo-icon.png" alt="BrokerSaab" class="logo-img" />
+    <div><span class="logo-text">Broker<span>Saab</span></span><span class="logo-sub">Advisor Application</span></div>
+  </div>
+  ${formData.advisorType === 'AUTHORIZED' ? '<span class="badge">★ Authorized Advisor</span>' : '<span style="font-size:11px;color:#9ca3af;font-weight:600;">Regular Advisor</span>'}
 </div>
 
 <div class="section">
@@ -615,9 +621,10 @@ ${availLines ? `<div class="section">
   .page{max-width:794px;margin:0 auto;padding:36px 40px;}
   .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:20px;border-bottom:3px solid #D4AF37;}
   .logo-wrap{display:flex;align-items:center;gap:10px;}
-  .logo-box{width:44px;height:44px;background:#0B1F3A;border-radius:10px;display:flex;align-items:center;justify-content:center;}
-  .logo-box span{color:#D4AF37;font-weight:900;font-size:14px;}
+  .logo-box{width:44px;height:44px;background:#0B1F3A;border-radius:10px;overflow:hidden;padding:4px;}
+  .logo-box img{width:100%;height:100%;object-fit:contain;}
   .company-name{font-size:22px;font-weight:900;color:#0B1F3A;letter-spacing:-0.5px;}
+  .company-name span{color:#D4AF37;}
   .company-sub{font-size:11px;color:#6b7280;margin-top:2px;}
   .inv-title{text-align:right;}
   .inv-title h1{font-size:18px;font-weight:900;color:#D4AF37;letter-spacing:1px;text-transform:uppercase;}
@@ -647,9 +654,9 @@ ${availLines ? `<div class="section">
 
 <div class="header">
   <div class="logo-wrap">
-    <div class="logo-box"><span>BS</span></div>
+    <div class="logo-box"><img src="${window.location.origin}/logo-icon.png" alt="BrokerSaab" /></div>
     <div>
-      <div class="company-name">BrokerSaab</div>
+      <div class="company-name">Broker<span>Saab</span></div>
       <div class="company-sub">BrokerSaab Technology Pvt. Ltd.</div>
       <div class="company-sub">GSTIN: 27AABCB1234A1Z5 &nbsp;|&nbsp; PAN: AABCB1234A</div>
       <div class="company-sub">Mumbai, Maharashtra — 400001 &nbsp;|&nbsp; support@brokersaab.com</div>
@@ -760,11 +767,11 @@ ${availLines ? `<div class="section">
 
       {/* Logo */}
       <div className="flex items-center gap-2.5 mb-3">
-        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-lg shrink-0">
-          <span className="text-navy-800 font-black text-sm">BS</span>
+        <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-lg shrink-0 overflow-hidden p-1">
+          <img src="/logo-icon.png" alt="BrokerSaab" className="w-full h-full object-contain" />
         </div>
         <div>
-          <span className="text-white font-bold text-base tracking-tight leading-none block">BrokerSaab</span>
+          <span className="text-white font-bold text-base tracking-tight leading-none block">Broker<span className="text-gold-400">Saab</span></span>
           <span className="text-slate-400 text-[10px]">Trusted Advisory Platform</span>
         </div>
       </div>
@@ -2168,10 +2175,10 @@ ${availLines ? `<div class="section">
               <div className="flex items-center justify-between px-5 py-4" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a3a5c)' }}>
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
-                    <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center">
-                      <span className="text-navy-800 font-black text-xs" style={{ color: '#0B1F3A' }}>BS</span>
+                    <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center overflow-hidden p-0.5">
+                      <img src="/logo-icon.png" alt="BrokerSaab" className="w-full h-full object-contain" />
                     </div>
-                    <span className="text-white font-black text-base tracking-tight">BrokerSaab</span>
+                    <span className="text-white font-black text-base tracking-tight">Broker<span className="text-gold-400">Saab</span></span>
                   </div>
                   <p className="text-white/50 text-[10px]">BrokerSaab Technology Pvt. Ltd.</p>
                   <p className="text-white/40 text-[10px]">GSTIN: 27AABCB1234A1Z5 · SAC: 9983</p>

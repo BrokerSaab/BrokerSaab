@@ -98,13 +98,16 @@ export default function AdminLoginPage() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <div className="bg-white rounded-2xl px-6 py-3 border border-gold-500/20 shadow-lg inline-block hover:scale-105 transition-transform">
+          <Link href="/" className="inline-flex flex-col items-center gap-2">
+            <div className="bg-white rounded-2xl px-5 py-3 border border-gold-500/20 shadow-lg hover:scale-105 transition-transform">
               <img src="/logo-icon.png" alt="BrokerSaab" className="h-14 w-auto object-contain" />
             </div>
+            <span className="text-white font-black text-xl tracking-tight">
+              Broker<span className="text-gold-400">Saab</span>
+            </span>
           </Link>
-          <div className="flex items-center justify-center gap-2 mt-3">
-            <KeyRound size={14} className="text-gold-500" />
+          <div className="flex items-center justify-center gap-2 mt-1">
+            <KeyRound size={13} className="text-gold-500" />
             <p className="text-gold-400/70 text-sm font-medium">Secure Portal Access</p>
           </div>
         </div>

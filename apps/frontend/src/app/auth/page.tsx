@@ -166,12 +166,15 @@ export default function AuthPage() {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <div className="bg-white rounded-2xl px-6 py-3 border border-gray-200 shadow-lg inline-block hover:scale-105 transition-transform">
-              <img src="/logo-icon.png" alt="BrokerSaab" className="h-16 w-auto object-contain" />
+          <Link href="/" className="inline-flex flex-col items-center gap-2">
+            <div className="bg-white rounded-2xl px-5 py-3 border border-gray-200 shadow-lg hover:scale-105 transition-transform">
+              <img src="/logo-icon.png" alt="BrokerSaab" className="h-14 w-auto object-contain" />
             </div>
+            <span className="text-navy-800 font-black text-xl tracking-tight">
+              Broker<span className="text-gold-500">Saab</span>
+            </span>
           </Link>
-          <p className="text-gray-500 text-sm mt-3">Trusted Advisory Platform</p>
+          <p className="text-gray-500 text-sm mt-1">Trusted Advisory Platform</p>
         </div>
 
         {/* ═══════════════════════════════════════
