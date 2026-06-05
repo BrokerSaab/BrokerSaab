@@ -26,6 +26,7 @@ const searchAdvisorsQuerySchema = z.object({
   query: z.object({
     search: z.string().optional(),
     category: z.string().optional(),
+    categories: z.string().optional(),
     specialization: z.string().optional(),
     location: z.string().optional(),
     state: z.string().optional(),
