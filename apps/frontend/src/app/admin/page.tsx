@@ -473,7 +473,27 @@ export default function AdminSuitePage() {
     } catch { /* ignore */ }
   };
 
-  const exportUrl = (entity: string) => `${API}/admin/export/${entity}`;
+  const [exporting, setExporting] = useState<string | null>(null);
+
+  const handleExport = async (entity: string) => {
+    setExporting(entity);
+    try {
+      const res = await fetch(`${API}/admin/export/${entity}`, {
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      if (!res.ok) { alert('Export failed — please try again.'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `brokersaab-${entity}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch { alert('Export failed — network error.'); }
+    finally { setExporting(null); }
+  };
 
   const BASE_TABS: { key: AdminTab; label: string; icon: React.ElementType }[] = [
     { key: 'overview', label: 'Overview', icon: BarChart2 },
@@ -566,6 +586,26 @@ export default function AdminSuitePage() {
             </div>
           )}
 
+          {isSuperAdmin && (
+            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold text-emerald-800">Advisor Category Repair</p>
+                <p className="text-[10px] text-emerald-600 mt-0.5">Auto-assigns service categories to approved advisors who have none. Run this once after deployment.</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const r = await fetch(`${API}/admin/repair-categories`, { method: 'POST', headers: { Authorization: `Bearer ${token()}` } });
+                  const d = await r.json();
+                  if (d.success) setLogs(p => [`[Repair] Fixed ${d.totalFixed}/${d.total} advisors — ${(d.details||[]).join(' | ')}`, ...p]);
+                  else setLogs(p => [`[Repair] Failed: ${d.message}`, ...p]);
+                }}
+                className="shrink-0 text-[10px] font-bold text-white bg-emerald-600 px-3 py-2 rounded-lg hover:bg-emerald-700 transition-all flex items-center gap-1.5 whitespace-nowrap"
+              >
+                <RefreshCw size={11} /> Run Repair
+              </button>
+            </div>
+          )}
+
           <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
             <h4 className="text-xs font-bold text-slate-600 uppercase tracking-widest pb-3 border-b border-slate-100 mb-3">Audit Log</h4>
             <div className="space-y-1.5 max-h-40 overflow-y-auto font-mono text-[10px] text-slate-400">
@@ -608,10 +648,10 @@ export default function AdminSuitePage() {
               </div>
               <div className="flex gap-2">
                 <button onClick={fetchAdvisors} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 transition-colors"><RefreshCw size={13} /> Refresh</button>
-                <a href={exportUrl('advisors')} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
-                  <Download size={13} /> Export Excel
-                </a>
+                <button onClick={() => handleExport('advisors')} disabled={exporting === 'advisors'}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all disabled:opacity-50">
+                  {exporting === 'advisors' ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Export Excel
+                </button>
               </div>
             </div>
           )}
@@ -842,10 +882,10 @@ export default function AdminSuitePage() {
             <h2 className="text-sm font-bold text-slate-700 uppercase tracking-widest">All Registered Clients ({users.length})</h2>
             <div className="flex gap-2">
               <button onClick={fetchUsers} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600"><RefreshCw size={13} /> Refresh</button>
-              <a href={exportUrl('users')} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
-                <Download size={13} /> Export Excel
-              </a>
+              <button onClick={() => handleExport('users')} disabled={exporting === 'users'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all disabled:opacity-50">
+                {exporting === 'users' ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Export Excel
+              </button>
             </div>
           </div>
 
@@ -903,10 +943,10 @@ export default function AdminSuitePage() {
             <h2 className="text-sm font-bold text-slate-700 uppercase tracking-widest">Onboarding Funnel</h2>
             <div className="flex gap-2">
               <button onClick={fetchFunnel} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600"><RefreshCw size={13} /> Refresh</button>
-              <a href={exportUrl('funnel')} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
-                <Download size={13} /> Export Excel
-              </a>
+              <button onClick={() => handleExport('funnel')} disabled={exporting === 'funnel'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all disabled:opacity-50">
+                {exporting === 'funnel' ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Export Excel
+              </button>
             </div>
           </div>
           {funnelLoading ? (
@@ -970,10 +1010,10 @@ export default function AdminSuitePage() {
             </div>
             <div className="flex gap-2">
               <button onClick={fetchSubscriptions} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600"><RefreshCw size={13} /> Refresh</button>
-              <a href={exportUrl('subscriptions')} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
-                <Download size={13} /> Export Excel
-              </a>
+              <button onClick={() => handleExport('subscriptions')} disabled={exporting === 'subscriptions'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all disabled:opacity-50">
+                {exporting === 'subscriptions' ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Export Excel
+              </button>
             </div>
           </div>
           {subLoading ? (
@@ -1023,10 +1063,10 @@ export default function AdminSuitePage() {
             </div>
             <div className="flex gap-2">
               <button onClick={fetchContactSubs} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600"><RefreshCw size={13} /> Refresh</button>
-              <a href={exportUrl('contact-subscriptions')} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
-                <Download size={13} /> Export Excel
-              </a>
+              <button onClick={() => handleExport('contact-subscriptions')} disabled={exporting === 'contact-subscriptions'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all disabled:opacity-50">
+                {exporting === 'contact-subscriptions' ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Export Excel
+              </button>
             </div>
           </div>
           {contactSubsLoading ? (
@@ -1077,10 +1117,10 @@ export default function AdminSuitePage() {
             </div>
             <div className="flex gap-2">
               <button onClick={fetchBookings} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600"><RefreshCw size={13} /> Refresh</button>
-              <a href={exportUrl('bookings')} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
-                <Download size={13} /> Export Excel
-              </a>
+              <button onClick={() => handleExport('bookings')} disabled={exporting === 'bookings'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all disabled:opacity-50">
+                {exporting === 'bookings' ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Export Excel
+              </button>
             </div>
           </div>
           {bookingsLoading ? (
