@@ -1,11 +1,9 @@
 'use client';
 
-import React, { useEffect, useCallback } from 'react';
-import { X, ArrowRight, Info, Search } from 'lucide-react';
-import Link from 'next/link';
+import React, { useEffect, useState } from 'react';
+import { X, ArrowRight, Search, CheckCircle2 } from 'lucide-react';
 import { Module, MODULE_COLORS, ICON_MAP } from '@/data/servicesData';
 
-/* accent palette matching SUB_PALETTE in page.tsx */
 const SUB_PALETTE = [
   '#F43F5E','#14B8A6','#8B5CF6','#F59E0B','#10B981',
   '#3B82F6','#EAB308','#0EA5E9','#6366F1','#F97316',
@@ -19,11 +17,15 @@ interface Props {
   language: 'EN' | 'HI';
   viewMode: 'user' | 'advisor';
   onClose: () => void;
-  onSelectSub: (categoryName: string) => void;
+  onSelectSubs: (slugs: string[]) => void;
 }
 
-export default function ServiceDetailModal({ module, colorIdx, language, viewMode, onClose, onSelectSub }: Props) {
+export default function ServiceDetailModal({ module, colorIdx, language, viewMode, onClose, onSelectSubs }: Props) {
   const hi = language === 'HI';
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  /* Reset selection when module changes */
+  useEffect(() => { setSelectedIds([]); }, [module?.id]);
 
   /* Close on ESC */
   useEffect(() => {
@@ -42,6 +44,26 @@ export default function ServiceDetailModal({ module, colorIdx, language, viewMod
 
   const colors = MODULE_COLORS[colorIdx % MODULE_COLORS.length];
   const IconComp = ICON_MAP[module.iconName] || Search;
+
+  const toggleSub = (subId: string) => {
+    setSelectedIds(prev =>
+      prev.includes(subId) ? prev.filter(id => id !== subId) : [...prev, subId]
+    );
+  };
+
+  const handleBrowse = () => {
+    if (viewMode === 'advisor') {
+      window.location.href = '/advisors/onboarding';
+      return;
+    }
+    const slugs = module.subModules
+      .filter(sub => selectedIds.includes(sub.id))
+      .map(sub => sub.route.split('=')[1])
+      .filter(Boolean);
+    onSelectSubs(slugs);
+  };
+
+  const nSelected = selectedIds.length;
 
   return (
     <div
@@ -72,10 +94,7 @@ export default function ServiceDetailModal({ module, colorIdx, language, viewMod
           </div>
 
           <div className="flex-1 min-w-0">
-            <div
-              className="text-[10px] font-black uppercase tracking-widest mb-1"
-              style={{ color: colors.accent }}
-            >
+            <div className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: colors.accent }}>
               {hi ? 'सेवा श्रेणी' : 'Service Category'}
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
@@ -86,54 +105,72 @@ export default function ServiceDetailModal({ module, colorIdx, language, viewMod
             </p>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl hover:bg-slate-100 transition-colors shrink-0 -mt-1"
-          >
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 transition-colors shrink-0 -mt-1">
             <X size={20} className="text-slate-500" />
           </button>
         </div>
 
-        {/* ── Sub-module count bar ── */}
+        {/* ── Sub-module count + selection bar ── */}
         <div className="flex items-center justify-between px-5 sm:px-8 py-3 bg-slate-50 border-b border-slate-100 shrink-0">
           <span className="text-xs font-semibold text-slate-500">
             {hi ? `${module.subModules.length} उप-सेवाएं उपलब्ध` : `${module.subModules.length} sub-services available`}
           </span>
-          <span
-            className="text-[10px] font-bold px-3 py-1 rounded-full"
-            style={{ background: `${colors.accent}15`, color: colors.accent }}
-          >
-            {hi ? 'विशेषज्ञ चुनें →' : 'Select a service →'}
-          </span>
+          <div className="flex items-center gap-2">
+            {nSelected > 0 && (
+              <button
+                onClick={() => setSelectedIds([])}
+                className="text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                {hi ? 'चयन हटाएं' : 'Clear selection'}
+              </button>
+            )}
+            <span
+              className="text-[10px] font-bold px-3 py-1 rounded-full"
+              style={{ background: `${colors.accent}15`, color: colors.accent }}
+            >
+              {nSelected > 0
+                ? (hi ? `${nSelected} चुना गया` : `${nSelected} selected`)
+                : (hi ? 'सेवाएं चुनें →' : 'Select services →')}
+            </span>
+          </div>
         </div>
 
         {/* ── Sub-module grid (scrollable) ── */}
         <div className="overflow-y-auto flex-1 px-4 sm:px-8 py-5">
+          <p className="text-xs text-slate-400 mb-4">
+            {hi
+              ? 'एक या अधिक सेवाएं चुनें, फिर विशेषज्ञ खोजें'
+              : 'Select one or more services below, then click Browse Experts'}
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {module.subModules.map((sub, idx) => {
               const accent = SUB_PALETTE[(colorIdx * 2 + idx * 3) % SUB_PALETTE.length];
-              const href = viewMode === 'advisor' ? '/advisors/onboarding' : sub.route;
+              const isSelected = selectedIds.includes(sub.id);
 
               return (
                 <button
                   key={sub.id}
                   type="button"
-                  onClick={() => {
-                    if (viewMode !== 'advisor') {
-                      /* map sub.route slug to category name for advisor filter */
-                      const slug = sub.route.split('=')[1];
-                      onSelectSub(slug);
-                    } else {
-                      window.location.href = '/advisors/onboarding';
-                    }
-                  }}
-                  className="group text-left rounded-2xl p-4 sm:p-5 border-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] w-full"
+                  onClick={() => toggleSub(sub.id)}
+                  className="group text-left rounded-2xl p-4 sm:p-5 border-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg active:scale-[0.98] w-full relative"
                   style={{
-                    borderColor: `${accent}30`,
-                    background: `linear-gradient(145deg, #fff 0%, ${accent}06 100%)`,
-                    boxShadow: `0 2px 8px rgba(0,0,0,0.04)`,
+                    borderColor: isSelected ? accent : `${accent}30`,
+                    background: isSelected
+                      ? `linear-gradient(145deg, ${accent}12 0%, ${accent}06 100%)`
+                      : `linear-gradient(145deg, #fff 0%, ${accent}06 100%)`,
+                    boxShadow: isSelected ? `0 4px 16px ${accent}25` : `0 2px 8px rgba(0,0,0,0.04)`,
                   }}
                 >
+                  {/* Selection checkmark */}
+                  {isSelected && (
+                    <div
+                      className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center"
+                      style={{ background: accent }}
+                    >
+                      <CheckCircle2 size={14} className="text-white" strokeWidth={2.5} />
+                    </div>
+                  )}
+
                   {/* Icon + Name */}
                   <div className="flex items-start gap-3 mb-3">
                     <div
@@ -142,7 +179,7 @@ export default function ServiceDetailModal({ module, colorIdx, language, viewMod
                     >
                       <Search size={14} className="text-white" />
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 pr-5">
                       <div className="font-black text-slate-900 text-sm leading-tight group-hover:text-slate-800">
                         {hi ? sub.nameHi : sub.nameEn}
                       </div>
@@ -170,13 +207,19 @@ export default function ServiceDetailModal({ module, colorIdx, language, viewMod
                     )}
                   </div>
 
-                  {/* CTA */}
+                  {/* Status */}
                   <div
-                    className="flex items-center gap-1.5 text-xs font-bold group-hover:gap-2.5 transition-all"
+                    className="flex items-center gap-1.5 text-xs font-bold transition-all"
                     style={{ color: accent }}
                   >
-                    <span>{hi ? 'विशेषज्ञ खोजें' : 'Find Expert'}</span>
-                    <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform" />
+                    {isSelected ? (
+                      <>
+                        <CheckCircle2 size={13} />
+                        <span>{hi ? 'चुना गया' : 'Selected'}</span>
+                      </>
+                    ) : (
+                      <span>{hi ? 'चुनने के लिए टैप करें' : 'Tap to select'}</span>
+                    )}
                   </div>
                 </button>
               );
@@ -190,7 +233,9 @@ export default function ServiceDetailModal({ module, colorIdx, language, viewMod
           style={{ borderTop: `1px solid ${colors.accent}20`, background: `${colors.accent}06` }}
         >
           <p className="text-xs text-slate-400 hidden sm:block">
-            {hi ? 'किसी भी उप-सेवा पर क्लिक करके विशेषज्ञ खोजें' : 'Click any sub-service to find a verified expert'}
+            {nSelected > 0
+              ? (hi ? `${nSelected} सेवा${nSelected > 1 ? 'एं' : ''} चुनी गई` : `${nSelected} service${nSelected > 1 ? 's' : ''} selected`)
+              : (hi ? 'विशेषज्ञ खोजने के लिए सेवाएं चुनें' : 'Select services to find matching experts')}
           </p>
           <div className="flex items-center gap-3 ml-auto">
             <button
@@ -200,16 +245,15 @@ export default function ServiceDetailModal({ module, colorIdx, language, viewMod
               {hi ? 'बंद करें' : 'Close'}
             </button>
             <button
-              onClick={() => {
-                onClose();
-                setTimeout(() => {
-                  const el = document.getElementById('advisors-section');
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 150);
-              }}
-              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold text-white transition-all hover:opacity-90 ${colors.iconBg}`}
+              disabled={nSelected === 0}
+              onClick={handleBrowse}
+              className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold text-white transition-all ${colors.iconBg} ${
+                nSelected === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90 hover:scale-[1.02]'
+              }`}
             >
-              {hi ? 'सभी विशेषज्ञ देखें' : 'Browse All Experts'}
+              {nSelected > 0
+                ? (hi ? `${nSelected} सेवा के विशेषज्ञ देखें` : `Browse Experts (${nSelected})`)
+                : (hi ? 'पहले सेवा चुनें' : 'Select a service first')}
               <ArrowRight size={14} />
             </button>
           </div>

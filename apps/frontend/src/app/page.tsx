@@ -168,10 +168,11 @@ const MOCK_ADVISORS: AdvisorCard[] = [
    COMPONENT
    ═══════════════════════════════════════════════ */
 // Fetch function lives outside component so React Query can cache it properly
-async function fetchAdvisors(category: string | null, search: string, state?: string, district?: string): Promise<AdvisorCard[]> {
+async function fetchAdvisors(categories: string[], search: string, state?: string, district?: string): Promise<AdvisorCard[]> {
   const params = new URLSearchParams({ limit: '12' });
-  if (category) {
-    const slug = CATEGORY_TO_SLUG[category];
+  if (categories.length > 0) {
+    // Pass the first category slug to the API (backend supports single category filter)
+    const slug = CATEGORY_TO_SLUG[categories[0]];
     if (slug) params.set('category', slug);
   }
   if (search.trim()) params.set('search', search.trim());
@@ -431,6 +432,7 @@ export default function DiscoverPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
   const [serviceModal, setServiceModal] = useState<string | null>(null); // module id open in fullscreen modal
 
@@ -498,6 +500,7 @@ export default function DiscoverPage() {
         const mappedName = SLUG_TO_CATEGORY_NAME[catParam];
         if (mappedName) {
           setSelectedCategory(mappedName);
+          setSelectedCategories([mappedName]);
           setTimeout(() => {
             const el = document.getElementById('advisors-section');
             if (el) {
@@ -536,8 +539,8 @@ export default function DiscoverPage() {
 
   // React Query: cached, deduped, auto-retried — staleTime from QueryClient default (5 min)
   const { data: queryAdvisors, isLoading: loadingAdvisors } = useQuery({
-    queryKey: ['advisors', selectedCategory, debouncedSearch, selectedState, selectedDistrict],
-    queryFn: () => fetchAdvisors(selectedCategory, debouncedSearch, selectedState, selectedDistrict),
+    queryKey: ['advisors', selectedCategories, debouncedSearch, selectedState, selectedDistrict],
+    queryFn: () => fetchAdvisors(selectedCategories, debouncedSearch, selectedState, selectedDistrict),
     placeholderData: (prev) => prev,
   });
 
@@ -545,7 +548,7 @@ export default function DiscoverPage() {
   const advisors = useMemo<AdvisorCard[]>(() => {
     if (queryAdvisors && queryAdvisors.length > 0) return queryAdvisors;
     let filtered = MOCK_ADVISORS;
-    if (selectedCategory) filtered = filtered.filter(a => a.category === selectedCategory);
+    if (selectedCategories.length > 0) filtered = filtered.filter(a => selectedCategories.includes(a.category));
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
       filtered = filtered.filter(a =>
@@ -555,7 +558,7 @@ export default function DiscoverPage() {
       );
     }
     return filtered;
-  }, [queryAdvisors, selectedCategory, debouncedSearch]);
+  }, [queryAdvisors, selectedCategories, debouncedSearch]);
 
   const handleBookNow = useCallback((advisorId: string) => {
     if (isLoggedIn) router.push(`/advisors/${advisorId}`);
@@ -1290,13 +1293,21 @@ export default function DiscoverPage() {
               <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-gray-900">
                 Verified Professionals ({advisors.length})
               </h2>
-              {selectedCategory && (
-                <p className="text-sm text-gold-600 mt-1">
-                  Filtering: <span className="underline font-semibold">{selectedCategory}</span>
-                  <button onClick={() => setSelectedCategory(null)} className="ml-2 text-gray-400 hover:text-gray-600 underline text-xs">
+              {selectedCategories.length > 0 && (
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-gold-600 font-medium">Filtering:</span>
+                  {selectedCategories.map(cat => (
+                    <span key={cat} className="text-xs font-semibold bg-gold-50 border border-gold-200 text-gold-700 px-2.5 py-0.5 rounded-full">
+                      {cat}
+                    </span>
+                  ))}
+                  <button
+                    onClick={() => { setSelectedCategories([]); setSelectedCategory(null); }}
+                    className="text-gray-400 hover:text-gray-600 underline text-xs"
+                  >
                     Clear
                   </button>
-                </p>
+                </div>
               )}
             </div>
             <span className="text-xs text-emerald-700 font-medium bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-full shrink-0 self-start flex items-center gap-1.5">
@@ -1539,11 +1550,14 @@ export default function DiscoverPage() {
             language={language}
             viewMode={viewMode}
             onClose={() => setServiceModal(null)}
-            onSelectSub={(slug) => {
+            onSelectSubs={(slugs) => {
               setServiceModal(null);
-              const categoryName = SLUG_TO_CATEGORY_NAME[slug];
-              if (categoryName) {
-                setSelectedCategory(categoryName);
+              const categoryNames = Array.from(new Set(
+                slugs.map(s => SLUG_TO_CATEGORY_NAME[s]).filter(Boolean)
+              ));
+              if (categoryNames.length > 0) {
+                setSelectedCategories(categoryNames);
+                setSelectedCategory(categoryNames[0]);
                 setTimeout(() => {
                   const el = document.getElementById('advisors-section');
                   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
