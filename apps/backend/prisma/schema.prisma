@@ -66,6 +66,7 @@ enum DocumentType {
 
 model User {
   id                String             @id @default(uuid())
+  seqId             Int                @unique @default(autoincrement())
   phoneNumber       String             @unique
   email             String?            @unique
   fullName          String?
@@ -94,6 +95,7 @@ model User {
 
 model Advisor {
   id                 String             @id @default(uuid())
+  seqId              Int                @unique @default(autoincrement())
   phoneNumber        String             @unique
   email              String             @unique
   fullName           String
@@ -429,6 +431,7 @@ model AuditLog {
 
 model AdminUsers {
   id               String    @id @default(uuid())
+  seqId            Int       @unique @default(autoincrement())
   email            String    @unique
   fullName         String
   passwordHash     String

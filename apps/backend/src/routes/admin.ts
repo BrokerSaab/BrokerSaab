@@ -66,10 +66,11 @@ router.get(
         date: log.createdAt
       }));
 
-      const [authorizedAdvisors, regularAdvisors, activeSubscriptions, subRevenue, abandonedFunnels, completedOnboardings] =
+      const [authorizedAdvisors, regularAdvisors, approvedAdvisors, activeSubscriptions, subRevenue, abandonedFunnels, completedOnboardings] =
         await prisma.$transaction([
           prisma.advisor.count({ where: { advisorType: 'AUTHORIZED' } }),
           prisma.advisor.count({ where: { advisorType: 'REGULAR' } }),
+          prisma.advisor.count({ where: { verificationStatus: VerificationStatus.APPROVED } }),
           prisma.advisorSubscription.count({ where: { status: 'SUCCESS', expiresAt: { gt: new Date() } } }),
           prisma.advisorSubscription.aggregate({ where: { status: 'SUCCESS' }, _sum: { amount: true } }),
           prisma.onboardingSession.count({ where: { currentStep: { lt: 8 } } }),
@@ -81,6 +82,7 @@ router.get(
         metrics: {
           totalClients: totalUsers,
           totalAdvisors,
+          approvedAdvisors,
           authorizedAdvisors,
           regularAdvisors,
           pendingVerification: pendingAdvisors,
@@ -282,13 +284,22 @@ router.get(
  */
 router.get('/advisors', ...ADMIN_GUARD, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status, type, state, page = '1', limit = '20' } = req.query as Record<string, string>;
+    const { status, type, state, search, page = '1', limit = '50' } = req.query as Record<string, string>;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where: any = {};
     if (status && status !== 'ALL') where.verificationStatus = status;
     if (type && type !== 'ALL') where.advisorType = type;
     if (state) where.state = { contains: state, mode: 'insensitive' };
+    if (search) {
+      const seqMatch = search.match(/BSA-?(\d+)/i);
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phoneNumber: { contains: search } },
+        ...(seqMatch ? [{ seqId: parseInt(seqMatch[1]) }] : []),
+      ];
+    }
 
     const [advisors, total] = await prisma.$transaction([
       prisma.advisor.findMany({
@@ -316,10 +327,19 @@ router.get('/advisors', ...ADMIN_GUARD, async (req: Request, res: Response): Pro
  */
 router.get('/users', ...ADMIN_GUARD, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { state, page = '1', limit = '20' } = req.query as Record<string, string>;
+    const { state, search, page = '1', limit = '50' } = req.query as Record<string, string>;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const where: any = { role: Role.CLIENT };
     if (state) where.state = { contains: state, mode: 'insensitive' };
+    if (search) {
+      const seqMatch = search.match(/BSU-?(\d+)/i);
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phoneNumber: { contains: search } },
+        ...(seqMatch ? [{ seqId: parseInt(seqMatch[1]) }] : []),
+      ];
+    }
 
     const [users, total] = await prisma.$transaction([
       prisma.user.findMany({

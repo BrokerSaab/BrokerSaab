@@ -6,7 +6,7 @@ import {
   ShieldCheck, BookOpen, Loader2, Calendar, Clock, RefreshCw, BadgeCheck,
   BarChart2, CreditCard, Download, ChevronDown, MapPin, X,
   UserCheck, Award, Activity, Eye, MessageSquare, TicketCheck,
-  UserPlus, Send, ClipboardCheck, Shield
+  UserPlus, Send, ClipboardCheck, Shield, Search
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -31,8 +31,15 @@ const VSTATUS_BADGE: Record<string, string> = {
   SUSPENDED:                'bg-orange-100 text-orange-700',
 };
 
+// ── Display ID helpers ──────────────────────────────────────────────────────
+function genDisplayId(model: 'user' | 'advisor' | 'admin', seqId?: number): string {
+  if (!seqId) return '—';
+  const prefix = { user: 'BSU', advisor: 'BSA', admin: 'BSAD' }[model];
+  return `${prefix}-${String(seqId).padStart(6, '0')}`;
+}
+
 interface Advisor {
-  id: string; fullName: string; email: string; phoneNumber: string;
+  id: string; seqId?: number; fullName: string; email: string; phoneNumber: string;
   businessName?: string; licenseNumber?: string; gstNumber?: string;
   aadhaarLast4?: string; advisorType: string; verificationStatus: string;
   isAuthorizedDealer?: boolean; dealerAuthorizedAt?: string;
@@ -46,27 +53,29 @@ interface Advisor {
 
 interface SubAdminStats { assigned: number; underReview: number; submitted: number; processed: number; }
 interface SubAdmin {
-  id: string; fullName: string; email: string; role: string; createdAt: string;
+  id: string; seqId?: number; fullName: string; email: string; role: string; createdAt: string;
   stats: SubAdminStats;
 }
 
-interface User { id: string; fullName?: string; email?: string; phoneNumber: string; state?: string; createdAt: string; _count?: { bookings: number }; }
+interface User { id: string; seqId?: number; fullName?: string; email?: string; phoneNumber: string; state?: string; createdAt: string; _count?: { bookings: number }; }
 interface Subscription { id: string; advisorId: string; razorpayOrderId: string; razorpayPaymentId?: string; amount: string; status: string; subscribedAt?: string; expiresAt?: string; advisor: { fullName: string; email: string; advisorType: string }; }
 interface Booking { id: string; bookingNumber: string; scheduledDate: string; startTime: string; endTime: string; status: BookingStatus; totalFee: string; mode: string; client?: { fullName?: string; phoneNumber: string }; advisor?: { fullName: string }; }
 interface FunnelStep { step: number; label: string; count: number; }
 interface FunnelSession { id: string; phoneNumber: string; currentStep: number; stepLabel: string; lastActiveAt: string; advisorId?: string; }
-interface Metrics { totalClients: number; totalAdvisors: number; authorizedAdvisors: number; regularAdvisors: number; pendingVerification: number; consultationsCompleted: number; grossRevenue: string; platformCommission: string; activeSubscriptions: number; subscriptionRevenue: string; abandonedFunnels: number; completedOnboardings: number; }
+interface Metrics { totalClients: number; totalAdvisors: number; approvedAdvisors: number; authorizedAdvisors: number; regularAdvisors: number; pendingVerification: number; consultationsCompleted: number; grossRevenue: string; platformCommission: string; activeSubscriptions: number; subscriptionRevenue: string; abandonedFunnels: number; completedOnboardings: number; }
 
 export default function AdminSuitePage() {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [adminRole, setAdminRole] = useState<string>('SUPER_ADMIN');
-  const [metrics, setMetrics] = useState<Metrics>({ totalClients: 0, totalAdvisors: 0, authorizedAdvisors: 0, regularAdvisors: 0, pendingVerification: 0, consultationsCompleted: 0, grossRevenue: '0', platformCommission: '0', activeSubscriptions: 0, subscriptionRevenue: '0', abandonedFunnels: 0, completedOnboardings: 0 });
+  const [metrics, setMetrics] = useState<Metrics>({ totalClients: 0, totalAdvisors: 0, approvedAdvisors: 0, authorizedAdvisors: 0, regularAdvisors: 0, pendingVerification: 0, consultationsCompleted: 0, grossRevenue: '0', platformCommission: '0', activeSubscriptions: 0, subscriptionRevenue: '0', abandonedFunnels: 0, completedOnboardings: 0 });
 
   // Advisors tab
   const [advisors, setAdvisors] = useState<Advisor[]>([]);
   const [advisorsLoading, setAdvisorsLoading] = useState(false);
   const [advisorStatusFilter, setAdvisorStatusFilter] = useState('ALL');
   const [advisorTypeFilter, setAdvisorTypeFilter] = useState('ALL');
+  const [advisorSearch, setAdvisorSearch] = useState('');
+  const [userSearch, setUserSearch] = useState('');
   const [selectedAdv, setSelectedAdv] = useState<Advisor | null>(null);
   const [verifying, setVerifying] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>(['Admin portal loaded.']);
@@ -162,11 +171,12 @@ export default function AdminSuitePage() {
       const params = new URLSearchParams({ limit: '50' });
       if (advisorStatusFilter !== 'ALL') params.set('status', advisorStatusFilter);
       if (advisorTypeFilter !== 'ALL') params.set('type', advisorTypeFilter);
+      if (advisorSearch.trim()) params.set('search', advisorSearch.trim());
       const r = await fetch(`${API}/admin/advisors?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
       const d = await r.json();
       if (d.success) { setAdvisors(d.data); setSelectedAdv(d.data[0] ?? null); }
     } catch { /* empty */ } finally { setAdvisorsLoading(false); }
-  }, [advisorStatusFilter, advisorTypeFilter, isSuperAdmin]);
+  }, [advisorStatusFilter, advisorTypeFilter, advisorSearch, isSuperAdmin]);
 
   const fetchSubAdmins = useCallback(async () => {
     if (!isSuperAdmin) return;
@@ -189,11 +199,13 @@ export default function AdminSuitePage() {
   const fetchUsers = useCallback(async () => {
     setUsersLoading(true);
     try {
-      const r = await fetch(`${API}/admin/users?limit=50`, { headers: { Authorization: `Bearer ${token()}` } });
+      const params = new URLSearchParams({ limit: '50' });
+      if (userSearch.trim()) params.set('search', userSearch.trim());
+      const r = await fetch(`${API}/admin/users?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
       const d = await r.json();
       if (d.success) setUsers(d.data);
     } catch { /* empty */ } finally { setUsersLoading(false); }
-  }, []);
+  }, [userSearch]);
 
   const fetchFunnel = useCallback(async () => {
     setFunnelLoading(true);
@@ -511,23 +523,24 @@ export default function AdminSuitePage() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Total Advisors', value: metrics.totalAdvisors, sub: `${metrics.regularAdvisors} Regular / ${metrics.authorizedAdvisors} Authorized`, icon: Users, color: 'border-l-blue-500' },
-              { label: 'Total Clients', value: metrics.totalClients, sub: 'Registered users', icon: UserCheck, color: 'border-l-emerald-500' },
-              { label: 'Pending Approval', value: metrics.pendingVerification, sub: 'KYC awaiting review', icon: AlertTriangle, color: 'border-l-amber-500', pulse: true },
-              { label: 'Paid Subscriptions', value: metrics.activeSubscriptions, sub: 'Active authorized badges', icon: CreditCard, color: 'border-l-gold-500' },
-              { label: 'Gross Revenue', value: `₹${parseFloat(metrics.grossRevenue || '0').toLocaleString('en-IN')}`, sub: 'Total booking turnover', icon: TrendingUp, color: 'border-l-gold-500' },
-              { label: 'Subscription Revenue', value: `₹${parseFloat(metrics.subscriptionRevenue || '0').toLocaleString('en-IN')}`, sub: 'From authorized badges', icon: Award, color: 'border-l-purple-500' },
-              { label: 'Abandoned Funnels', value: metrics.abandonedFunnels, sub: 'Started but not submitted', icon: XCircle, color: 'border-l-red-500' },
-              { label: 'Completed Onboardings', value: metrics.completedOnboardings, sub: 'Fully submitted profiles', icon: CheckCircle, color: 'border-l-emerald-500' },
+              { label: 'Total Advisors', value: metrics.totalAdvisors, sub: `${metrics.regularAdvisors} Regular / ${metrics.authorizedAdvisors} Authorized`, icon: Users, color: 'border-l-blue-500', onClick: () => setActiveTab('advisors') },
+              { label: 'Approved Advisors', value: metrics.approvedAdvisors, sub: 'Live on the platform', icon: CheckCircle, color: 'border-l-emerald-500', onClick: () => { setAdvisorStatusFilter('APPROVED'); setActiveTab('advisors'); } },
+              { label: 'Pending Approval', value: metrics.pendingVerification, sub: 'KYC awaiting review', icon: AlertTriangle, color: 'border-l-amber-500', pulse: true, onClick: () => { setAdvisorStatusFilter('PENDING'); setActiveTab('advisors'); } },
+              { label: 'Total Clients', value: metrics.totalClients, sub: 'Registered users', icon: UserCheck, color: 'border-l-teal-500', onClick: () => setActiveTab('users') },
+              { label: 'Paid Subscriptions', value: metrics.activeSubscriptions, sub: 'Active authorized badges', icon: CreditCard, color: 'border-l-gold-500', onClick: () => setActiveTab('subscriptions') },
+              { label: 'Gross Revenue', value: `₹${parseFloat(metrics.grossRevenue || '0').toLocaleString('en-IN')}`, sub: 'Total booking turnover', icon: TrendingUp, color: 'border-l-gold-500', onClick: () => setActiveTab('bookings') },
+              { label: 'Abandoned Funnels', value: metrics.abandonedFunnels, sub: 'Started but not submitted', icon: XCircle, color: 'border-l-red-500', onClick: () => setActiveTab('funnel') },
+              { label: 'Completed Onboardings', value: metrics.completedOnboardings, sub: 'Fully submitted via wizard', icon: CheckCircle, color: 'border-l-indigo-500', onClick: () => setActiveTab('funnel') },
             ].map((w, i) => (
-              <div key={i} className={`bg-white rounded-xl p-4 border-l-4 ${w.color} shadow-sm border border-slate-100 space-y-1`}>
+              <button key={i} onClick={w.onClick}
+                className={`bg-white rounded-xl p-4 border-l-4 ${w.color} shadow-sm border border-slate-100 space-y-1 text-left w-full hover:shadow-md hover:-translate-y-0.5 transition-all group`}>
                 <div className="flex justify-between items-center text-slate-500">
-                  <span className="text-[10px] uppercase font-semibold">{w.label}</span>
+                  <span className="text-[10px] uppercase font-semibold group-hover:text-indigo-600 transition-colors">{w.label}</span>
                   <w.icon size={14} className={`text-indigo-400 ${(w as any).pulse ? 'animate-pulse' : ''}`} />
                 </div>
                 <p className="text-xl font-black text-slate-800">{w.value}</p>
-                <span className="text-[10px] text-slate-500">{w.sub}</span>
-              </div>
+                <span className="text-[10px] text-slate-400">{w.sub} <span className="text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">→ view</span></span>
+              </button>
             ))}
           </div>
           {/* Sub-admin personal stats (shown when logged in as sub-admin) */}
@@ -603,6 +616,23 @@ export default function AdminSuitePage() {
             </div>
           )}
 
+          {/* Search bar — visible for both roles */}
+          <div className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm">
+            <Search size={14} className="text-slate-400 shrink-0" />
+            <input
+              type="text"
+              placeholder="Search by name, email, phone or BSA-000001…"
+              value={advisorSearch}
+              onChange={e => setAdvisorSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && fetchAdvisors()}
+              className="flex-1 text-xs outline-none text-slate-700 placeholder:text-slate-400 bg-transparent"
+            />
+            {advisorSearch && (
+              <button onClick={() => { setAdvisorSearch(''); }} className="text-slate-300 hover:text-slate-500 text-xs">✕</button>
+            )}
+            <button onClick={fetchAdvisors} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded-lg hover:bg-indigo-50 transition-all">Search</button>
+          </div>
+
           {!isSuperAdmin && (
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-700">Your Review Queue ({advisors.length} advisors)</p>
@@ -631,8 +661,11 @@ export default function AdminSuitePage() {
                   <button onClick={() => setSelectedAdv(adv)}
                     className={`w-full text-left p-3 ${isSuperAdmin && (advisorStatusFilter === 'PENDING' || advisorStatusFilter === 'ALL') ? 'pl-8' : ''} rounded-xl border text-xs space-y-1.5 transition-all ${selectedAdv?.id === adv.id ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-200'}`}>
                     <div className="flex items-center justify-between">
-                      <span className="font-bold">{adv.fullName}</span>
-                      <div className="flex gap-1 items-center">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-bold truncate">{adv.fullName}</span>
+                        <span className="text-[8px] font-bold text-indigo-400 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded shrink-0">{genDisplayId('advisor', adv.seqId)}</span>
+                      </div>
+                      <div className="flex gap-1 items-center shrink-0">
                         {adv.isAuthorizedDealer && <BadgeCheck size={12} className="text-amber-400" />}
                         <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${VSTATUS_BADGE[adv.verificationStatus] || 'bg-slate-500/10 text-slate-400'}`}>{adv.verificationStatus.replace(/_/g, ' ')}</span>
                       </div>
@@ -652,7 +685,10 @@ export default function AdminSuitePage() {
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 space-y-4">
                   <div className="flex justify-between items-start border-b border-gold-500/10 pb-4 gap-4 flex-wrap">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-800">{selectedAdv.fullName}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-lg font-bold text-slate-800">{selectedAdv.fullName}</h3>
+                        <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">{genDisplayId('advisor', selectedAdv.seqId)}</span>
+                      </div>
                       <p className="text-xs text-slate-400">{selectedAdv.location} · {selectedAdv.experienceYears}y exp · ₹{selectedAdv.consultationFee}/session</p>
                       <p className="text-[11px] text-slate-500 font-mono">{selectedAdv.email} · {selectedAdv.phoneNumber}</p>
                       {selectedAdv.aadhaarLast4 && <p className="text-[11px] text-slate-500">Aadhaar: ****{selectedAdv.aadhaarLast4}</p>}
@@ -812,19 +848,38 @@ export default function AdminSuitePage() {
               </a>
             </div>
           </div>
+
+          {/* User search bar */}
+          <div className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm">
+            <Search size={14} className="text-slate-400 shrink-0" />
+            <input
+              type="text"
+              placeholder="Search by name, phone, email or BSU-000001…"
+              value={userSearch}
+              onChange={e => setUserSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && fetchUsers()}
+              className="flex-1 text-xs outline-none text-slate-700 placeholder:text-slate-400 bg-transparent"
+            />
+            {userSearch && <button onClick={() => setUserSearch('')} className="text-slate-300 hover:text-slate-500 text-xs">✕</button>}
+            <button onClick={fetchUsers} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded-lg hover:bg-indigo-50 transition-all">Search</button>
+          </div>
+
           {usersLoading ? (
             <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 size={22} className="animate-spin mr-3" /> Loading users…</div>
           ) : (
             <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
               <table className="w-full text-xs text-slate-700">
                 <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
-                  {['Name', 'Phone', 'Email', 'State', 'Bookings', 'Joined'].map(h => (
+                  {['ID', 'Name', 'Phone', 'Email', 'State', 'Bookings', 'Joined'].map(h => (
                     <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-[10px]">{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {users.map((u, i) => (
                     <tr key={u.id} className={`border-b border-slate-50 hover:bg-indigo-50/40 transition-colors ${i % 2 === 0 ? '' : 'bg-slate-50/60'}`}>
+                      <td className="px-4 py-3">
+                        <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{genDisplayId('user', u.seqId)}</span>
+                      </td>
                       <td className="px-4 py-3 font-medium">{u.fullName || '—'}</td>
                       <td className="px-4 py-3 font-mono">{u.phoneNumber}</td>
                       <td className="px-4 py-3 text-slate-400">{u.email || '—'}</td>
@@ -1195,7 +1250,10 @@ export default function AdminSuitePage() {
                   <div key={sa.id} className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 hover:border-indigo-200 transition-colors">
                     <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                       <div>
-                        <p className="text-sm font-bold text-slate-800">{sa.fullName}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold text-slate-800">{sa.fullName}</p>
+                          <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{genDisplayId('admin', sa.seqId)}</span>
+                        </div>
                         <p className="text-xs text-slate-400">{sa.email}</p>
                         <p className="text-[10px] text-slate-300 mt-0.5">
                           Added {new Date(sa.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
