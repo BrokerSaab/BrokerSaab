@@ -1117,14 +1117,15 @@ export default function DiscoverPage() {
                               onClick={(e) => {
                                 if (viewMode !== 'advisor') {
                                   e.preventDefault();
-                                  const slug = sub.route.split('=')[1];
-                                  const mappedName = SLUG_TO_CATEGORY_NAME[slug];
-                                  if (mappedName) {
-                                    setSelectedCategory(mappedName);
-                                    const el = document.getElementById('advisors-section');
-                                    if (el) {
-                                      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                    }
+                                  // Use the parent MODULE's category (mod.id = 'm17') not the sub-route slug
+                                  const moduleCategoryName = SLUG_TO_CATEGORY_NAME[mod.id];
+                                  if (moduleCategoryName) {
+                                    setSelectedCategory(moduleCategoryName);
+                                    setSelectedCategories([moduleCategoryName]);
+                                    setTimeout(() => {
+                                      const el = document.getElementById('advisors-section');
+                                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    }, 150);
                                   }
                                 }
                               }}
@@ -1524,9 +1525,12 @@ export default function DiscoverPage() {
             onClose={() => setServiceModal(null)}
             onSelectSubs={(slugs) => {
               setServiceModal(null);
-              const categoryNames = Array.from(new Set(
-                slugs.map(s => SLUG_TO_CATEGORY_NAME[s]).filter(Boolean)
-              ));
+              // Use the parent module's category name directly (mod.id = 'm17' → 'Electricity, Water & Gas')
+              // Sub-service slugs (s17-1, s17-2) are NOT in SLUG_TO_CATEGORY_NAME
+              const moduleCategoryName = mod ? SLUG_TO_CATEGORY_NAME[mod.id] : null;
+              const categoryNames = moduleCategoryName
+                ? [moduleCategoryName]
+                : Array.from(new Set(slugs.map(s => SLUG_TO_CATEGORY_NAME[s]).filter(Boolean)));
               if (categoryNames.length > 0) {
                 setSelectedCategories(categoryNames);
                 setSelectedCategory(categoryNames[0]);
