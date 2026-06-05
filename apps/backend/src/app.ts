@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import * as bcrypt from 'bcryptjs';
 
 // Load Environment Variables
 dotenv.config();
@@ -17,6 +18,7 @@ import adminRoutes from './routes/admin';
 import subscriptionRoutes, { webhookHandler } from './routes/subscriptions';
 import contactRoutes, { contactWebhookHandler } from './routes/contacts';
 import supportRoutes from './routes/support';
+import prisma from './config/db';
 
 const app = express();
 const server = http.createServer(app);
@@ -101,9 +103,34 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
+/* ── Startup: ensure Super Admin exists in DB ── */
+async function ensureAdminUser() {
+  try {
+    const existing = await prisma.adminUsers.findUnique({ where: { email: 'admin@brokersaab.com' } });
+    if (!existing) {
+      const passwordHash = await bcrypt.hash('BrokerAdmin123', 10);
+      await prisma.adminUsers.create({
+        data: {
+          email: 'admin@brokersaab.com',
+          fullName: 'BrokerSaab Super Admin',
+          passwordHash,
+          role: 'SUPER_ADMIN' as any,
+        }
+      });
+      console.log('[Startup] Super Admin created: admin@brokersaab.com');
+    } else {
+      console.log('[Startup] Super Admin already exists.');
+    }
+  } catch (err) {
+    console.error('[Startup] Admin seed failed (non-fatal):', err);
+  }
+}
+
 // Launch server instance
-server.listen(PORT, () => {
-  console.log(`BrokerSaab Server is online on port ${PORT} in ${process.env.NODE_ENV} mode.`);
+ensureAdminUser().then(() => {
+  server.listen(PORT, () => {
+    console.log(`BrokerSaab Server is online on port ${PORT} in ${process.env.NODE_ENV} mode.`);
+  });
 });
 
 export { app, server, io };
