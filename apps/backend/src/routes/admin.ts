@@ -817,7 +817,7 @@ router.post('/repair-categories', ...SUPER_ADMIN_ONLY, async (_req: Request, res
   try {
     const advisorsWithNoCategories = await prisma.advisor.findMany({
       where: { verificationStatus: VerificationStatus.APPROVED, categories: { none: {} } },
-      include: { specializations: true },
+      include: { specializations: { include: { specialization: true } } },
     });
 
     let repaired = 0;
@@ -827,7 +827,7 @@ router.post('/repair-categories', ...SUPER_ADMIN_ONLY, async (_req: Request, res
       // Infer module slugs from specialization slugs (pattern: sN-M → mN)
       const moduleSlugs = [...new Set(
         advisor.specializations
-          .map(s => { const m = s.slug.match(/^s(\d+)-/); return m ? `m${m[1]}` : null; })
+          .map(s => { const m = (s as any).specialization?.slug?.match(/^s(\d+)-/); return m ? `m${m[1]}` : null; })
           .filter((s): s is string => !!s)
       )];
 

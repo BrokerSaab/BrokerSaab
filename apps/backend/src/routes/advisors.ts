@@ -98,7 +98,11 @@ router.get('/', validateRequest(searchAdvisorsQuerySchema), async (req: Request,
   }
 
   if (state && state !== 'All India') {
-    whereConditions.state = { contains: state as string, mode: 'insensitive' };
+    // Match on state field OR location field (location often contains "City, State")
+    whereConditions.OR = [
+      { state: { contains: state as string, mode: 'insensitive' } },
+      { location: { contains: state as string, mode: 'insensitive' } },
+    ];
   }
 
   if (location) {
