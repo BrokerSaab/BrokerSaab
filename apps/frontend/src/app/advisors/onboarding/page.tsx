@@ -1778,6 +1778,72 @@ ${availLines ? `<div class="section">
               <p className="text-sm text-gray-500">Toggle the days you are available and set your time slots. You can update this anytime.</p>
             </div>
 
+            {/* Quick-select shortcuts */}
+            <div className="flex flex-wrap gap-2 mb-3">
+              {[
+                {
+                  label: activeDays.length === 7 ? 'Deselect All' : 'All 7 Days',
+                  action: () => {
+                    if (activeDays.length === 7) {
+                      update('slots', []);
+                    } else {
+                      const existing = new Set(activeDays);
+                      const newSlots = [...formData.slots];
+                      [0,1,2,3,4,5,6].forEach(d => {
+                        if (!existing.has(d)) newSlots.push({ id: `${d}-${Date.now()}`, dayOfWeek: d, startTime: '09:00', endTime: '17:00' });
+                      });
+                      update('slots', newSlots);
+                    }
+                  },
+                  active: activeDays.length === 7,
+                  color: 'text-indigo-600 border-indigo-300 bg-indigo-50 hover:bg-indigo-100',
+                },
+                {
+                  label: 'Weekdays',
+                  action: () => {
+                    const weekdays = [1,2,3,4,5];
+                    const existing = new Set(activeDays);
+                    const allHave = weekdays.every(d => existing.has(d));
+                    if (allHave) {
+                      update('slots', formData.slots.filter(s => !weekdays.includes(s.dayOfWeek)));
+                    } else {
+                      const newSlots = [...formData.slots];
+                      weekdays.forEach(d => {
+                        if (!existing.has(d)) newSlots.push({ id: `${d}-${Date.now()}`, dayOfWeek: d, startTime: '09:00', endTime: '17:00' });
+                      });
+                      update('slots', newSlots);
+                    }
+                  },
+                  active: [1,2,3,4,5].every(d => activeDays.includes(d)),
+                  color: 'text-emerald-600 border-emerald-300 bg-emerald-50 hover:bg-emerald-100',
+                },
+                {
+                  label: 'Weekends',
+                  action: () => {
+                    const weekends = [0,6];
+                    const existing = new Set(activeDays);
+                    const allHave = weekends.every(d => existing.has(d));
+                    if (allHave) {
+                      update('slots', formData.slots.filter(s => !weekends.includes(s.dayOfWeek)));
+                    } else {
+                      const newSlots = [...formData.slots];
+                      weekends.forEach(d => {
+                        if (!existing.has(d)) newSlots.push({ id: `${d}-${Date.now()}`, dayOfWeek: d, startTime: '09:00', endTime: '17:00' });
+                      });
+                      update('slots', newSlots);
+                    }
+                  },
+                  active: [0,6].every(d => activeDays.includes(d)),
+                  color: 'text-amber-600 border-amber-300 bg-amber-50 hover:bg-amber-100',
+                },
+              ].map(btn => (
+                <button key={btn.label} type="button" onClick={btn.action}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${btn.color} ${btn.active ? 'ring-2 ring-offset-1' : ''}`}>
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+
             {/* Day chips */}
             <div className="flex flex-wrap gap-2 mb-5">
               {DAYS.map((day, i) => {
@@ -2272,42 +2338,18 @@ ${availLines ? `<div class="section">
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={async () => {
-                  setPaymentLoading(true); setError('');
-                  try {
-                    // Prefer uploadedToken (set by handleSubmit this session);
-                    // fall back to localStorage which persists across re-renders
-                    const token = uploadedToken
-                      || (typeof localStorage !== 'undefined' ? localStorage.getItem('accessToken') : null)
-                      || '';
-                    if (!token) {
-                      setError('Session expired — please go back to the previous step and try again.');
-                      setPaymentLoading(false);
-                      return;
-                    }
-                    const res = await fetch(`${API}/subscriptions/test-payment`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                      },
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                      setPaymentDone(true);
-                      setInvoiceData({
-                        invoiceNo: `BS-TEST-${Date.now().toString().slice(-8)}`,
-                        paymentId: 'TEST_' + Date.now(),
-                        orderId: 'TEST_ORDER_' + Date.now(),
-                        paidAt: new Date(),
-                      });
-                      setStep('success');
-                    } else {
-                      setError(data.message || 'Test payment failed');
-                    }
-                  } catch (e: any) {
-                    setError(e?.message || 'Network error — check your connection.');
-                  } finally { setPaymentLoading(false); }
+                onClick={() => {
+                  // Test mode: skip backend payment entirely
+                  // Advisor type (AUTHORIZED) is already saved on the account created
+                  // during "Proceed to Payment" — subscription record is only for billing
+                  setPaymentDone(true);
+                  setInvoiceData({
+                    invoiceNo: `BS-TEST-${Date.now().toString().slice(-8)}`,
+                    paymentId: 'TEST_' + Date.now(),
+                    orderId: 'TEST_ORDER_' + Date.now(),
+                    paidAt: new Date(),
+                  });
+                  setStep('success');
                 }}
                 className="w-full py-3 rounded-xl border-2 border-dashed border-amber-300 text-amber-700 bg-amber-50 text-xs font-semibold hover:bg-amber-100 transition-all flex items-center justify-center gap-2"
               >
