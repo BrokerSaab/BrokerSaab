@@ -5,12 +5,13 @@ import {
   Users, FileText, CheckCircle, XCircle, TrendingUp, AlertTriangle,
   ShieldCheck, BookOpen, Loader2, Calendar, Clock, RefreshCw, BadgeCheck,
   BarChart2, CreditCard, Download, ChevronDown, MapPin, X,
-  UserCheck, Award, Activity, Eye, MessageSquare, TicketCheck
+  UserCheck, Award, Activity, Eye, MessageSquare, TicketCheck,
+  UserPlus, Send, ClipboardCheck, Shield
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
-type AdminTab = 'overview' | 'advisors' | 'users' | 'funnel' | 'subscriptions' | 'contact-packs' | 'bookings' | 'support';
+type AdminTab = 'overview' | 'advisors' | 'users' | 'funnel' | 'subscriptions' | 'contact-packs' | 'bookings' | 'support' | 'sub-admins';
 type BookingStatus = 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
 
 const STATUS_BADGE: Record<BookingStatus, string> = {
@@ -22,10 +23,12 @@ const STATUS_BADGE: Record<BookingStatus, string> = {
 };
 
 const VSTATUS_BADGE: Record<string, string> = {
-  PENDING:   'bg-amber-100 text-amber-700',
-  APPROVED:  'bg-emerald-100 text-emerald-700',
-  REJECTED:  'bg-red-100 text-red-700',
-  SUSPENDED: 'bg-orange-100 text-orange-700',
+  PENDING:                  'bg-amber-100 text-amber-700',
+  UNDER_REVIEW:             'bg-blue-100 text-blue-700',
+  SUBMITTED_FOR_APPROVAL:   'bg-purple-100 text-purple-700',
+  APPROVED:                 'bg-emerald-100 text-emerald-700',
+  REJECTED:                 'bg-red-100 text-red-700',
+  SUSPENDED:                'bg-orange-100 text-orange-700',
 };
 
 interface Advisor {
@@ -35,8 +38,15 @@ interface Advisor {
   isAuthorizedDealer?: boolean; dealerAuthorizedAt?: string;
   experienceYears: number; location: string; state?: string;
   consultationFee: string; createdAt: string;
+  rejectionComment?: string; subAdminNote?: string;
+  assignedSubAdmin?: { id: string; fullName: string; email: string };
   documents?: { id: string; documentType: string; documentUrl: string; verified: boolean }[];
   subscriptions?: { status: string; expiresAt?: string; subscribedAt?: string }[];
+}
+
+interface SubAdmin {
+  id: string; fullName: string; email: string; role: string; createdAt: string;
+  _count?: { assignedAdvisors: number };
 }
 
 interface User { id: string; fullName?: string; email?: string; phoneNumber: string; state?: string; createdAt: string; _count?: { bookings: number }; }
@@ -48,6 +58,7 @@ interface Metrics { totalClients: number; totalAdvisors: number; authorizedAdvis
 
 export default function AdminSuitePage() {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const [adminRole, setAdminRole] = useState<string>('SUPER_ADMIN');
   const [metrics, setMetrics] = useState<Metrics>({ totalClients: 0, totalAdvisors: 0, authorizedAdvisors: 0, regularAdvisors: 0, pendingVerification: 0, consultationsCompleted: 0, grossRevenue: '0', platformCommission: '0', activeSubscriptions: 0, subscriptionRevenue: '0', abandonedFunnels: 0, completedOnboardings: 0 });
 
   // Advisors tab
@@ -58,6 +69,28 @@ export default function AdminSuitePage() {
   const [selectedAdv, setSelectedAdv] = useState<Advisor | null>(null);
   const [verifying, setVerifying] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>(['Admin portal loaded.']);
+
+  // Rejection modal
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectComment, setRejectComment] = useState('');
+  const [pendingRejectId, setPendingRejectId] = useState<string | null>(null);
+
+  // Submit-for-approval modal
+  const [submitModalOpen, setSubmitModalOpen] = useState(false);
+  const [submitNote, setSubmitNote] = useState('');
+  const [pendingSubmitId, setPendingSubmitId] = useState<string | null>(null);
+
+  // Bulk assign
+  const [selectedForAssign, setSelectedForAssign] = useState<Set<string>>(new Set());
+  const [assignTargetSubAdminId, setAssignTargetSubAdminId] = useState('');
+  const [assigning, setAssigning] = useState(false);
+
+  // Sub-admins tab
+  const [subAdmins, setSubAdmins] = useState<SubAdmin[]>([]);
+  const [subAdminsLoading, setSubAdminsLoading] = useState(false);
+  const [newSubAdmin, setNewSubAdmin] = useState({ fullName: '', email: '', password: '' });
+  const [creatingSubAdmin, setCreatingSubAdmin] = useState(false);
+  const [subAdminFormError, setSubAdminFormError] = useState('');
 
   // Users tab
   const [users, setUsers] = useState<User[]>([]);
@@ -95,6 +128,17 @@ export default function AdminSuitePage() {
 
   const token = () => (typeof localStorage !== 'undefined' ? localStorage.getItem('accessToken') || '' : '');
 
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        if (u?.role) setAdminRole(u.role);
+      } catch { /* keep default */ }
+    }
+  }, []);
+
+  const isSuperAdmin = adminRole === 'SUPER_ADMIN';
+
   const fetchDashboard = useCallback(async () => {
     try {
       const r = await fetch(`${API}/admin/dashboard`, { headers: { Authorization: `Bearer ${token()}` } });
@@ -106,6 +150,13 @@ export default function AdminSuitePage() {
   const fetchAdvisors = useCallback(async () => {
     setAdvisorsLoading(true);
     try {
+      // Sub-admins always see their assigned queue
+      if (!isSuperAdmin) {
+        const r = await fetch(`${API}/admin/advisors/my-queue`, { headers: { Authorization: `Bearer ${token()}` } });
+        const d = await r.json();
+        if (d.success) { setAdvisors(d.data); setSelectedAdv(d.data[0] ?? null); }
+        return;
+      }
       const params = new URLSearchParams({ limit: '50' });
       if (advisorStatusFilter !== 'ALL') params.set('status', advisorStatusFilter);
       if (advisorTypeFilter !== 'ALL') params.set('type', advisorTypeFilter);
@@ -113,7 +164,17 @@ export default function AdminSuitePage() {
       const d = await r.json();
       if (d.success) { setAdvisors(d.data); setSelectedAdv(d.data[0] ?? null); }
     } catch { /* empty */ } finally { setAdvisorsLoading(false); }
-  }, [advisorStatusFilter, advisorTypeFilter]);
+  }, [advisorStatusFilter, advisorTypeFilter, isSuperAdmin]);
+
+  const fetchSubAdmins = useCallback(async () => {
+    if (!isSuperAdmin) return;
+    setSubAdminsLoading(true);
+    try {
+      const r = await fetch(`${API}/admin/sub-admins`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.success) setSubAdmins(d.data);
+    } catch { /* empty */ } finally { setSubAdminsLoading(false); }
+  }, [isSuperAdmin]);
 
   const fetchUsers = useCallback(async () => {
     setUsersLoading(true);
@@ -164,6 +225,17 @@ export default function AdminSuitePage() {
     } catch { /* empty */ } finally { setTicketsLoading(false); }
   }, [ticketStatusFilter]);
 
+  const fetchContactSubs = useCallback(async () => {
+    setContactSubsLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: '50' });
+      if (contactSubStatusFilter !== 'ALL') params.set('status', contactSubStatusFilter);
+      const r = await fetch(`${API}/admin/contact-subscriptions?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.success) setContactSubs(d.data);
+    } catch { /* empty */ } finally { setContactSubsLoading(false); }
+  }, [contactSubStatusFilter]);
+
   const updateTicketStatus = useCallback(async (id: string, status: string) => {
     try {
       const r = await fetch(`${API}/admin/tickets/${id}`, {
@@ -181,17 +253,6 @@ export default function AdminSuitePage() {
     } catch { /* ignore */ }
   }, []);
 
-  const fetchContactSubs = useCallback(async () => {
-    setContactSubsLoading(true);
-    try {
-      const params = new URLSearchParams({ limit: '50' });
-      if (contactSubStatusFilter !== 'ALL') params.set('status', contactSubStatusFilter);
-      const r = await fetch(`${API}/admin/contact-subscriptions?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
-      const d = await r.json();
-      if (d.success) setContactSubs(d.data);
-    } catch { /* empty */ } finally { setContactSubsLoading(false); }
-  }, [contactSubStatusFilter]);
-
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
   useEffect(() => { if (activeTab === 'advisors') fetchAdvisors(); }, [activeTab, fetchAdvisors]);
   useEffect(() => { if (activeTab === 'users') fetchUsers(); }, [activeTab, fetchUsers]);
@@ -200,29 +261,94 @@ export default function AdminSuitePage() {
   useEffect(() => { if (activeTab === 'contact-packs') fetchContactSubs(); }, [activeTab, fetchContactSubs]);
   useEffect(() => { if (activeTab === 'bookings') fetchBookings(); }, [activeTab, fetchBookings]);
   useEffect(() => { if (activeTab === 'support') fetchTickets(); }, [activeTab, fetchTickets]);
-  // Fetch open ticket count for badge on tab
+  useEffect(() => { if (activeTab === 'sub-admins') fetchSubAdmins(); }, [activeTab, fetchSubAdmins]);
   useEffect(() => {
     fetch(`${API}/admin/tickets?status=OPEN&limit=0`, { headers: { Authorization: `Bearer ${token()}` } })
       .then(r => r.json()).then(d => { if (d.success) setOpenTicketCount(d.total); }).catch(() => {});
   }, []);
 
-  const handleVerify = async (id: string, action: 'APPROVE' | 'REJECT') => {
-    setVerifying(id + action);
-    const status = action === 'APPROVE' ? 'APPROVED' : 'REJECTED';
+  // Re-fetch sub-admins so the assign dropdown stays current when entering advisors tab
+  useEffect(() => { if (activeTab === 'advisors' && isSuperAdmin) fetchSubAdmins(); }, [activeTab, isSuperAdmin, fetchSubAdmins]);
+
+  // ── Rejection flow ───────────────────────────────────────────────
+  const openRejectModal = (id: string) => {
+    setPendingRejectId(id);
+    setRejectComment('');
+    setRejectModalOpen(true);
+  };
+
+  const confirmReject = async () => {
+    if (!pendingRejectId || rejectComment.trim().length < 5) return;
+    setVerifying(pendingRejectId + 'REJECT');
+    try {
+      const res = await fetch(`${API}/admin/advisors/${pendingRejectId}/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ status: 'REJECTED', reason: rejectComment.trim() }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        const adv = advisors.find(a => a.id === pendingRejectId);
+        if (adv) setLogs(prev => [`Advisor ${adv.fullName} REJECTED: "${rejectComment.trim()}"`, ...prev]);
+        setAdvisors(prev => prev.map(a => a.id === pendingRejectId ? { ...a, verificationStatus: 'REJECTED', rejectionComment: rejectComment.trim() } : a));
+        if (selectedAdv?.id === pendingRejectId) setSelectedAdv(prev => prev ? { ...prev, verificationStatus: 'REJECTED', rejectionComment: rejectComment.trim() } : prev);
+        fetchDashboard();
+      }
+    } catch { /* keep */ } finally {
+      setVerifying(null);
+      setRejectModalOpen(false);
+      setPendingRejectId(null);
+    }
+  };
+
+  // ── Approve flow ─────────────────────────────────────────────────
+  const handleApprove = async (id: string) => {
+    setVerifying(id + 'APPROVE');
     try {
       await fetch(`${API}/admin/advisors/${id}/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: 'APPROVED' }),
       });
       const adv = advisors.find(a => a.id === id);
-      if (adv) setLogs(prev => [`Advisor ${adv.fullName} was ${action}D.`, ...prev]);
-      setAdvisors(prev => prev.map(a => a.id === id ? { ...a, verificationStatus: status } : a));
-      if (selectedAdv?.id === id) setSelectedAdv(prev => prev ? { ...prev, verificationStatus: status } : prev);
+      if (adv) setLogs(prev => [`Advisor ${adv.fullName} APPROVED.`, ...prev]);
+      setAdvisors(prev => prev.map(a => a.id === id ? { ...a, verificationStatus: 'APPROVED' } : a));
+      if (selectedAdv?.id === id) setSelectedAdv(prev => prev ? { ...prev, verificationStatus: 'APPROVED' } : prev);
       fetchDashboard();
     } catch { /* keep */ } finally { setVerifying(null); }
   };
 
+  // ── Submit for approval flow (SUB_ADMIN) ──────────────────────────
+  const openSubmitModal = (id: string) => {
+    setPendingSubmitId(id);
+    setSubmitNote('');
+    setSubmitModalOpen(true);
+  };
+
+  const confirmSubmit = async () => {
+    if (!pendingSubmitId) return;
+    setVerifying(pendingSubmitId + 'SUBMIT');
+    try {
+      const res = await fetch(`${API}/admin/advisors/${pendingSubmitId}/submit-for-approval`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ note: submitNote.trim() || undefined }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        const adv = advisors.find(a => a.id === pendingSubmitId);
+        if (adv) setLogs(prev => [`Advisor ${adv.fullName} submitted for approval.`, ...prev]);
+        setAdvisors(prev => prev.filter(a => a.id !== pendingSubmitId));
+        if (selectedAdv?.id === pendingSubmitId) setSelectedAdv(null);
+      }
+    } catch { /* keep */ } finally {
+      setVerifying(null);
+      setSubmitModalOpen(false);
+      setPendingSubmitId(null);
+    }
+  };
+
+  // ── Dealer toggle ────────────────────────────────────────────────
   const handleDealerToggle = async (id: string, action: 'GRANT' | 'REVOKE') => {
     setVerifying(id + 'DEALER');
     try {
@@ -238,9 +364,93 @@ export default function AdminSuitePage() {
     } catch { /* keep */ } finally { setVerifying(null); }
   };
 
+  // ── Document verify toggle ────────────────────────────────────────
+  const toggleDocVerified = async (advisorId: string, docId: string, verified: boolean) => {
+    try {
+      const res = await fetch(`${API}/admin/advisors/${advisorId}/documents/${docId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ verified }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setAdvisors(prev => prev.map(a => a.id === advisorId
+          ? { ...a, documents: a.documents?.map(doc => doc.id === docId ? { ...doc, verified } : doc) }
+          : a
+        ));
+        if (selectedAdv?.id === advisorId) {
+          setSelectedAdv(prev => prev ? { ...prev, documents: prev.documents?.map(doc => doc.id === docId ? { ...doc, verified } : doc) } : prev);
+        }
+      }
+    } catch { /* ignore */ }
+  };
+
+  // ── Bulk assign ───────────────────────────────────────────────────
+  const toggleSelectAdvisor = (id: string) => {
+    setSelectedForAssign(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkAssign = async () => {
+    if (!assignTargetSubAdminId || selectedForAssign.size === 0) return;
+    setAssigning(true);
+    try {
+      const res = await fetch(`${API}/admin/advisors/assign-bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ advisorIds: Array.from(selectedForAssign), subAdminId: assignTargetSubAdminId }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        const sa = subAdmins.find(s => s.id === assignTargetSubAdminId);
+        setLogs(prev => [`${d.count} advisor(s) assigned to ${sa?.fullName || 'sub-admin'}.`, ...prev]);
+        setSelectedForAssign(new Set());
+        setAssignTargetSubAdminId('');
+        fetchAdvisors();
+      }
+    } catch { /* keep */ } finally { setAssigning(false); }
+  };
+
+  // ── Create sub-admin ──────────────────────────────────────────────
+  const handleCreateSubAdmin = async () => {
+    setSubAdminFormError('');
+    if (!newSubAdmin.fullName.trim() || !newSubAdmin.email.trim() || newSubAdmin.password.length < 8) {
+      setSubAdminFormError('All fields are required. Password must be at least 8 characters.');
+      return;
+    }
+    setCreatingSubAdmin(true);
+    try {
+      const res = await fetch(`${API}/admin/sub-admins`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify(newSubAdmin),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setNewSubAdmin({ fullName: '', email: '', password: '' });
+        fetchSubAdmins();
+        setLogs(prev => [`Sub-admin ${newSubAdmin.fullName} created.`, ...prev]);
+      } else {
+        setSubAdminFormError(d.message || 'Failed to create sub-admin');
+      }
+    } catch { setSubAdminFormError('Network error'); } finally { setCreatingSubAdmin(false); }
+  };
+
+  const handleDeleteSubAdmin = async (id: string, name: string) => {
+    if (!confirm(`Remove sub-admin ${name}? Their unreviewed advisors will return to PENDING.`)) return;
+    try {
+      await fetch(`${API}/admin/sub-admins/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token()}` } });
+      setSubAdmins(prev => prev.filter(s => s.id !== id));
+      setLogs(prev => [`Sub-admin ${name} removed.`, ...prev]);
+    } catch { /* ignore */ }
+  };
+
   const exportUrl = (entity: string) => `${API}/admin/export/${entity}`;
 
-  const TABS: { key: AdminTab; label: string; icon: React.ElementType }[] = [
+  const BASE_TABS: { key: AdminTab; label: string; icon: React.ElementType }[] = [
     { key: 'overview', label: 'Overview', icon: BarChart2 },
     { key: 'advisors', label: 'Advisors', icon: Users },
     { key: 'users', label: 'Users', icon: UserCheck },
@@ -251,13 +461,24 @@ export default function AdminSuitePage() {
     { key: 'support', label: openTicketCount > 0 ? `Support (${openTicketCount})` : 'Support', icon: MessageSquare },
   ];
 
+  const TABS = isSuperAdmin
+    ? [...BASE_TABS, { key: 'sub-admins' as AdminTab, label: 'Sub-Admins', icon: Shield }]
+    : BASE_TABS;
+
+  const showBulkAssignBar = isSuperAdmin && selectedForAssign.size > 0;
+
+  const getDocDownloadUrl = (docUrl: string) =>
+    `${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:5000'}${docUrl}`;
+
   return (
     <div className="min-h-screen bg-[#F4F6FB]">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
           Admin Operations Suite
-          <span className="text-xs border border-indigo-200 text-indigo-700 font-semibold px-2 py-0.5 rounded-md bg-indigo-50 uppercase tracking-wider">Super Admin</span>
+          <span className={`text-xs border font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider ${isSuperAdmin ? 'border-indigo-200 text-indigo-700 bg-indigo-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
+            {isSuperAdmin ? 'Super Admin' : 'Sub-Admin'}
+          </span>
         </h1>
         <p className="text-slate-500 text-xs mt-1">Manage advisors, users, onboarding funnel, subscriptions, and bookings.</p>
       </div>
@@ -296,8 +517,6 @@ export default function AdminSuitePage() {
               </div>
             ))}
           </div>
-
-          {/* Audit log */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
             <h4 className="text-xs font-bold text-slate-600 uppercase tracking-widest pb-3 border-b border-slate-100 mb-3">Audit Log</h4>
             <div className="space-y-1.5 max-h-40 overflow-y-auto font-mono text-[10px] text-slate-400">
@@ -315,29 +534,45 @@ export default function AdminSuitePage() {
       {/* ── ADVISORS ── */}
       {activeTab === 'advisors' && (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3 justify-between">
-            <div className="flex gap-2 flex-wrap">
-              {['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED'].map(s => (
-                <button key={s} onClick={() => setAdvisorStatusFilter(s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${advisorStatusFilter === s ? 'bg-gold-500 text-navy-800 border-gold-500' : 'text-slate-500 border-slate-200 bg-white hover:border-indigo-300'}`}>
-                  {s === 'ALL' ? 'All Status' : s}
-                </button>
-              ))}
-              {['ALL', 'REGULAR', 'AUTHORIZED'].map(t => (
-                <button key={t} onClick={() => setAdvisorTypeFilter(t)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${advisorTypeFilter === t ? 'bg-blue-600 text-white border-blue-500' : 'text-slate-500 border-slate-200 bg-white hover:border-indigo-300'}`}>
-                  {t === 'ALL' ? 'All Types' : t}
-                </button>
-              ))}
+          {/* Filters — SUPER_ADMIN only */}
+          {isSuperAdmin && (
+            <div className="flex flex-wrap items-center gap-3 justify-between">
+              <div className="flex gap-2 flex-wrap">
+                {['ALL', 'PENDING', 'UNDER_REVIEW', 'SUBMITTED_FOR_APPROVAL', 'APPROVED', 'REJECTED', 'SUSPENDED'].map(s => (
+                  <button key={s} onClick={() => { setAdvisorStatusFilter(s); setSelectedForAssign(new Set()); }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                      advisorStatusFilter === s
+                        ? s === 'SUBMITTED_FOR_APPROVAL' ? 'bg-purple-600 text-white border-purple-600'
+                        : s === 'UNDER_REVIEW' ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-gold-500 text-navy-800 border-gold-500'
+                      : 'text-slate-500 border-slate-200 bg-white hover:border-indigo-300'
+                    }`}>
+                    {s === 'ALL' ? 'All Status' : s.replace(/_/g, ' ')}
+                  </button>
+                ))}
+                {['ALL', 'REGULAR', 'AUTHORIZED'].map(t => (
+                  <button key={t} onClick={() => setAdvisorTypeFilter(t)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${advisorTypeFilter === t ? 'bg-blue-600 text-white border-blue-500' : 'text-slate-500 border-slate-200 bg-white hover:border-indigo-300'}`}>
+                    {t === 'ALL' ? 'All Types' : t}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={fetchAdvisors} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 transition-colors"><RefreshCw size={13} /> Refresh</button>
+                <a href={exportUrl('advisors')} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
+                  <Download size={13} /> Export Excel
+                </a>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={fetchAdvisors} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 transition-colors"><RefreshCw size={13} /> Refresh</button>
-              <a href={exportUrl('advisors')} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
-                <Download size={13} /> Export Excel
-              </a>
+          )}
+
+          {!isSuperAdmin && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-700">Your Review Queue ({advisors.length} advisors)</p>
+              <button onClick={fetchAdvisors} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600"><RefreshCw size={13} /> Refresh</button>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* List */}
@@ -347,19 +582,31 @@ export default function AdminSuitePage() {
               ) : advisors.length === 0 ? (
                 <div className="text-center py-10"><CheckCircle className="mx-auto text-gold-500/30 mb-2" size={32} /><p className="text-xs text-slate-400">No advisors found.</p></div>
               ) : advisors.map(adv => (
-                <button key={adv.id} onClick={() => setSelectedAdv(adv)}
-                  className={`w-full text-left p-3 rounded-xl border text-xs space-y-1.5 transition-all ${selectedAdv?.id === adv.id ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-200'}`}>
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold">{adv.fullName}</span>
-                    <div className="flex gap-1">
-                      {adv.isAuthorizedDealer && <BadgeCheck size={12} className="text-amber-400" />}
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${VSTATUS_BADGE[adv.verificationStatus] || 'bg-slate-500/10 text-slate-400'}`}>{adv.verificationStatus}</span>
+                <div key={adv.id} className="relative">
+                  {isSuperAdmin && (advisorStatusFilter === 'PENDING' || advisorStatusFilter === 'ALL') && (
+                    <input
+                      type="checkbox"
+                      checked={selectedForAssign.has(adv.id)}
+                      onChange={() => toggleSelectAdvisor(adv.id)}
+                      className="absolute top-3 left-3 z-10 w-3.5 h-3.5 accent-indigo-600 cursor-pointer"
+                      onClick={e => e.stopPropagation()}
+                    />
+                  )}
+                  <button onClick={() => setSelectedAdv(adv)}
+                    className={`w-full text-left p-3 ${isSuperAdmin && (advisorStatusFilter === 'PENDING' || advisorStatusFilter === 'ALL') ? 'pl-8' : ''} rounded-xl border text-xs space-y-1.5 transition-all ${selectedAdv?.id === adv.id ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-200'}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold">{adv.fullName}</span>
+                      <div className="flex gap-1 items-center">
+                        {adv.isAuthorizedDealer && <BadgeCheck size={12} className="text-amber-400" />}
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${VSTATUS_BADGE[adv.verificationStatus] || 'bg-slate-500/10 text-slate-400'}`}>{adv.verificationStatus.replace(/_/g, ' ')}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex justify-between text-[10px] text-slate-500">
-                    <span>{adv.advisorType}</span><span>{adv.state || adv.location}</span>
-                  </div>
-                </button>
+                    <div className="flex justify-between text-[10px] text-slate-500">
+                      <span>{adv.advisorType}</span><span>{adv.state || adv.location}</span>
+                    </div>
+                    {adv.assignedSubAdmin && <p className="text-[9px] text-blue-500">Assigned: {adv.assignedSubAdmin.fullName}</p>}
+                  </button>
+                </div>
               ))}
             </div>
 
@@ -372,42 +619,105 @@ export default function AdminSuitePage() {
                       <h3 className="text-lg font-bold text-slate-800">{selectedAdv.fullName}</h3>
                       <p className="text-xs text-slate-400">{selectedAdv.location} · {selectedAdv.experienceYears}y exp · ₹{selectedAdv.consultationFee}/session</p>
                       <p className="text-[11px] text-slate-500 font-mono">{selectedAdv.email} · {selectedAdv.phoneNumber}</p>
-                      {selectedAdv.aadhaarLast4 && <p className="text-[11px] text-slate-500">Aadhaar: {selectedAdv.aadhaarLast4}</p>}
+                      {selectedAdv.aadhaarLast4 && <p className="text-[11px] text-slate-500">Aadhaar: ****{selectedAdv.aadhaarLast4}</p>}
                       {selectedAdv.licenseNumber && <p className="text-[11px] text-slate-500">License: {selectedAdv.licenseNumber}</p>}
                       {selectedAdv.gstNumber && <p className="text-[11px] text-slate-500">GST: {selectedAdv.gstNumber}</p>}
+                      {selectedAdv.assignedSubAdmin && (
+                        <p className="text-[11px] text-blue-600 font-semibold mt-1">Reviewer: {selectedAdv.assignedSubAdmin.fullName}</p>
+                      )}
                     </div>
+
                     <div className="flex flex-wrap gap-2">
-                      <button onClick={() => handleVerify(selectedAdv.id, 'APPROVE')} disabled={!!verifying}
-                        className="px-3 py-2 bg-gradient-to-r from-emerald-600 to-emerald-400 text-slate-950 font-bold text-xs rounded-lg flex items-center gap-1 disabled:opacity-60">
-                        {verifying === selectedAdv.id + 'APPROVE' ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />} Approve
-                      </button>
-                      <button onClick={() => handleVerify(selectedAdv.id, 'REJECT')} disabled={!!verifying}
-                        className="px-3 py-2 bg-gradient-to-r from-rose-600 to-rose-400 text-slate-950 font-bold text-xs rounded-lg flex items-center gap-1 disabled:opacity-60">
-                        {verifying === selectedAdv.id + 'REJECT' ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />} Reject
-                      </button>
-                      <button onClick={() => handleDealerToggle(selectedAdv.id, selectedAdv.isAuthorizedDealer ? 'REVOKE' : 'GRANT')} disabled={!!verifying}
-                        className={`px-3 py-2 font-bold text-xs rounded-lg flex items-center gap-1 disabled:opacity-60 ${selectedAdv.isAuthorizedDealer ? 'bg-amber-500/20 border border-amber-500/30 text-amber-400' : 'bg-gradient-to-r from-amber-600 to-yellow-400 text-slate-950'}`}>
-                        {verifying === selectedAdv.id + 'DEALER' ? <Loader2 size={13} className="animate-spin" /> : <BadgeCheck size={13} />}
-                        {selectedAdv.isAuthorizedDealer ? 'Revoke Dealer' : 'Grant Dealer'}
-                      </button>
+                      {/* SUPER_ADMIN action buttons */}
+                      {isSuperAdmin && (
+                        <>
+                          <button onClick={() => handleApprove(selectedAdv.id)} disabled={!!verifying}
+                            className="px-3 py-2 bg-gradient-to-r from-emerald-600 to-emerald-400 text-slate-950 font-bold text-xs rounded-lg flex items-center gap-1 disabled:opacity-60">
+                            {verifying === selectedAdv.id + 'APPROVE' ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />} Approve
+                          </button>
+                          <button onClick={() => openRejectModal(selectedAdv.id)} disabled={!!verifying}
+                            className="px-3 py-2 bg-gradient-to-r from-rose-600 to-rose-400 text-slate-950 font-bold text-xs rounded-lg flex items-center gap-1 disabled:opacity-60">
+                            {verifying === selectedAdv.id + 'REJECT' ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />} Reject
+                          </button>
+                          <button onClick={() => handleDealerToggle(selectedAdv.id, selectedAdv.isAuthorizedDealer ? 'REVOKE' : 'GRANT')} disabled={!!verifying}
+                            className={`px-3 py-2 font-bold text-xs rounded-lg flex items-center gap-1 disabled:opacity-60 ${selectedAdv.isAuthorizedDealer ? 'bg-amber-500/20 border border-amber-500/30 text-amber-400' : 'bg-gradient-to-r from-amber-600 to-yellow-400 text-slate-950'}`}>
+                            {verifying === selectedAdv.id + 'DEALER' ? <Loader2 size={13} className="animate-spin" /> : <BadgeCheck size={13} />}
+                            {selectedAdv.isAuthorizedDealer ? 'Revoke Dealer' : 'Grant Dealer'}
+                          </button>
+                        </>
+                      )}
+
+                      {/* SUB_ADMIN action buttons */}
+                      {!isSuperAdmin && (
+                        <>
+                          <button onClick={() => openSubmitModal(selectedAdv.id)} disabled={!!verifying}
+                            className="px-3 py-2 bg-gradient-to-r from-purple-600 to-purple-400 text-white font-bold text-xs rounded-lg flex items-center gap-1 disabled:opacity-60">
+                            {verifying === selectedAdv.id + 'SUBMIT' ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Submit for Approval
+                          </button>
+                          <button onClick={() => openRejectModal(selectedAdv.id)} disabled={!!verifying}
+                            className="px-3 py-2 bg-gradient-to-r from-rose-600 to-rose-400 text-slate-950 font-bold text-xs rounded-lg flex items-center gap-1 disabled:opacity-60">
+                            {verifying === selectedAdv.id + 'REJECT' ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />} Reject
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
-                  {/* KYC documents */}
+                  {/* Sub-admin note (visible to super admin) */}
+                  {isSuperAdmin && selectedAdv.subAdminNote && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-purple-700 mb-1 flex items-center gap-1"><ClipboardCheck size={12} /> Reviewer Note</p>
+                      <p className="text-xs text-purple-800">{selectedAdv.subAdminNote}</p>
+                    </div>
+                  )}
+
+                  {/* Rejection comment */}
+                  {selectedAdv.rejectionComment && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <p className="text-xs font-semibold text-red-700 mb-1">Rejection Reason</p>
+                      <p className="text-xs text-red-800">{selectedAdv.rejectionComment}</p>
+                    </div>
+                  )}
+
+                  {/* KYC Documents */}
                   {selectedAdv.documents && selectedAdv.documents.length > 0 && (
                     <div>
                       <p className="text-xs font-bold text-slate-700 mb-2">KYC Documents</p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {selectedAdv.documents.map(doc => (
-                          <a key={doc.id} href={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1','')||'http://localhost:5000'}${doc.documentUrl}`} target="_blank" rel="noreferrer"
-                            className="flex flex-col items-center gap-1 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-all cursor-pointer">
-                            <FileText size={20} className="text-gold-400" />
-                            <span className="text-[10px] text-slate-400 text-center leading-tight">{doc.documentType.replace(/_/g, ' ')}</span>
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded ${doc.verified ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                              {doc.verified ? 'Verified' : 'Pending'}
-                            </span>
-                          </a>
-                        ))}
+                        {selectedAdv.documents.map(doc => {
+                          const fileUrl = getDocDownloadUrl(doc.documentUrl);
+                          const filename = doc.documentType.toLowerCase().replace(/_/g, '-') + doc.documentUrl.slice(doc.documentUrl.lastIndexOf('.'));
+                          return (
+                            <div key={doc.id} className="flex flex-col gap-1.5 p-3 rounded-xl border border-slate-200 bg-slate-50">
+                              <div className="flex items-center justify-between">
+                                <FileText size={18} className="text-gold-400" />
+                                <label className="flex items-center gap-1 cursor-pointer" title="Mark as verified">
+                                  <input
+                                    type="checkbox"
+                                    checked={doc.verified}
+                                    onChange={e => toggleDocVerified(selectedAdv.id, doc.id, e.target.checked)}
+                                    className="w-3 h-3 accent-emerald-600"
+                                  />
+                                  <span className="text-[9px] text-slate-400">Verified</span>
+                                </label>
+                              </div>
+                              <span className="text-[10px] text-slate-500 text-center leading-tight">{doc.documentType.replace(/_/g, ' ')}</span>
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded text-center ${doc.verified ? 'bg-emerald-500/10 text-emerald-600 font-semibold' : 'bg-amber-500/10 text-amber-500'}`}>
+                                {doc.verified ? '✓ Verified' : 'Pending'}
+                              </span>
+                              <div className="flex gap-1 mt-1">
+                                <a href={fileUrl} target="_blank" rel="noreferrer"
+                                  className="flex-1 flex items-center justify-center gap-1 text-[9px] text-indigo-600 hover:text-indigo-800 bg-indigo-50 rounded py-1 transition-colors">
+                                  <Eye size={10} /> View
+                                </a>
+                                <a href={fileUrl} download={filename}
+                                  className="flex-1 flex items-center justify-center gap-1 text-[9px] text-emerald-600 hover:text-emerald-800 bg-emerald-50 rounded py-1 transition-colors">
+                                  <Download size={10} /> Download
+                                </a>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -431,6 +741,25 @@ export default function AdminSuitePage() {
               </div>
             </div>
           </div>
+
+          {/* Bulk Assign Bar */}
+          {showBulkAssignBar && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-indigo-700 text-white rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-3 z-50 border border-indigo-500">
+              <span className="text-sm font-semibold">{selectedForAssign.size} selected</span>
+              <select
+                value={assignTargetSubAdminId}
+                onChange={e => setAssignTargetSubAdminId(e.target.value)}
+                className="text-xs bg-indigo-900 border border-indigo-500 text-white rounded-lg px-2 py-1.5 outline-none">
+                <option value="">Choose sub-admin…</option>
+                {subAdmins.map(sa => <option key={sa.id} value={sa.id}>{sa.fullName}</option>)}
+              </select>
+              <button onClick={handleBulkAssign} disabled={!assignTargetSubAdminId || assigning}
+                className="px-4 py-1.5 bg-white text-indigo-700 font-bold text-xs rounded-lg disabled:opacity-50 flex items-center gap-1">
+                {assigning ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} Assign
+              </button>
+              <button onClick={() => setSelectedForAssign(new Set())} className="text-indigo-300 hover:text-white"><X size={16} /></button>
+            </div>
+          )}
         </div>
       )}
 
@@ -494,7 +823,7 @@ export default function AdminSuitePage() {
           ) : (
             <>
               <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 space-y-3">
-                {funnelSteps.map((s, i) => {
+                {funnelSteps.map((s) => {
                   const max = funnelSteps[0]?.count || 1;
                   const pct = Math.round((s.count / max) * 100);
                   return (
@@ -510,7 +839,6 @@ export default function AdminSuitePage() {
                   );
                 })}
               </div>
-
               <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                 <table className="w-full text-xs text-slate-700">
                   <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
@@ -692,10 +1020,10 @@ export default function AdminSuitePage() {
           )}
         </div>
       )}
+
       {/* ── SUPPORT TICKETS ── */}
       {activeTab === 'support' && (
         <div className="space-y-5">
-          {/* Header + filters */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -707,11 +1035,7 @@ export default function AdminSuitePage() {
             <div className="flex items-center gap-2 flex-wrap">
               {['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map(s => (
                 <button key={s} onClick={() => { setTicketStatusFilter(s); setSelectedTicket(null); }}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-                    ticketStatusFilter === s
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'
-                  }`}>
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${ticketStatusFilter === s ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'}`}>
                   {s.replace('_', ' ')}
                 </button>
               ))}
@@ -720,96 +1044,54 @@ export default function AdminSuitePage() {
               </button>
             </div>
           </div>
-
           {ticketsLoading ? (
-            <div className="flex items-center justify-center py-16 text-slate-400">
-              <Loader2 size={22} className="animate-spin mr-3" /> Loading tickets…
-            </div>
+            <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 size={22} className="animate-spin mr-3" /> Loading tickets…</div>
           ) : tickets.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
               <MessageSquare size={40} className="mx-auto text-slate-300 mb-3" />
               <p className="text-slate-400 text-sm">No support tickets found</p>
-              {ticketStatusFilter !== 'ALL' && (
-                <button onClick={() => setTicketStatusFilter('ALL')} className="mt-3 text-xs text-indigo-500 hover:underline">Clear filter</button>
-              )}
+              {ticketStatusFilter !== 'ALL' && <button onClick={() => setTicketStatusFilter('ALL')} className="mt-3 text-xs text-indigo-500 hover:underline">Clear filter</button>}
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Ticket list */}
               <div className="space-y-2">
                 {tickets.map(ticket => (
-                  <div
-                    key={ticket.id}
-                    onClick={() => setSelectedTicket(ticket)}
-                    className={`bg-white rounded-xl p-4 border cursor-pointer transition-all hover:shadow-md ${
-                      selectedTicket?.id === ticket.id
-                        ? 'border-indigo-400 shadow-md ring-1 ring-indigo-200'
-                        : 'border-slate-100 hover:border-slate-200'
-                    }`}
-                  >
+                  <div key={ticket.id} onClick={() => setSelectedTicket(ticket)}
+                    className={`bg-white rounded-xl p-4 border cursor-pointer transition-all hover:shadow-md ${selectedTicket?.id === ticket.id ? 'border-indigo-400 shadow-md ring-1 ring-indigo-200' : 'border-slate-100 hover:border-slate-200'}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-[10px] font-mono text-slate-400">BS-{ticket.id.slice(-8).toUpperCase()}</span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            ticket.status === 'OPEN' ? 'bg-red-50 text-red-600 border border-red-200' :
-                            ticket.status === 'IN_PROGRESS' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
-                            ticket.status === 'RESOLVED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
-                            'bg-slate-50 text-slate-500 border border-slate-200'
-                          }`}>{ticket.status.replace('_', ' ')}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ticket.status === 'OPEN' ? 'bg-red-50 text-red-600 border border-red-200' : ticket.status === 'IN_PROGRESS' ? 'bg-amber-50 text-amber-600 border border-amber-200' : ticket.status === 'RESOLVED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>{ticket.status.replace('_', ' ')}</span>
                         </div>
                         <p className="text-sm font-semibold text-slate-800 truncate">{ticket.subject}</p>
-                        <p className="text-xs text-slate-400 mt-0.5 truncate">
-                          {ticket.user.fullName || ticket.user.phoneNumber}
-                          {ticket.user.email ? ` · ${ticket.user.email}` : ''}
-                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5 truncate">{ticket.user.fullName || ticket.user.phoneNumber}{ticket.user.email ? ` · ${ticket.user.email}` : ''}</p>
                       </div>
                       <div className="text-[10px] text-slate-300 shrink-0 text-right">
-                        {new Date(ticket.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                        <br />
+                        {new Date(ticket.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}<br />
                         {new Date(ticket.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-
-              {/* Ticket detail panel */}
               {selectedTicket ? (
                 <div className="bg-white rounded-2xl border border-slate-100 p-6 space-y-5 h-fit sticky top-4">
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-mono text-slate-400">BS-{selectedTicket.id.slice(-8).toUpperCase()}</span>
-                      <button onClick={() => setSelectedTicket(null)} className="text-slate-300 hover:text-slate-500">
-                        <X size={16} />
-                      </button>
+                      <button onClick={() => setSelectedTicket(null)} className="text-slate-300 hover:text-slate-500"><X size={16} /></button>
                     </div>
                     <h3 className="text-base font-bold text-slate-800">{selectedTicket.subject}</h3>
-                    <p className="text-xs text-slate-400 mt-1">
-                      From: <strong className="text-slate-600">{selectedTicket.user.fullName || 'User'}</strong>
-                      {' · '}{selectedTicket.user.phoneNumber}
-                      {selectedTicket.user.email && <> · {selectedTicket.user.email}</>}
-                    </p>
+                    <p className="text-xs text-slate-400 mt-1">From: <strong className="text-slate-600">{selectedTicket.user.fullName || 'User'}</strong>{' · '}{selectedTicket.user.phoneNumber}{selectedTicket.user.email && <> · {selectedTicket.user.email}</>}</p>
                   </div>
-
-                  <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border border-slate-100">
-                    {selectedTicket.description}
-                  </div>
-
+                  <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border border-slate-100">{selectedTicket.description}</div>
                   <div>
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Update Status</p>
                     <div className="flex flex-wrap gap-2">
                       {['IN_PROGRESS', 'RESOLVED', 'CLOSED'].map(s => (
-                        <button
-                          key={s}
-                          onClick={() => updateTicketStatus(selectedTicket.id, s)}
-                          disabled={selectedTicket.status === s}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                            s === 'IN_PROGRESS' ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100' :
-                            s === 'RESOLVED'    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' :
-                                                  'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
+                        <button key={s} onClick={() => updateTicketStatus(selectedTicket.id, s)} disabled={selectedTicket.status === s}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${s === 'IN_PROGRESS' ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100' : s === 'RESOLVED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'}`}>
                           {s === 'IN_PROGRESS' ? '🔄 In Progress' : s === 'RESOLVED' ? '✅ Resolved' : '🔒 Close'}
                         </button>
                       ))}
@@ -817,16 +1099,156 @@ export default function AdminSuitePage() {
                   </div>
                 </div>
               ) : (
-                <div className="hidden lg:flex items-center justify-center bg-white rounded-2xl border border-dashed border-slate-200 h-48 text-slate-300 text-sm">
-                  ← Click a ticket to view details
-                </div>
+                <div className="hidden lg:flex items-center justify-center bg-white rounded-2xl border border-dashed border-slate-200 h-48 text-slate-300 text-sm">← Click a ticket to view details</div>
               )}
             </div>
           )}
         </div>
       )}
 
+      {/* ── SUB-ADMINS (SUPER_ADMIN only) ── */}
+      {activeTab === 'sub-admins' && isSuperAdmin && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-widest flex items-center gap-2">
+              <Shield size={15} className="text-indigo-500" /> Sub-Admin Management
+            </h2>
+            <button onClick={fetchSubAdmins} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600"><RefreshCw size={13} /> Refresh</button>
+          </div>
+
+          {/* Create sub-admin form */}
+          <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 space-y-4">
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest flex items-center gap-2"><UserPlus size={13} className="text-indigo-500" /> Create New Sub-Admin</h3>
+            {subAdminFormError && (
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{subAdminFormError}</p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input
+                type="text" placeholder="Full Name" value={newSubAdmin.fullName}
+                onChange={e => setNewSubAdmin(p => ({ ...p, fullName: e.target.value }))}
+                className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 placeholder:text-slate-400"
+              />
+              <input
+                type="email" placeholder="Email Address" value={newSubAdmin.email}
+                onChange={e => setNewSubAdmin(p => ({ ...p, email: e.target.value }))}
+                className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 placeholder:text-slate-400"
+              />
+              <input
+                type="password" placeholder="Password (min 8 chars)" value={newSubAdmin.password}
+                onChange={e => setNewSubAdmin(p => ({ ...p, password: e.target.value }))}
+                className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 placeholder:text-slate-400"
+              />
+            </div>
+            <button onClick={handleCreateSubAdmin} disabled={creatingSubAdmin}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all">
+              {creatingSubAdmin ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />} Create Sub-Admin
+            </button>
+          </div>
+
+          {/* Sub-admin list */}
+          {subAdminsLoading ? (
+            <div className="flex items-center justify-center py-12 text-slate-400"><Loader2 size={22} className="animate-spin mr-3" /> Loading…</div>
+          ) : (
+            <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+              <table className="w-full text-xs text-slate-700">
+                <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
+                  {['Name', 'Email', 'Assigned Advisors', 'Created'].map(h => (
+                    <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-[10px]">{h}</th>
+                  ))}
+                  <th className="px-4 py-3 text-[10px] font-semibold uppercase">Actions</th>
+                </tr></thead>
+                <tbody>
+                  {subAdmins.map((sa, i) => (
+                    <tr key={sa.id} className={`border-b border-slate-50 hover:bg-indigo-50/40 ${i % 2 === 0 ? '' : 'bg-slate-50/60'}`}>
+                      <td className="px-4 py-3 font-semibold text-slate-800">{sa.fullName}</td>
+                      <td className="px-4 py-3 text-slate-500">{sa.email}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                          {sa._count?.assignedAdvisors ?? 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-400">{new Date(sa.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                      <td className="px-4 py-3 text-center">
+                        <button onClick={() => handleDeleteSubAdmin(sa.id, sa.fullName)}
+                          className="text-[10px] text-red-500 hover:text-red-700 border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors">
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {subAdmins.length === 0 && <p className="text-center py-12 text-slate-500 text-sm">No sub-admins created yet.</p>}
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
+
+    {/* ── REJECTION MODAL ── */}
+    {rejectModalOpen && (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+        <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-md p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><XCircle size={16} className="text-red-500" /> Reject Advisor</h3>
+            <button onClick={() => { setRejectModalOpen(false); setPendingRejectId(null); }} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          </div>
+          <p className="text-xs text-slate-500">Provide a clear reason for rejection. This will be recorded and visible to reviewers.</p>
+          <textarea
+            value={rejectComment}
+            onChange={e => setRejectComment(e.target.value)}
+            placeholder="e.g. Aadhaar card is blurry and unreadable. GST certificate appears expired."
+            rows={4}
+            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-red-400 placeholder:text-slate-300 resize-none"
+          />
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => { setRejectModalOpen(false); setPendingRejectId(null); }}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">
+              Cancel
+            </button>
+            <button onClick={confirmReject} disabled={rejectComment.trim().length < 5 || !!verifying}
+              className="px-4 py-2 text-xs font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5">
+              {verifying ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />} Confirm Rejection
+            </button>
+          </div>
+          {rejectComment.trim().length > 0 && rejectComment.trim().length < 5 && (
+            <p className="text-[10px] text-red-500">Minimum 5 characters required.</p>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* ── SUBMIT FOR APPROVAL MODAL (SUB_ADMIN) ── */}
+    {submitModalOpen && (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+        <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-md p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Send size={16} className="text-purple-500" /> Submit for Approval</h3>
+            <button onClick={() => { setSubmitModalOpen(false); setPendingSubmitId(null); }} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          </div>
+          <p className="text-xs text-slate-500">You can add an optional note for the Super Admin. All documents should be verified before submitting.</p>
+          <textarea
+            value={submitNote}
+            onChange={e => setSubmitNote(e.target.value)}
+            placeholder="Optional: Add any notes for the super admin about this profile…"
+            rows={3}
+            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-purple-400 placeholder:text-slate-300 resize-none"
+          />
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => { setSubmitModalOpen(false); setPendingSubmitId(null); }}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">
+              Cancel
+            </button>
+            <button onClick={confirmSubmit} disabled={!!verifying}
+              className="px-4 py-2 text-xs font-bold bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1.5">
+              {verifying ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Submit for Approval
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     </div>
   );
 }

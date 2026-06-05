@@ -1,12 +1,16 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { Role, VerificationStatus } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 import prisma from '../config/db';
 import { authenticateJWT, requireRole, logAuditEvent, AuthenticatedRequest } from '../middlewares/auth';
 import { validateRequest } from '../middlewares/validate';
 import { exportToExcel } from '../utils/excelExport';
 
 const router = Router();
+
+const SUPER_ADMIN_ONLY = [authenticateJWT, requireRole([Role.SUPER_ADMIN])];
+const ADMIN_GUARD      = [authenticateJWT, requireRole([Role.SUPER_ADMIN, Role.SUB_ADMIN])];
 
 const verifyAdvisorSchema = z.object({
   body: z.object({
@@ -98,26 +102,30 @@ router.get(
 
 /**
  * 2. GET /admin/advisors/pending
- * Retrieve list of advisors awaiting credentials verification.
+ * SUPER_ADMIN: returns SUBMITTED_FOR_APPROVAL queue (ready to go live).
+ * SUB_ADMIN: returns their own UNDER_REVIEW assigned queue.
  */
 router.get(
   '/advisors/pending',
   authenticateJWT,
   requireRole([Role.SUPER_ADMIN, Role.SUB_ADMIN]),
-  async (req: Request, res: Response): Promise<void> => {
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
+      const isSuperAdmin = req.user!.role === Role.SUPER_ADMIN;
+      const where = isSuperAdmin
+        ? { verificationStatus: VerificationStatus.SUBMITTED_FOR_APPROVAL }
+        : { verificationStatus: VerificationStatus.UNDER_REVIEW, assignedSubAdminId: req.user!.id };
+
       const list = await prisma.advisor.findMany({
-        where: { verificationStatus: VerificationStatus.PENDING },
+        where,
         include: {
-          documents: true
+          documents: true,
+          assignedSubAdmin: { select: { id: true, fullName: true, email: true } }
         },
         orderBy: { createdAt: 'asc' }
       });
 
-      res.status(200).json({
-        success: true,
-        data: list
-      });
+      res.status(200).json({ success: true, data: list });
     } catch (error) {
       res.status(500).json({ success: false, message: 'Failed to query pending advisors' });
     }
@@ -126,7 +134,10 @@ router.get(
 
 /**
  * 3. POST /admin/advisors/:id/verify
- * Approve, Reject, or Suspend advisor platform licenses.
+ * Approve, Reject, or Suspend advisor.
+ * - REJECTED requires a reason (persisted as rejectionComment).
+ * - SUB_ADMIN may only reject UNDER_REVIEW advisors assigned to them.
+ * - SUPER_ADMIN may act on any advisor at any stage.
  */
 router.post(
   '/advisors/:id/verify',
@@ -136,34 +147,42 @@ router.post(
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const { id } = req.params;
     const { status, reason } = req.body;
-    const adminId = req.user!.id;
+    const adminId  = req.user!.id;
+    const isSuperAdmin = req.user!.role === Role.SUPER_ADMIN;
+
+    if (status === VerificationStatus.REJECTED && (!reason || reason.trim().length < 5)) {
+      res.status(400).json({ success: false, message: 'A rejection reason (min 5 chars) is required.' });
+      return;
+    }
 
     try {
       const advisor = await prisma.advisor.findUnique({ where: { id } });
-
       if (!advisor) {
         res.status(404).json({ success: false, message: 'Advisor profile not found' });
         return;
       }
 
-      // Update advisor status
-      const updatedAdvisor = await prisma.advisor.update({
-        where: { id },
-        data: {
-          verificationStatus: status
+      if (!isSuperAdmin) {
+        if (status !== VerificationStatus.REJECTED) {
+          res.status(403).json({ success: false, message: 'Sub-admins may only reject advisors. Use submit-for-approval to forward for final approval.' });
+          return;
         }
-      });
+        if (advisor.verificationStatus !== VerificationStatus.UNDER_REVIEW || advisor.assignedSubAdminId !== adminId) {
+          res.status(403).json({ success: false, message: 'You can only reject advisors assigned to you that are under review.' });
+          return;
+        }
+      }
 
-      // Audit logs registration
+      const updateData: any = { verificationStatus: status };
+      if (status === VerificationStatus.REJECTED) updateData.rejectionComment = reason.trim();
+      if (status === VerificationStatus.APPROVED) updateData.rejectionComment = null;
+
+      const updatedAdvisor = await prisma.advisor.update({ where: { id }, data: updateData });
+
       await logAuditEvent(
         'KYC_VERIFICATION',
         adminId,
-        {
-          advisorId: id,
-          advisorName: advisor.fullName,
-          statusChange: `${advisor.verificationStatus} -> ${status}`,
-          reason: reason || 'N/A'
-        },
+        { advisorId: id, advisorName: advisor.fullName, statusChange: `${advisor.verificationStatus} -> ${status}`, reason: reason || 'N/A' },
         id,
         req
       );
@@ -258,8 +277,6 @@ router.get(
   }
 );
 
-const ADMIN_GUARD = [authenticateJWT, requireRole([Role.SUPER_ADMIN, Role.SUB_ADMIN])];
-
 /**
  * GET /admin/advisors — all advisors with filters
  */
@@ -276,7 +293,11 @@ router.get('/advisors', ...ADMIN_GUARD, async (req: Request, res: Response): Pro
     const [advisors, total] = await prisma.$transaction([
       prisma.advisor.findMany({
         where,
-        include: { documents: true, subscriptions: { orderBy: { createdAt: 'desc' }, take: 1 } },
+        include: {
+          documents: true,
+          subscriptions: { orderBy: { createdAt: 'desc' }, take: 1 },
+          assignedSubAdmin: { select: { id: true, fullName: true, email: true } }
+        },
         orderBy: { createdAt: 'desc' },
         skip,
         take: parseInt(limit),
@@ -615,6 +636,179 @@ router.patch('/tickets/:id', authenticateJWT, requireRole([Role.SUPER_ADMIN, Rol
   } catch (err) {
     console.error('[admin/tickets PATCH]', err);
     return res.status(500).json({ success: false, message: 'Failed to update ticket' });
+  }
+});
+
+// ── GET /admin/advisors/my-queue ─────────────────────────────────────
+// SUB_ADMIN: returns advisors assigned to them that are UNDER_REVIEW
+router.get('/advisors/my-queue', authenticateJWT, requireRole([Role.SUB_ADMIN]), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const advisors = await prisma.advisor.findMany({
+      where: {
+        assignedSubAdminId: req.user!.id,
+        verificationStatus: VerificationStatus.UNDER_REVIEW,
+      },
+      include: {
+        documents: true,
+        assignedSubAdmin: { select: { id: true, fullName: true, email: true } },
+      },
+      orderBy: { assignedAt: 'asc' },
+    });
+    res.json({ success: true, data: advisors });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch assigned queue' });
+  }
+});
+
+// ── POST /admin/advisors/assign-bulk ─────────────────────────────────
+// SUPER_ADMIN: bulk-assign advisors to a sub-admin
+router.post('/advisors/assign-bulk', ...SUPER_ADMIN_ONLY,
+  validateRequest(z.object({ body: z.object({ advisorIds: z.array(z.string()).min(1), subAdminId: z.string() }) })),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { advisorIds, subAdminId } = req.body;
+    const adminId = req.user!.id;
+    try {
+      const subAdmin = await prisma.adminUsers.findUnique({ where: { id: subAdminId } });
+      if (!subAdmin || subAdmin.role !== Role.SUB_ADMIN) {
+        res.status(400).json({ success: false, message: 'Invalid sub-admin ID' });
+        return;
+      }
+
+      const result = await prisma.advisor.updateMany({
+        where: { id: { in: advisorIds } },
+        data: {
+          assignedSubAdminId: subAdminId,
+          verificationStatus: VerificationStatus.UNDER_REVIEW,
+          assignedAt: new Date(),
+        },
+      });
+
+      await logAuditEvent('BULK_ASSIGN', adminId, { advisorIds, subAdminId, subAdminName: subAdmin.fullName, count: result.count }, undefined, req);
+
+      res.json({ success: true, message: `${result.count} advisor(s) assigned to ${subAdmin.fullName}`, count: result.count });
+    } catch (err) {
+      res.status(500).json({ success: false, message: 'Bulk assignment failed' });
+    }
+  }
+);
+
+// ── POST /admin/advisors/:id/submit-for-approval ──────────────────────
+// SUB_ADMIN: submit a reviewed advisor to super admin for final approval
+router.post('/advisors/:id/submit-for-approval', authenticateJWT, requireRole([Role.SUB_ADMIN]),
+  validateRequest(z.object({ body: z.object({ note: z.string().optional() }) })),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { id } = req.params;
+    const { note } = req.body;
+    const adminId = req.user!.id;
+    try {
+      const advisor = await prisma.advisor.findUnique({ where: { id } });
+      if (!advisor) { res.status(404).json({ success: false, message: 'Advisor not found' }); return; }
+      if (advisor.verificationStatus !== VerificationStatus.UNDER_REVIEW) {
+        res.status(400).json({ success: false, message: 'Advisor must be UNDER_REVIEW to submit for approval' });
+        return;
+      }
+      if (advisor.assignedSubAdminId !== adminId) {
+        res.status(403).json({ success: false, message: 'This advisor is not assigned to you' });
+        return;
+      }
+
+      const updated = await prisma.advisor.update({
+        where: { id },
+        data: { verificationStatus: VerificationStatus.SUBMITTED_FOR_APPROVAL, subAdminNote: note || null },
+      });
+
+      await logAuditEvent('SUBMIT_FOR_APPROVAL', adminId, { advisorId: id, advisorName: advisor.fullName, note: note || '' }, id, req);
+
+      res.json({ success: true, message: `${advisor.fullName} submitted for super admin approval.`, data: updated });
+    } catch (err) {
+      res.status(500).json({ success: false, message: 'Failed to submit for approval' });
+    }
+  }
+);
+
+// ── PATCH /admin/advisors/:id/documents/:docId ───────────────────────
+// Toggle document verified flag
+router.patch('/advisors/:id/documents/:docId', ...ADMIN_GUARD,
+  validateRequest(z.object({ body: z.object({ verified: z.boolean() }) })),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { id, docId } = req.params;
+    const { verified } = req.body;
+    const adminId = req.user!.id;
+    try {
+      const doc = await prisma.advisorDocument.findFirst({ where: { id: docId, advisorId: id } });
+      if (!doc) { res.status(404).json({ success: false, message: 'Document not found' }); return; }
+
+      const updated = await prisma.advisorDocument.update({
+        where: { id: docId },
+        data: { verified, verifiedByAdminId: verified ? adminId : null, verifiedAt: verified ? new Date() : null },
+      });
+      res.json({ success: true, data: updated });
+    } catch (err) {
+      res.status(500).json({ success: false, message: 'Failed to update document verification' });
+    }
+  }
+);
+
+// ── GET /admin/sub-admins ─────────────────────────────────────────────
+router.get('/sub-admins', ...SUPER_ADMIN_ONLY, async (_req: Request, res: Response) => {
+  try {
+    const subAdmins = await prisma.adminUsers.findMany({
+      where: { role: Role.SUB_ADMIN },
+      select: {
+        id: true, fullName: true, email: true, role: true, createdAt: true, createdByAdminId: true,
+        _count: { select: { assignedAdvisors: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: subAdmins });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch sub-admins' });
+  }
+});
+
+// ── POST /admin/sub-admins ────────────────────────────────────────────
+router.post('/sub-admins', ...SUPER_ADMIN_ONLY,
+  validateRequest(z.object({ body: z.object({ fullName: z.string().min(2), email: z.string().email(), password: z.string().min(8) }) })),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { fullName, email, password } = req.body;
+    const createdByAdminId = req.user!.id;
+    try {
+      const existing = await prisma.adminUsers.findUnique({ where: { email } });
+      if (existing) { res.status(409).json({ success: false, message: 'A user with this email already exists' }); return; }
+
+      const passwordHash = await bcrypt.hash(password, 12);
+      const subAdmin = await prisma.adminUsers.create({
+        data: { fullName, email, passwordHash, role: Role.SUB_ADMIN, createdByAdminId },
+        select: { id: true, fullName: true, email: true, role: true, createdAt: true },
+      });
+
+      await logAuditEvent('CREATE_SUB_ADMIN', createdByAdminId, { subAdminId: subAdmin.id, email, fullName }, undefined, req);
+
+      res.status(201).json({ success: true, message: `Sub-admin ${fullName} created successfully.`, data: subAdmin });
+    } catch (err) {
+      res.status(500).json({ success: false, message: 'Failed to create sub-admin' });
+    }
+  }
+);
+
+// ── DELETE /admin/sub-admins/:id ──────────────────────────────────────
+router.delete('/sub-admins/:id', ...SUPER_ADMIN_ONLY, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { id } = req.params;
+  try {
+    const subAdmin = await prisma.adminUsers.findUnique({ where: { id } });
+    if (!subAdmin || subAdmin.role !== Role.SUB_ADMIN) {
+      res.status(404).json({ success: false, message: 'Sub-admin not found' });
+      return;
+    }
+    // Re-set assigned advisors back to PENDING
+    await prisma.advisor.updateMany({
+      where: { assignedSubAdminId: id, verificationStatus: VerificationStatus.UNDER_REVIEW },
+      data: { assignedSubAdminId: null, verificationStatus: VerificationStatus.PENDING, assignedAt: null },
+    });
+    await prisma.adminUsers.delete({ where: { id } });
+    res.json({ success: true, message: `Sub-admin ${subAdmin.fullName} removed.` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to delete sub-admin' });
   }
 });
 

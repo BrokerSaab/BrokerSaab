@@ -19,6 +19,7 @@ import {
 import { Info, X } from 'lucide-react';
 import LaunchOfferPopup from '@/components/LaunchOfferPopup';
 import StatePickerPopup from '@/components/StatePickerPopup';
+import ServiceDetailModal from '@/components/ServiceDetailModal';
 import ContactUnlockModal from '@/components/ContactUnlockModal';
 
 /* ═══════════════════════════════════════════════
@@ -61,6 +62,43 @@ const CATEGORY_TO_SLUG: Record<string, string> = {
   'Electricity, Water & Gas': 'm17',
   'Farmer & Agriculture': 'm18',
   'Online Form & Doc Help': 'm19',
+};
+
+const SLUG_TO_CATEGORY_NAME: Record<string, string> = {
+  'm1': 'Birth, Death & Marriage Papers',
+  'm2': 'Identity Cards & Documents',
+  'm3': 'Income, Caste & Residence',
+  'm4': 'Property & Land Papers',
+  'm5': 'Tax / GST Filing',
+  'm6': 'Business Registration',
+  'm7': 'Brand & IP Protection',
+  'm8': 'Bank, Loan & Credit',
+  'm9': 'Insurance (Bima)',
+  'm10': 'Vehicle & RTO Work',
+  'm11': 'Legal & Court Help',
+  'm12': 'Job, PF & Labour',
+  'm13': 'School & College Papers',
+  'm14': 'Pension & Govt Schemes',
+  'm15': 'Savings & Investment',
+  'm16': 'Passport, Visa & Foreign',
+  'm17': 'Electricity, Water & Gas',
+  'm18': 'Farmer & Agriculture',
+  'm19': 'Online Form & Doc Help',
+  'property-broker': 'Property & Land Papers',
+  'legal-advisor': 'Legal & Court Help',
+  'property-registration': 'Property & Land Papers',
+  'corporate-law': 'Business Registration',
+  'civil-law': 'Legal & Court Help',
+  'criminal-law': 'Legal & Court Help',
+  'criminal-defence': 'Legal & Court Help',
+  'family-law': 'Legal & Court Help',
+  'tax-consultant': 'Tax / GST Filing',
+  'documentation-expert': 'Online Form & Doc Help',
+  'loan-consultant': 'Bank, Loan & Credit',
+  'financial-advisor': 'Savings & Investment',
+  'insurance-advisor': 'Insurance (Bima)',
+  'insurance-claims': 'Insurance (Bima)',
+  'real-estate-advisory': 'Property & Land Papers',
 };
 
 /* 19 distinct vibrant accents — one per submodule position within any expanded panel */
@@ -394,6 +432,7 @@ export default function DiscoverPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
+  const [serviceModal, setServiceModal] = useState<string | null>(null); // module id open in fullscreen modal
 
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [activeSlide, setActiveSlide] = useState(0);
@@ -435,17 +474,11 @@ export default function DiscoverPage() {
     }
   }, [searchQuery, filteredModules]);
 
-  // Listen to select-module event from navbar
+  // Listen to select-module event from navbar — open full-screen modal
   React.useEffect(() => {
     const handleSelectModule = (e: Event) => {
       const { moduleId } = (e as CustomEvent).detail;
-      setExpandedModule(moduleId);
-      setTimeout(() => {
-        const el = document.getElementById(`card-${moduleId}`);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
+      setServiceModal(moduleId);
     };
     window.addEventListener('select-module', handleSelectModule);
     return () => window.removeEventListener('select-module', handleSelectModule);
@@ -457,53 +490,11 @@ export default function DiscoverPage() {
       const params = new URLSearchParams(window.location.search);
       const modId = params.get('module');
       if (modId) {
-        setExpandedModule(modId);
-        setTimeout(() => {
-          const el = document.getElementById(`card-${modId}`);
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }, 300);
+        setServiceModal(modId);
       }
-      
+
       const catParam = params.get('category');
       if (catParam) {
-        const SLUG_TO_CATEGORY_NAME: Record<string, string> = {
-          'm1': 'Birth, Death & Marriage Papers',
-          'm2': 'Identity Cards & Documents',
-          'm3': 'Income, Caste & Residence',
-          'm4': 'Property & Land Papers',
-          'm5': 'Tax / GST Filing',
-          'm6': 'Business Registration',
-          'm7': 'Brand & IP Protection',
-          'm8': 'Bank, Loan & Credit',
-          'm9': 'Insurance (Bima)',
-          'm10': 'Vehicle & RTO Work',
-          'm11': 'Legal & Court Help',
-          'm12': 'Job, PF & Labour',
-          'm13': 'School & College Papers',
-          'm14': 'Pension & Govt Schemes',
-          'm15': 'Savings & Investment',
-          'm16': 'Passport, Visa & Foreign',
-          'm17': 'Electricity, Water & Gas',
-          'm18': 'Farmer & Agriculture',
-          'm19': 'Online Form & Doc Help',
-          'property-broker': 'Property & Land Papers',
-          'legal-advisor': 'Legal & Court Help',
-          'property-registration': 'Property & Land Papers',
-          'corporate-law': 'Business Registration',
-          'civil-law': 'Legal & Court Help',
-          'criminal-law': 'Legal & Court Help',
-          'criminal-defence': 'Legal & Court Help',
-          'family-law': 'Legal & Court Help',
-          'tax-consultant': 'Tax / GST Filing',
-          'documentation-expert': 'Online Form & Doc Help',
-          'loan-consultant': 'Bank, Loan & Credit',
-          'financial-advisor': 'Savings & Investment',
-          'insurance-advisor': 'Insurance (Bima)',
-          'insurance-claims': 'Insurance (Bima)',
-          'real-estate-advisory': 'Property & Land Papers'
-        };
         const mappedName = SLUG_TO_CATEGORY_NAME[catParam];
         if (mappedName) {
           setSelectedCategory(mappedName);
@@ -623,13 +614,7 @@ export default function DiscoverPage() {
   }, [isMockAdvisor, isLoggedIn, openLoginModal, revealedContacts, router]);
 
   const handleTileClick = useCallback((moduleId: string) => {
-    setExpandedModule(prev => prev === moduleId ? null : moduleId);
-    setTimeout(() => {
-      const el = document.getElementById(`card-${moduleId}`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }, 100);
+    setServiceModal(moduleId);
   }, []);
 
   const [showOffer, setShowOffer] = useState(false);
@@ -1175,42 +1160,6 @@ export default function DiscoverPage() {
                                 if (viewMode !== 'advisor') {
                                   e.preventDefault();
                                   const slug = sub.route.split('=')[1];
-                                  const SLUG_TO_CATEGORY_NAME: Record<string, string> = {
-                                    'm1': 'Birth, Death & Marriage Papers',
-                                    'm2': 'Identity Cards & Documents',
-                                    'm3': 'Income, Caste & Residence',
-                                    'm4': 'Property & Land Papers',
-                                    'm5': 'Tax / GST Filing',
-                                    'm6': 'Business Registration',
-                                    'm7': 'Brand & IP Protection',
-                                    'm8': 'Bank, Loan & Credit',
-                                    'm9': 'Insurance (Bima)',
-                                    'm10': 'Vehicle & RTO Work',
-                                    'm11': 'Legal & Court Help',
-                                    'm12': 'Job, PF & Labour',
-                                    'm13': 'School & College Papers',
-                                    'm14': 'Pension & Govt Schemes',
-                                    'm15': 'Savings & Investment',
-                                    'm16': 'Passport, Visa & Foreign',
-                                    'm17': 'Electricity, Water & Gas',
-                                    'm18': 'Farmer & Agriculture',
-                                    'm19': 'Online Form & Doc Help',
-                                    'property-broker': 'Property & Land Papers',
-                                    'legal-advisor': 'Legal & Court Help',
-                                    'property-registration': 'Property & Land Papers',
-                                    'corporate-law': 'Business Registration',
-                                    'civil-law': 'Legal & Court Help',
-                                    'criminal-law': 'Legal & Court Help',
-                                    'criminal-defence': 'Legal & Court Help',
-                                    'family-law': 'Legal & Court Help',
-                                    'tax-consultant': 'Tax / GST Filing',
-                                    'documentation-expert': 'Online Form & Doc Help',
-                                    'loan-consultant': 'Bank, Loan & Credit',
-                                    'financial-advisor': 'Savings & Investment',
-                                    'insurance-advisor': 'Insurance (Bima)',
-                                    'insurance-claims': 'Insurance (Bima)',
-                                    'real-estate-advisory': 'Property & Land Papers'
-                                  };
                                   const mappedName = SLUG_TO_CATEGORY_NAME[slug];
                                   if (mappedName) {
                                     setSelectedCategory(mappedName);
@@ -1578,6 +1527,32 @@ export default function DiscoverPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Service Detail Modal — full-screen on service click ── */}
+      {serviceModal && (() => {
+        const mod = MODULES_DATA.find(m => m.id === serviceModal) ?? null;
+        const colorIdx = MODULES_DATA.findIndex(m => m.id === serviceModal);
+        return (
+          <ServiceDetailModal
+            module={mod}
+            colorIdx={colorIdx >= 0 ? colorIdx : 0}
+            language={language}
+            viewMode={viewMode}
+            onClose={() => setServiceModal(null)}
+            onSelectSub={(slug) => {
+              setServiceModal(null);
+              const categoryName = SLUG_TO_CATEGORY_NAME[slug];
+              if (categoryName) {
+                setSelectedCategory(categoryName);
+                setTimeout(() => {
+                  const el = document.getElementById('advisors-section');
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 150);
+              }
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

@@ -16,6 +16,8 @@ enum Role {
 
 enum VerificationStatus {
   PENDING
+  UNDER_REVIEW
+  SUBMITTED_FOR_APPROVAL
   APPROVED
   REJECTED
   SUSPENDED
@@ -114,10 +116,15 @@ model Advisor {
   aadhaarHash        String?
   gstNumber          String?
   onboardingStep     Int                @default(0)
+  assignedSubAdminId String?
+  rejectionComment   String?            @db.Text
+  subAdminNote       String?            @db.Text
+  assignedAt         DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
   // Relations
+  assignedSubAdmin   AdminUsers?        @relation("SubAdminAdvisors", fields: [assignedSubAdminId], references: [id])
   documents          AdvisorDocument[]
   categories         AdvisorCategory[]
   specializations    AdvisorSpecialization[]
@@ -134,14 +141,16 @@ model Advisor {
 }
 
 model AdvisorDocument {
-  id             String             @id @default(uuid())
-  advisorId      String
-  advisor        Advisor            @relation(fields: [advisorId], references: [id], onDelete: Cascade)
-  documentType   DocumentType
-  documentUrl    String
-  verified       Boolean            @default(false)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  id                String             @id @default(uuid())
+  advisorId         String
+  advisor           Advisor            @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  documentType      DocumentType
+  documentUrl       String
+  verified          Boolean            @default(false)
+  verifiedByAdminId String?
+  verifiedAt        DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@index([advisorId])
 }
@@ -419,11 +428,14 @@ model AuditLog {
 }
 
 model AdminUsers {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  fullName     String
-  passwordHash String
-  role         Role     @default(SUB_ADMIN)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String    @id @default(uuid())
+  email            String    @unique
+  fullName         String
+  passwordHash     String
+  role             Role      @default(SUB_ADMIN)
+  createdByAdminId String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  assignedAdvisors Advisor[] @relation("SubAdminAdvisors")
 }
