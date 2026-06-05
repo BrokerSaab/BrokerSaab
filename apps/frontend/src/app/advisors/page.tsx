@@ -76,6 +76,7 @@ interface AdvisorCard {
   languages: string[];
   avatarColor: string;
   isAuthorizedDealer: boolean;
+  avatarUrl?: string | null;
 }
 
 function AdvisorsListingInner() {
@@ -128,6 +129,7 @@ function AdvisorsListingInner() {
             languages:         a.languages || [],
             avatarColor:       AVATAR_COLORS[i % AVATAR_COLORS.length],
             isAuthorizedDealer: !!a.isAuthorizedDealer,
+            avatarUrl:          a.avatarUrl || null,
           }))
         );
         setTotal(data.total || data.data?.length || 0);
@@ -282,11 +284,17 @@ function AdvisorsListingInner() {
                         <p className="text-xs text-gray-400 mt-0.5 truncate">{advisor.businessName}</p>
                       )}
                     </div>
-                    <div
-                      className={`w-12 h-12 rounded-full bg-gradient-to-br ${advisor.avatarColor} flex items-center justify-center text-white font-black text-base shrink-0 shadow-md`}
-                    >
-                      {advisor.fullName.split(' ').slice(-1)[0]?.[0] ?? '?'}
-                    </div>
+                    {advisor.avatarUrl ? (
+                      <img
+                        src={advisor.avatarUrl.startsWith('http') ? advisor.avatarUrl : `/uploads${advisor.avatarUrl.replace('/uploads','')}`}
+                        alt={advisor.fullName}
+                        className="w-12 h-12 rounded-full object-cover shrink-0 shadow-md border-2 border-white"
+                      />
+                    ) : (
+                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${advisor.avatarColor} flex items-center justify-center text-white font-black text-base shrink-0 shadow-md`}>
+                        {advisor.fullName.split(' ').slice(-1)[0]?.[0] ?? '?'}
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 border-y border-gray-100 py-3 text-xs text-gray-500">

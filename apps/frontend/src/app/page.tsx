@@ -38,6 +38,7 @@ interface AdvisorCard {
   languages: string[];
   avatarColor: string;
   isAuthorizedDealer?: boolean;
+  avatarUrl?: string | null;
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -123,55 +124,15 @@ const AVATAR_COLORS = [
   'from-amber-500 to-amber-600', 'from-cyan-500 to-cyan-600',
 ];
 
-const MOCK_ADVISORS: AdvisorCard[] = [
-  {
-    id: '1', fullName: 'Advocate Rajesh Sen', businessName: 'Sen & Associates Corporate Law',
-    experienceYears: 12, consultationFee: 1500, location: 'Mumbai, Maharashtra',
-    rating: 4.9, reviewsCount: 142, category: 'Business Registration',
-    languages: ['English', 'Hindi', 'Marathi'], avatarColor: 'from-blue-500 to-blue-600',
-    isAuthorizedDealer: true
-  },
-  {
-    id: '2', fullName: 'Meera Deshmukh', businessName: 'Elite Property Brokers',
-    experienceYears: 8, consultationFee: 500, location: 'Pune, Maharashtra',
-    rating: 4.8, reviewsCount: 96, category: 'Property & Land Papers',
-    languages: ['Hindi', 'Marathi'], avatarColor: 'from-emerald-500 to-emerald-600',
-    isAuthorizedDealer: true
-  },
-  {
-    id: '3', fullName: 'CA Amit Singhania', businessName: 'Singhania & Co Tax Specialists',
-    experienceYears: 15, consultationFee: 2000, location: 'New Delhi, NCR',
-    rating: 4.9, reviewsCount: 208, category: 'Tax / GST Filing',
-    languages: ['English', 'Hindi'], avatarColor: 'from-rose-500 to-rose-600'
-  },
-  {
-    id: '4', fullName: 'Sanjay Rawat', businessName: 'Registrar Assistance Services',
-    experienceYears: 10, consultationFee: 800, location: 'Bengaluru, Karnataka',
-    rating: 4.7, reviewsCount: 75, category: 'Property & Land Papers',
-    languages: ['Kannada', 'English', 'Hindi'], avatarColor: 'from-violet-500 to-violet-600'
-  },
-  {
-    id: '5', fullName: 'Adv. Preeti Sharma', businessName: 'Sharma Legal Chambers',
-    experienceYears: 14, consultationFee: 1800, location: 'Mumbai, Maharashtra',
-    rating: 4.9, reviewsCount: 165, category: 'Legal & Court Help',
-    languages: ['English', 'Hindi'], avatarColor: 'from-amber-500 to-amber-600'
-  },
-  {
-    id: '6', fullName: 'Mohit Khurana', businessName: 'Khurana Documentation Services',
-    experienceYears: 6, consultationFee: 600, location: 'Gurugram, Haryana',
-    rating: 4.6, reviewsCount: 42, category: 'Online Form & Doc Help',
-    languages: ['English', 'Hindi'], avatarColor: 'from-cyan-500 to-cyan-600'
-  }
-];
+// No mock advisors — only real approved advisors from the API are shown
 
 /* ═══════════════════════════════════════════════
    COMPONENT
    ═══════════════════════════════════════════════ */
 // Fetch function lives outside component so React Query can cache it properly
 async function fetchAdvisors(categories: string[], search: string, state?: string, district?: string): Promise<AdvisorCard[]> {
-  const params = new URLSearchParams({ limit: '12' });
+  const params = new URLSearchParams({ limit: '50' });
   if (categories.length > 0) {
-    // Pass the first category slug to the API (backend supports single category filter)
     const slug = CATEGORY_TO_SLUG[categories[0]];
     if (slug) params.set('category', slug);
   }
@@ -179,26 +140,28 @@ async function fetchAdvisors(categories: string[], search: string, state?: strin
   if (state && state !== 'All India') params.set('state', state);
   if (district) params.set('location', district);
 
-  const res = await fetch(`${API}/advisors?${params.toString()}`);
-  const data = await res.json();
-
-  if (data.success && data.data.length > 0) {
-    return data.data.map((adv: any, i: number) => ({
-      id: adv.id,
-      fullName: adv.fullName,
-      businessName: adv.businessName || '',
-      experienceYears: adv.experienceYears,
-      consultationFee: Number(adv.consultationFee),
-      location: adv.location,
-      rating: adv.averageRating || 0,
-      reviewsCount: adv.reviewCount || 0,
-      category: adv.categories?.[0]?.category?.name || adv.categories?.[0]?.name || 'Professional',
-      languages: adv.languages || [],
-      avatarColor: AVATAR_COLORS[i % AVATAR_COLORS.length],
-      isAuthorizedDealer: adv.isAuthorizedDealer || false,
-    }));
-  }
-  throw new Error('no-results'); // triggers fallback via React Query error state
+  try {
+    const res = await fetch(`${API}/advisors?${params.toString()}`);
+    const data = await res.json();
+    if (data.success && Array.isArray(data.data)) {
+      return data.data.map((adv: any, i: number) => ({
+        id: adv.id,
+        fullName: adv.fullName,
+        businessName: adv.businessName || '',
+        experienceYears: adv.experienceYears,
+        consultationFee: Number(adv.consultationFee),
+        location: adv.location,
+        rating: adv.averageRating || 0,
+        reviewsCount: adv.reviewCount || 0,
+        category: adv.categories?.[0]?.category?.name || adv.categories?.[0]?.name || 'Verified Professional',
+        languages: adv.languages || [],
+        avatarColor: AVATAR_COLORS[i % AVATAR_COLORS.length],
+        isAuthorizedDealer: adv.isAuthorizedDealer || false,
+        avatarUrl: adv.avatarUrl || null,
+      }));
+    }
+  } catch { /* network error — return empty */ }
+  return [];
 }
 const HINDI_TILES: Record<string, { title: string; description: string; popularTag: string }> = {
   'Property Brokerage': {
@@ -544,21 +507,8 @@ export default function DiscoverPage() {
     placeholderData: (prev) => prev,
   });
 
-  // Fallback: filter mock data when API returns nothing or errors
-  const advisors = useMemo<AdvisorCard[]>(() => {
-    if (queryAdvisors && queryAdvisors.length > 0) return queryAdvisors;
-    let filtered = MOCK_ADVISORS;
-    if (selectedCategories.length > 0) filtered = filtered.filter(a => selectedCategories.includes(a.category));
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      filtered = filtered.filter(a =>
-        a.fullName.toLowerCase().includes(q) ||
-        a.businessName.toLowerCase().includes(q) ||
-        a.location.toLowerCase().includes(q)
-      );
-    }
-    return filtered;
-  }, [queryAdvisors, selectedCategories, debouncedSearch]);
+  // Real advisors only — API already filters by status=APPROVED and category/search
+  const advisors = useMemo<AdvisorCard[]>(() => queryAdvisors ?? [], [queryAdvisors]);
 
   const handleBookNow = useCallback((advisorId: string) => {
     if (isLoggedIn) router.push(`/advisors/${advisorId}`);
@@ -1343,9 +1293,16 @@ export default function DiscoverPage() {
           ) : advisors.length === 0 ? (
             <div className="text-center py-16 bg-gray-50 rounded-2xl border border-gray-200 space-y-4">
               <UserCheck className="mx-auto text-gray-300" size={48} />
-              <p className="text-gray-500">No verified professionals found for this criteria.</p>
+              <p className="text-gray-700 font-semibold">No verified professionals found</p>
+              <p className="text-gray-400 text-sm max-w-sm mx-auto">
+                {selectedCategories.length > 0
+                  ? `No approved advisors found for the selected service. Try a different category or clear the filter.`
+                  : debouncedSearch
+                  ? `No advisor found matching "${debouncedSearch}". Check the spelling or try a different name.`
+                  : 'No approved advisors on the platform yet. Check back soon!'}
+              </p>
               <button
-                onClick={() => { setSelectedCategory(null); setSearchTerm(''); }}
+                onClick={() => { setSelectedCategories([]); setSelectedCategory(null); setSearchTerm(''); setDebouncedSearch(''); }}
                 className="text-sm font-semibold text-gray-700 bg-white border border-gray-300 px-6 py-2.5 rounded-lg hover:bg-gray-50 transition-all"
               >
                 Reset Filters
@@ -1362,14 +1319,8 @@ export default function DiscoverPage() {
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  {/* Sample data badge for mock advisors */}
-                  {isMockAdvisor(advisor.id) && (
-                    <div className="-mx-5 sm:-mx-6 -mt-5 sm:-mt-6 mb-0 px-5 sm:px-6 py-1.5 bg-gray-50 border-b border-gray-200 rounded-t-2xl flex items-center gap-2">
-                      <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">🧪 Sample Data — Onboard a real advisor to test</span>
-                    </div>
-                  )}
                   {/* Authorised Dealer top accent */}
-                  {advisor.isAuthorizedDealer && !isMockAdvisor(advisor.id) && (
+                  {advisor.isAuthorizedDealer && (
                     <div className="-mx-5 sm:-mx-6 -mt-5 sm:-mt-6 mb-0 px-5 sm:px-6 py-2 bg-gradient-to-r from-amber-50 to-yellow-50 border-b border-amber-200 rounded-t-2xl flex items-center gap-2">
                       <BadgeCheck size={13} className="text-amber-600 shrink-0" />
                       <span className="text-amber-700 text-[10px] font-bold uppercase tracking-widest">
@@ -1390,9 +1341,17 @@ export default function DiscoverPage() {
                         </h3>
                         <p className="text-xs text-gray-500 mt-0.5">{advisor.businessName}</p>
                       </div>
-                      <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br ${advisor.avatarColor} flex items-center justify-center text-white font-black text-base sm:text-lg shrink-0 shadow-md`}>
-                        {advisor.fullName.split(' ').slice(-1)[0][0]}
-                      </div>
+                      {advisor.avatarUrl ? (
+                        <img
+                          src={advisor.avatarUrl.startsWith('http') ? advisor.avatarUrl : `/uploads${advisor.avatarUrl.replace('/uploads','')}`}
+                          alt={advisor.fullName}
+                          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover shrink-0 shadow-md border-2 border-white"
+                        />
+                      ) : (
+                        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br ${advisor.avatarColor} flex items-center justify-center text-white font-black text-base sm:text-lg shrink-0 shadow-md`}>
+                          {advisor.fullName.split(' ').slice(-1)[0]?.[0] || '?'}
+                        </div>
+                      )}
                     </div>
 
                     {/* Stats */}
@@ -1445,7 +1404,7 @@ export default function DiscoverPage() {
                         )}
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between">
+                      <div>
                         <div>
                           <p className="text-[10px] text-gray-400 uppercase tracking-widest">Consultation Fee</p>
                           <p className="text-lg sm:text-xl font-extrabold text-gray-900">
@@ -1453,16 +1412,24 @@ export default function DiscoverPage() {
                             <span className="text-xs font-normal text-gray-400 ml-1">/ session</span>
                           </p>
                         </div>
+                        <div className="flex items-center gap-2 mt-3">
+                        <Link
+                          href={`/advisors/${advisor.id}`}
+                          className="flex-1 text-center text-xs font-semibold text-gray-700 border border-gray-300 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-all"
+                        >
+                          View Profile
+                        </Link>
                         <button
                           type="button"
                           onClick={() => handleConnect(advisor.id, advisor.fullName)}
                           disabled={connectLoading === advisor.id}
-                          className="bg-gold-500 text-navy-800 font-semibold flex items-center gap-1.5 text-xs px-4 sm:px-5 py-2.5 rounded-lg shadow-md hover:bg-gold-400 hover:shadow-lg transition-all disabled:opacity-70"
+                          className="flex-1 bg-gold-500 text-navy-800 font-semibold flex items-center justify-center gap-1.5 text-xs px-3 py-2.5 rounded-lg shadow-md hover:bg-gold-400 hover:shadow-lg transition-all disabled:opacity-70"
                         >
                           {connectLoading === advisor.id
                             ? <><Loader2 size={13} className="animate-spin" /> Connecting…</>
                             : <><Phone size={13} /> Connect</>}
                         </button>
+                        </div>
                       </div>
                     )}
                   </div>
