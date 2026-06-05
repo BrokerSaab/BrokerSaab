@@ -269,7 +269,7 @@ export default function AboutPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
 
                 {/* ── LEFT: Photo + name card ── */}
-                <div className="flex flex-col items-center lg:items-start">
+                <div className="flex flex-col items-center">
 
                   {/* Gold-framed photo */}
                   <div className="relative mb-7 self-center">
@@ -296,7 +296,7 @@ export default function AboutPage() {
                   </div>
 
                   {/* Name / title card */}
-                  <div className="rounded-2xl px-6 py-5 w-full max-w-[300px] self-center lg:self-start"
+                  <div className="rounded-2xl px-6 py-5 w-full max-w-[300px] self-center"
                     style={card3dStyle('#D4AF37', isDark)}>
                     <div className="text-[10px] font-black uppercase tracking-[0.18em] mb-1" style={{ color: '#D4AF37' }}>
                       {hi ? 'संस्थापक और CEO' : 'Founder & CEO'}
@@ -306,10 +306,6 @@ export default function AboutPage() {
                     </div>
                     <div className={`text-sm mt-0.5 ${th('text-slate-400', 'text-slate-500')}`}>
                       BrokerSaab
-                    </div>
-                    <div className="mt-3 h-px" style={{ background: 'linear-gradient(90deg, #D4AF37, rgba(212,175,55,0.15))' }} />
-                    <div className="mt-3 text-base italic" style={{ color: '#D4AF37', fontFamily: "'Georgia', 'Times New Roman', serif", letterSpacing: '0.02em' }}>
-                      — Ravi Ranjan
                     </div>
                   </div>
                 </div>
