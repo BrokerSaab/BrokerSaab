@@ -496,7 +496,9 @@ export default function AdvisorOnboarding() {
         }
       }
 
-      setStep('success');
+      // AUTHORIZED advisors go to payment step so they can pay before being submitted
+      // REGULAR advisors are submitted immediately
+      setStep(formData.advisorType === 'AUTHORIZED' ? 'payment' : 'success');
     } catch {
       setError('Network error. Please check your connection and try again.');
     } finally {
@@ -2047,10 +2049,9 @@ ${availLines ? `<div class="section">
                 Back
               </button>
               {isAuthorized ? (
-                <button onClick={() => { const err = validate('review', formData, confirmed); if (err) { setError(err); return; } setError(''); setStep('payment'); }}
-                  disabled={!confirmed}
+                <button onClick={handleSubmit} disabled={!confirmed || loading}
                   className="btn-gold flex-1 py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                  <CreditCard size={16} /> Proceed to Payment <ArrowRight size={14} />
+                  {loading ? <><Loader2 size={16} className="animate-spin" /> Creating account…</> : <><CreditCard size={16} /> Proceed to Payment <ArrowRight size={14} /></>}
                 </button>
               ) : (
                 <button onClick={handleSubmit} disabled={!confirmed || loading}
@@ -2181,7 +2182,8 @@ ${availLines ? `<div class="section">
                 onClick={async () => {
                   setPaymentLoading(true); setError('');
                   try {
-                    const token = localStorage.getItem('accessToken') || uploadedToken;
+                    const token = uploadedToken || localStorage.getItem('accessToken') || '';
+                    if (!token) { setError('Session token missing. Please go back and try again.'); return; }
                     const orderRes = await fetch(`${API}/subscriptions/create-order`, {
                       method: 'POST', headers: { Authorization: `Bearer ${token}` }
                     });
@@ -2208,9 +2210,10 @@ ${availLines ? `<div class="section">
                       notes: { purpose: 'AUTHORIZED_ADVISOR_SUBSCRIPTION', advisorName: formData.fullName },
                       handler: async (response: any) => {
                         try {
+                          const verifyToken = uploadedToken || localStorage.getItem('accessToken') || '';
                           const verifyRes = await fetch(`${API}/subscriptions/verify-payment`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${verifyToken}` },
                             body: JSON.stringify({
                               razorpayOrderId: orderData.orderId,
                               razorpayPaymentId: response.razorpay_payment_id,
@@ -2226,8 +2229,8 @@ ${availLines ? `<div class="section">
                               orderId: orderData.orderId,
                               paidAt: new Date(),
                             });
-                            // Auto-submit profile after payment
-                            await handleSubmit();
+                            // Account already created by "Proceed to Payment" → go to success
+                            setStep('success');
                           } else {
                             setError('Payment verification failed. Please contact support with your Payment ID: ' + response.razorpay_payment_id);
                           }
@@ -2267,7 +2270,13 @@ ${availLines ? `<div class="section">
                 onClick={async () => {
                   setPaymentLoading(true); setError('');
                   try {
-                    const token = localStorage.getItem('accessToken') || uploadedToken;
+                    // Account is already created (handleSubmit ran on "Proceed to Payment")
+                    // uploadedToken or localStorage has the real advisor JWT
+                    const token = uploadedToken || localStorage.getItem('accessToken') || '';
+                    if (!token) {
+                      setError('Session token missing. Please go back and try again.');
+                      return;
+                    }
                     const res = await fetch(`${API}/subscriptions/test-payment`, {
                       method: 'POST',
                       headers: { Authorization: `Bearer ${token}` },
@@ -2281,7 +2290,7 @@ ${availLines ? `<div class="section">
                         orderId: 'TEST_ORDER_' + Date.now(),
                         paidAt: new Date(),
                       });
-                      await handleSubmit();
+                      setStep('success');
                     } else {
                       setError(data.message || 'Test payment failed');
                     }
