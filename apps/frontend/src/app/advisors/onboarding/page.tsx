@@ -752,33 +752,35 @@ ${availLines ? `<div class="section">
   // ── Shared input style ───────────────────────────────────────────────────────
   const inputWrap = 'flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-gold-500 focus-within:ring-2 focus-within:ring-gold-500/20 transition-all bg-white';
   const inputIcon = 'px-3 text-slate-400';
-  const inputBase = 'flex-1 px-3 py-3 text-sm outline-none bg-transparent text-gray-800 placeholder-gray-400';
+  const inputBase = 'flex-1 px-3 py-2.5 text-sm outline-none bg-transparent text-gray-800 placeholder-gray-400';
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-navy-800 to-slate-900 flex flex-col items-center justify-center p-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-navy-800 to-slate-900 flex flex-col items-center justify-center p-3">
 
       {/* Logo */}
-      <div className="flex flex-col items-center mb-6">
-        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-lg mb-3">
-          <span className="text-navy-800 font-black text-lg">BS</span>
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-lg shrink-0">
+          <span className="text-navy-800 font-black text-sm">BS</span>
         </div>
-        <span className="text-white font-bold text-lg tracking-tight">BrokerSaab</span>
-        <span className="text-slate-400 text-xs">Trusted Advisory Platform</span>
+        <div>
+          <span className="text-white font-bold text-base tracking-tight leading-none block">BrokerSaab</span>
+          <span className="text-slate-400 text-[10px]">Trusted Advisory Platform</span>
+        </div>
       </div>
 
       {/* Card */}
-      <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+      <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col" style={{ maxHeight: 'calc(100vh - 5.5rem)' }}>
 
         {/* Card Header */}
         {step !== 'success' && (
-          <div className="bg-gradient-to-r from-navy-800 to-navy-700 px-6 py-4 text-white flex items-center justify-between">
+          <div className="bg-gradient-to-r from-navy-800 to-navy-700 px-4 py-3 text-white flex items-center justify-between shrink-0">
             <div>
               <div className="flex items-center gap-2">
-                <UserPlus size={18} className="text-gold-400" />
+                <UserPlus size={15} className="text-gold-400" />
                 <span className="font-semibold text-sm">Advisor Registration</span>
               </div>
-              <p className="text-slate-300 text-xs mt-0.5">Join thousands of verified advisors on BrokerSaab</p>
+              <p className="text-slate-300 text-[10px] mt-0.5">Join thousands of verified advisors on BrokerSaab</p>
             </div>
             <button
               type="button"
@@ -794,7 +796,7 @@ ${availLines ? `<div class="section">
 
         {/* Progress Bar (steps 2–6) */}
         {progressIndex > 0 && step !== 'success' && (
-          <div className="flex items-center px-6 py-4 bg-gray-50 border-b border-gray-100">
+          <div className="flex items-center px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0">
             {PROGRESS_STEPS.map((label, i) => {
               const num = i + 1;
               const done = num < progressIndex;
@@ -802,14 +804,14 @@ ${availLines ? `<div class="section">
               return (
                 <React.Fragment key={label}>
                   <div className="flex flex-col items-center">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
                       done ? 'bg-navy-800 text-white' :
                       active ? 'bg-gold-500 text-navy-800' :
                       'border-2 border-gray-200 text-gray-400 bg-white'
                     }`}>
-                      {done ? <Check size={14} /> : num}
+                      {done ? <Check size={11} /> : num}
                     </div>
-                    <span className={`text-[10px] mt-1 font-medium ${done ? 'text-gold-600' : active ? 'text-gray-900' : 'text-gray-400'}`}>
+                    <span className={`text-[9px] mt-0.5 font-medium hidden sm:block ${done ? 'text-gold-600' : active ? 'text-gray-900' : 'text-gray-400'}`}>
                       {label}
                     </span>
                   </div>
@@ -822,9 +824,12 @@ ${availLines ? `<div class="section">
           </div>
         )}
 
+        {/* Scrollable step content */}
+        <div className="flex-1 overflow-y-auto">
+
         {/* Error Badge */}
         {error && (
-          <div className="mx-6 mt-4 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-700 text-sm">
+          <div className="mx-4 mt-3 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-red-700 text-sm">
             <AlertCircle size={16} className="shrink-0" />
             <span>{error}</span>
           </div>
@@ -832,7 +837,7 @@ ${availLines ? `<div class="section">
 
         {/* ── Step: Welcome ── */}
         {step === 'welcome' && (
-          <div className="p-6 sm:p-8">
+          <div className="p-4 sm:p-5">
             <div className="text-center mb-6">
               <div className="w-16 h-16 rounded-full bg-gold-500/10 border-2 border-gold-500/30 flex items-center justify-center mx-auto mb-4">
                 <UserPlus size={30} className="text-gold-500" />
@@ -913,7 +918,7 @@ ${availLines ? `<div class="section">
               {/* Scrollable T&C */}
               <div ref={tcScrollRef} onScroll={handleTcScroll}
                 className="overflow-y-auto px-4 py-3 space-y-2.5"
-                style={{ maxHeight: '200px', background: '#f8f7f0' }}>
+                style={{ maxHeight: '160px', background: '#f8f7f0' }}>
                 {[
                   { color: '#ef4444', title: 'No Platform Liability for Fraud or Misbehaviour', body: 'BrokerSaab is a third-party technology marketplace. The platform is NOT liable for any fraudulent activity, misrepresentation, negligence, or professional misconduct by any advisor listed on the platform — including you. Users engage with you as an independent professional, not as a BrokerSaab employee or representative.' },
                   { color: '#f59e0b', title: 'Disputes — Indian Judiciary', body: 'All disputes, complaints, or proceedings arising from your advisory services or your use of BrokerSaab shall be subject exclusively to the jurisdiction of the competent courts of India. BrokerSaab will not represent either party in any dispute.' },
@@ -973,7 +978,7 @@ ${availLines ? `<div class="section">
 
         {/* ── Step: Phone OTP ── */}
         {step === 'phone_otp' && (
-          <div className="p-6 sm:p-8 space-y-5">
+          <div className="p-4 sm:p-5 space-y-3">
             <div>
               <h2 className="text-lg font-bold text-gray-900">Verify Your Mobile Number</h2>
               <p className="text-sm text-gray-500">We'll send a 6-digit OTP to confirm your number.</p>
@@ -1081,7 +1086,7 @@ ${availLines ? `<div class="section">
 
         {/* ── Step: Advisor Type ── */}
         {step === 'advisor_type' && (
-          <div className="p-6 sm:p-8 space-y-5">
+          <div className="p-4 sm:p-5 space-y-3">
             <div>
               <h2 className="text-lg font-bold text-gray-900">Choose Your Advisor Type</h2>
               <p className="text-sm text-gray-500">This determines your verification requirements and platform visibility.</p>
@@ -1141,7 +1146,7 @@ ${availLines ? `<div class="section">
 
         {/* ── Step: Account ── */}
         {step === 'account' && (
-          <div className="p-6 sm:p-8 space-y-4">
+          <div className="p-4 sm:p-5 space-y-3">
             <div>
               <h2 className="text-lg font-bold text-gray-900">Create Your Account</h2>
               <p className="text-sm text-gray-500">These credentials will be used to log in to your advisor dashboard.</p>
@@ -1209,7 +1214,7 @@ ${availLines ? `<div class="section">
 
         {/* ── Step: Profile ── */}
         {step === 'profile' && (
-          <div className="p-6 sm:p-8 space-y-4">
+          <div className="p-4 sm:p-5 space-y-3">
             <div>
               <h2 className="text-lg font-bold text-gray-900">Professional Profile</h2>
               <p className="text-sm text-gray-500">Tell clients about your expertise and experience.</p>
@@ -1336,7 +1341,7 @@ ${availLines ? `<div class="section">
             {/* Bio */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Professional Bio *</label>
-              <textarea rows={4} placeholder="Describe your expertise, approach, and what clients can expect when working with you. (minimum 50 characters)"
+              <textarea rows={3} placeholder="Describe your expertise, approach, and what clients can expect when working with you. (minimum 50 characters)"
                 value={formData.bio} onChange={e => update('bio', e.target.value)}
                 className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 resize-none transition-all" />
               <div className="flex justify-between mt-1">
@@ -1360,7 +1365,7 @@ ${availLines ? `<div class="section">
 
         {/* ── Step: KYC Upload ── */}
         {step === 'kyc' && (
-          <div className="p-6 sm:p-8 space-y-5">
+          <div className="p-4 sm:p-5 space-y-3">
             <div>
               <h2 className="text-lg font-bold text-gray-900">KYC Document Upload</h2>
               <p className="text-sm text-gray-500">
@@ -1472,7 +1477,7 @@ ${availLines ? `<div class="section">
 
         {/* ── Step: Services ── */}
         {step === 'services' && (
-          <div className="p-6 sm:p-8">
+          <div className="p-4 sm:p-5">
             <div className="mb-5">
               <div className="flex items-center gap-2 mb-1">
                 <Sparkles size={18} className="text-gold-500" />
@@ -1767,7 +1772,7 @@ ${availLines ? `<div class="section">
 
         {/* ── Step: Availability ── */}
         {step === 'availability' && (
-          <div className="p-6 sm:p-8">
+          <div className="p-4 sm:p-5">
             <div className="mb-5">
               <h2 className="text-lg font-bold text-gray-900">Set Your Availability</h2>
               <p className="text-sm text-gray-500">Toggle the days you are available and set your time slots. You can update this anytime.</p>
@@ -1843,7 +1848,7 @@ ${availLines ? `<div class="section">
 
         {/* ── Step: Review ── */}
         {step === 'review' && (
-          <div className="p-6 sm:p-8 space-y-4">
+          <div className="p-4 sm:p-5 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Review Your Application</h2>
@@ -2065,7 +2070,7 @@ ${availLines ? `<div class="section">
 
         {/* ── Step: Payment (AUTHORIZED only) ── */}
         {step === 'payment' && (
-          <div className="p-6 sm:p-8 space-y-5">
+          <div className="p-4 sm:p-5 space-y-3">
 
             {/* Header */}
             <div className="flex items-center gap-3">
@@ -2393,13 +2398,15 @@ ${availLines ? `<div class="section">
 
         {/* Card Footer */}
         {step !== 'success' && step !== 'welcome' && (
-          <div className="px-6 pb-5 text-center">
+          <div className="px-4 pb-3 text-center">
             <p className="text-xs text-gray-400">
               Already have an account?{' '}
               <Link href="/auth/admin" className="text-gold-600 font-semibold hover:underline">Sign in here</Link>
             </p>
           </div>
         )}
+
+        </div>{/* end scrollable */}
       </div>
     </div>
   );
