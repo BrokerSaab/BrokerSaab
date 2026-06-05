@@ -9,7 +9,7 @@ import {
   UserPlus, Send, ClipboardCheck, Shield
 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 type AdminTab = 'overview' | 'advisors' | 'users' | 'funnel' | 'subscriptions' | 'contact-packs' | 'bookings' | 'support' | 'sub-admins';
 type BookingStatus = 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';

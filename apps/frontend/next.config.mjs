@@ -1,7 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Tree-shake lucide-react — bundles only the icons actually imported
-  // (without this, the full 1000+ icon library is included in the bundle)
   experimental: {
     optimizePackageImports: ['lucide-react', '@tanstack/react-query'],
   },
@@ -9,16 +7,31 @@ const nextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,
+    remotePatterns: [
+      // Allow Render-hosted /uploads/kyc/* paths proxied through Next.js
+      { protocol: 'https', hostname: '**' },
+    ],
   },
 
-  // Compress responses
   compress: true,
 
-  // Reduce build output noise
-  logging: {
-    fetches: {
-      fullUrl: false,
-    },
+  logging: { fetches: { fullUrl: false } },
+
+  // Proxy all /api/v1/* calls through Next.js to avoid CORS in production.
+  // Set BACKEND_URL in Vercel env vars (no NEXT_PUBLIC_ prefix — server-side only).
+  async rewrites() {
+    const backend = process.env.BACKEND_URL || 'http://localhost:5000';
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: `${backend}/api/v1/:path*`,
+      },
+      // Also proxy /uploads (advisor photos served from backend)
+      {
+        source: '/uploads/:path*',
+        destination: `${backend}/uploads/:path*`,
+      },
+    ];
   },
 };
 

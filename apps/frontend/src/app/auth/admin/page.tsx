@@ -18,7 +18,7 @@ export default function AdminLoginPage() {
   const [success, setSuccess] = useState(false);
   const [userName, setUserName] = useState('');
 
-  const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+  const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
   const handleLogin = async () => {
     if (!email.trim()) { setError('Please enter your email address'); return; }

@@ -40,7 +40,7 @@ interface AdvisorCard {
   isAuthorizedDealer?: boolean;
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 const CATEGORY_TO_SLUG: Record<string, string> = {
   'Birth, Death & Marriage Papers': 'm1',
@@ -596,7 +596,7 @@ export default function DiscoverPage() {
     setConnectLoading(advisorId);
     try {
       const token = localStorage.getItem('accessToken') || '';
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
       const res   = await fetch(`${API_URL}/contacts/unlock/${advisorId}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },

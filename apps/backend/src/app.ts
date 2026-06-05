@@ -105,6 +105,44 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
+/* ── Startup: seed the 19 service categories if missing ── */
+const SEED_CATEGORIES = [
+  { slug: 'm1',  name: 'Birth, Death & Marriage Papers' },
+  { slug: 'm2',  name: 'Identity Cards & Documents' },
+  { slug: 'm3',  name: 'Income, Caste & Residence' },
+  { slug: 'm4',  name: 'Property & Land Papers' },
+  { slug: 'm5',  name: 'Tax / GST Filing' },
+  { slug: 'm6',  name: 'Business Registration' },
+  { slug: 'm7',  name: 'Brand & IP Protection' },
+  { slug: 'm8',  name: 'Bank, Loan & Credit' },
+  { slug: 'm9',  name: 'Insurance (Bima)' },
+  { slug: 'm10', name: 'Vehicle & RTO Work' },
+  { slug: 'm11', name: 'Legal & Court Help' },
+  { slug: 'm12', name: 'Job, PF & Labour' },
+  { slug: 'm13', name: 'School & College Papers' },
+  { slug: 'm14', name: 'Pension & Govt Schemes' },
+  { slug: 'm15', name: 'Savings & Investment' },
+  { slug: 'm16', name: 'Passport, Visa & Foreign' },
+  { slug: 'm17', name: 'Electricity, Water & Gas' },
+  { slug: 'm18', name: 'Farmer & Agriculture' },
+  { slug: 'm19', name: 'Online Form & Doc Help' },
+];
+
+async function ensureCategories() {
+  try {
+    for (const cat of SEED_CATEGORIES) {
+      await prisma.category.upsert({
+        where: { slug: cat.slug },
+        update: { name: cat.name },
+        create: { slug: cat.slug, name: cat.name },
+      });
+    }
+    console.log('[Startup] 19 service categories ensured.');
+  } catch (err) {
+    console.error('[Startup] Category seed failed (non-fatal):', err);
+  }
+}
+
 /* ── Startup: ensure Super Admin exists in DB ── */
 async function ensureAdminUser() {
   try {
@@ -129,8 +167,8 @@ async function ensureAdminUser() {
 }
 
 // Launch server instance
-ensureAdminUser().then(() => {
-  server.listen(PORT, () => {
+Promise.all([ensureAdminUser(), ensureCategories()]).then(() => {
+  server.listen(PORT as number, () => {
     console.log(`BrokerSaab Server is online on port ${PORT} in ${process.env.NODE_ENV} mode.`);
   });
 });

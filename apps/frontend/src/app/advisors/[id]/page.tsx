@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import ContactUnlockModal from '@/components/ContactUnlockModal';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 interface AdvisorDetail {
   id: string; fullName: string; businessName?: string; avatarUrl?: string;
@@ -167,9 +167,17 @@ export default function AdvisorProfilePage({ params }: { params: Promise<{ id: s
           <div className="glass-card rounded-2xl p-8 space-y-6">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex gap-4 items-center">
-                <div className="w-16 h-16 rounded-full bg-gold-500/10 border-2 border-gold-500/40 flex items-center justify-center text-2xl font-black text-gold-400">
-                  {initials}
-                </div>
+                {advisor.avatarUrl ? (
+                  <img
+                    src={advisor.avatarUrl.startsWith('http') ? advisor.avatarUrl : `/uploads${advisor.avatarUrl.replace('/uploads', '')}`}
+                    alt={advisor.fullName}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-gold-500/40"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-gold-500/10 border-2 border-gold-500/40 flex items-center justify-center text-2xl font-black text-gold-400">
+                    {initials}
+                  </div>
+                )}
                 <div>
                   <div className="flex items-center gap-2">
                     <h1 className="text-2xl font-bold text-slate-100">{advisor.fullName}</h1>

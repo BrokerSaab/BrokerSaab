@@ -481,6 +481,14 @@ router.post(
         data: { advisorId, documentType: documentType as DocumentType, documentUrl },
       });
 
+      // Save profile photo URL into advisor.avatarUrl for display on profiles
+      if (documentType === 'PASSPORT_PHOTO') {
+        await prisma.advisor.update({
+          where: { id: advisorId },
+          data: { avatarUrl: documentUrl },
+        });
+      }
+
       res.status(201).json({ success: true, message: 'Document uploaded successfully', data: doc });
     } catch (error) {
       console.error('[documents upload]', error);

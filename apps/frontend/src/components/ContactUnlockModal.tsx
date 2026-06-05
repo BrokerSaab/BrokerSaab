@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { X, ShieldCheck, Loader2, CheckCircle2, Copy, Check, Download, Phone, Mail, Award } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 // GST constants (display-only)
 const ORIGINAL_PRICE = 999;

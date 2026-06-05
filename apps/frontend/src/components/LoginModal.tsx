@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState, KeyboardEvent } from '
 import { X, Phone, ShieldCheck, CheckCircle2, Loader2, AlertCircle, User, Mail, ArrowRight, Scale, AlertOctagon, FileText, Gavel } from 'lucide-react';
 import { AuthUser } from '@/contexts/AuthContext';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 type ModalStep = 'terms' | 'phone' | 'otp' | 'register' | 'success';
 

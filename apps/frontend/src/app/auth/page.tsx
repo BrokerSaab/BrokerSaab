@@ -35,7 +35,7 @@ export default function AuthPage() {
     if (el && !tcScrolled && el.scrollTop + el.clientHeight >= el.scrollHeight - 20) setTcScrolled(true);
   };
 
-  const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+  const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
   // ── Step 1: Send OTP ──
   const handleSendOtp = async () => {

@@ -8,7 +8,7 @@ import {
   ArrowLeft, ArrowRight, Search, Loader2, UserCheck, X,
 } from 'lucide-react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 const AVATAR_COLORS = [
   'from-blue-500 to-blue-600',

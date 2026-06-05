@@ -16,7 +16,7 @@ import {
 import { MODULES_DATA, MODULE_COLORS, ICON_MAP } from '@/data/servicesData';
 import { INDIA_STATES_SORTED } from '@/data/indiaStates';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 type Step = 'welcome' | 'phone_otp' | 'advisor_type' | 'account' | 'profile' | 'kyc' | 'services' | 'availability' | 'review' | 'payment' | 'success';
