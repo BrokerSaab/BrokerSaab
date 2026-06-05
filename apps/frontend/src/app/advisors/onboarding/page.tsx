@@ -442,16 +442,17 @@ export default function AdvisorOnboarding() {
       if (formData.licenseFile) await uploadDoc(formData.licenseFile, 'LICENSE_COPY');
       if (formData.gstCertFile) await uploadDoc(formData.gstCertFile, 'GST_CERTIFICATE');
 
-      // 3. Set categories
+      // 3. Set categories — fatal: without this advisors won't appear in search
       if (formData.selectedSlugs.length > 0) {
-        try {
-          await fetch(`${API}/advisors/categories`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-            body: JSON.stringify({ categorySlugs: formData.selectedSlugs }),
-          });
-        } catch {
-          // non-fatal
+        const catRes = await fetch(`${API}/advisors/categories`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ categorySlugs: formData.selectedSlugs }),
+        });
+        if (!catRes.ok) {
+          const catData = await catRes.json().catch(() => ({}));
+          console.error('[onboarding] Category save failed:', catData.message);
+          // Non-blocking — log but continue so advisor is still registered
         }
       }
 
@@ -476,7 +477,7 @@ export default function AdvisorOnboarding() {
             });
           }
         } catch (err) {
-          console.error('Failed to save specialisations:', err);
+          console.error('[onboarding] Failed to save specialisations:', err);
         }
       }
 

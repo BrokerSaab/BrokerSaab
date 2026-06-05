@@ -510,6 +510,56 @@ router.get('/export/:entity', ...ADMIN_GUARD, async (req: Request, res: Response
   }
 });
 
+/**
+ * PATCH /admin/advisors/:id/categories
+ * Assign/replace service categories for any advisor (admin action).
+ * Useful for fixing advisors whose category assignment failed at onboarding.
+ */
+router.patch(
+  '/advisors/:id/categories',
+  ...ADMIN_GUARD,
+  async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params;
+    const { categorySlugs } = req.body;
+
+    if (!Array.isArray(categorySlugs) || categorySlugs.length === 0) {
+      res.status(400).json({ success: false, message: 'categorySlugs array required' });
+      return;
+    }
+
+    try {
+      const advisor = await prisma.advisor.findUnique({ where: { id } });
+      if (!advisor) {
+        res.status(404).json({ success: false, message: 'Advisor not found' });
+        return;
+      }
+
+      const categories = await prisma.category.findMany({ where: { slug: { in: categorySlugs } } });
+      if (categories.length === 0) {
+        res.status(400).json({ success: false, message: 'No valid categories found for provided slugs' });
+        return;
+      }
+
+      await prisma.$transaction([
+        prisma.advisorCategory.deleteMany({ where: { advisorId: id } }),
+        prisma.advisorCategory.createMany({
+          data: categories.map(c => ({ advisorId: id, categoryId: c.id })),
+          skipDuplicates: true,
+        }),
+      ]);
+
+      res.json({
+        success: true,
+        message: `${categories.length} categories assigned to ${advisor.fullName}`,
+        assigned: categories.map(c => c.slug),
+      });
+    } catch (err) {
+      console.error('[admin/categories PATCH]', err);
+      res.status(500).json({ success: false, message: 'Failed to assign categories' });
+    }
+  }
+);
+
 // ── GET /admin/tickets ────────────────────────────────────────────
 router.get('/tickets', authenticateJWT, requireRole([Role.SUPER_ADMIN, Role.SUB_ADMIN]), async (req: Request, res: Response) => {
   try {
