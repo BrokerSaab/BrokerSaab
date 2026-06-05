@@ -754,13 +754,37 @@ router.get('/sub-admins', ...SUPER_ADMIN_ONLY, async (_req: Request, res: Respon
   try {
     const subAdmins = await prisma.adminUsers.findMany({
       where: { role: Role.SUB_ADMIN },
-      select: {
-        id: true, fullName: true, email: true, role: true, createdAt: true, createdByAdminId: true,
-        _count: { select: { assignedAdvisors: true } },
-      },
+      select: { id: true, fullName: true, email: true, role: true, createdAt: true, createdByAdminId: true },
       orderBy: { createdAt: 'desc' },
     });
-    res.json({ success: true, data: subAdmins });
+
+    // Fetch advisor counts grouped by sub-admin and status
+    const counts = await prisma.advisor.groupBy({
+      by: ['assignedSubAdminId', 'verificationStatus'],
+      where: { assignedSubAdminId: { in: subAdmins.map(sa => sa.id) } },
+      _count: { id: true },
+    });
+
+    // Build per-sub-admin stats map
+    const statsMap: Record<string, { assigned: number; underReview: number; submitted: number; processed: number }> = {};
+    for (const row of counts) {
+      if (!row.assignedSubAdminId) continue;
+      if (!statsMap[row.assignedSubAdminId]) {
+        statsMap[row.assignedSubAdminId] = { assigned: 0, underReview: 0, submitted: 0, processed: 0 };
+      }
+      const s = statsMap[row.assignedSubAdminId];
+      s.assigned += row._count.id;
+      if (row.verificationStatus === VerificationStatus.UNDER_REVIEW) s.underReview += row._count.id;
+      else if (row.verificationStatus === VerificationStatus.SUBMITTED_FOR_APPROVAL) s.submitted += row._count.id;
+      else if (row.verificationStatus === VerificationStatus.APPROVED || row.verificationStatus === VerificationStatus.REJECTED) s.processed += row._count.id;
+    }
+
+    const data = subAdmins.map(sa => ({
+      ...sa,
+      stats: statsMap[sa.id] ?? { assigned: 0, underReview: 0, submitted: 0, processed: 0 },
+    }));
+
+    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to fetch sub-admins' });
   }
@@ -790,6 +814,41 @@ router.post('/sub-admins', ...SUPER_ADMIN_ONLY,
     }
   }
 );
+
+// ── GET /admin/my-stats ───────────────────────────────────────────────
+// SUB_ADMIN: returns their own work stats
+// SUPER_ADMIN: returns platform-level sub-admin workflow overview
+router.get('/my-stats', ...ADMIN_GUARD, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const adminId = req.user!.id;
+  const isSuperAdmin = req.user!.role === Role.SUPER_ADMIN;
+  try {
+    if (!isSuperAdmin) {
+      const counts = await prisma.advisor.groupBy({
+        by: ['verificationStatus'],
+        where: { assignedSubAdminId: adminId },
+        _count: { id: true },
+      });
+      const stats = { assigned: 0, underReview: 0, submitted: 0, processed: 0 };
+      for (const row of counts) {
+        stats.assigned += row._count.id;
+        if (row.verificationStatus === VerificationStatus.UNDER_REVIEW) stats.underReview += row._count.id;
+        else if (row.verificationStatus === VerificationStatus.SUBMITTED_FOR_APPROVAL) stats.submitted += row._count.id;
+        else if (row.verificationStatus === VerificationStatus.APPROVED || row.verificationStatus === VerificationStatus.REJECTED) stats.processed += row._count.id;
+      }
+      res.json({ success: true, data: stats });
+    } else {
+      const [subAdminCount, pendingAdvisors, underReview, submitted] = await Promise.all([
+        prisma.adminUsers.count({ where: { role: Role.SUB_ADMIN } }),
+        prisma.advisor.count({ where: { verificationStatus: VerificationStatus.PENDING } }),
+        prisma.advisor.count({ where: { verificationStatus: VerificationStatus.UNDER_REVIEW } }),
+        prisma.advisor.count({ where: { verificationStatus: VerificationStatus.SUBMITTED_FOR_APPROVAL } }),
+      ]);
+      res.json({ success: true, data: { subAdminCount, pendingAdvisors, underReview, submitted } });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch stats' });
+  }
+});
 
 // ── DELETE /admin/sub-admins/:id ──────────────────────────────────────
 router.delete('/sub-admins/:id', ...SUPER_ADMIN_ONLY, async (req: AuthenticatedRequest, res: Response): Promise<void> => {

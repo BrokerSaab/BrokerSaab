@@ -44,9 +44,10 @@ interface Advisor {
   subscriptions?: { status: string; expiresAt?: string; subscribedAt?: string }[];
 }
 
+interface SubAdminStats { assigned: number; underReview: number; submitted: number; processed: number; }
 interface SubAdmin {
   id: string; fullName: string; email: string; role: string; createdAt: string;
-  _count?: { assignedAdvisors: number };
+  stats: SubAdminStats;
 }
 
 interface User { id: string; fullName?: string; email?: string; phoneNumber: string; state?: string; createdAt: string; _count?: { bookings: number }; }
@@ -91,6 +92,7 @@ export default function AdminSuitePage() {
   const [newSubAdmin, setNewSubAdmin] = useState({ fullName: '', email: '', password: '' });
   const [creatingSubAdmin, setCreatingSubAdmin] = useState(false);
   const [subAdminFormError, setSubAdminFormError] = useState('');
+  const [myStats, setMyStats] = useState<SubAdminStats | null>(null);
 
   // Users tab
   const [users, setUsers] = useState<User[]>([]);
@@ -176,6 +178,14 @@ export default function AdminSuitePage() {
     } catch { /* empty */ } finally { setSubAdminsLoading(false); }
   }, [isSuperAdmin]);
 
+  const fetchMyStats = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/admin/my-stats`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.success) setMyStats(d.data);
+    } catch { /* empty */ }
+  }, []);
+
   const fetchUsers = useCallback(async () => {
     setUsersLoading(true);
     try {
@@ -253,7 +263,7 @@ export default function AdminSuitePage() {
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+  useEffect(() => { fetchDashboard(); fetchMyStats(); }, [fetchDashboard, fetchMyStats]);
   useEffect(() => { if (activeTab === 'advisors') fetchAdvisors(); }, [activeTab, fetchAdvisors]);
   useEffect(() => { if (activeTab === 'users') fetchUsers(); }, [activeTab, fetchUsers]);
   useEffect(() => { if (activeTab === 'funnel') fetchFunnel(); }, [activeTab, fetchFunnel]);
@@ -436,7 +446,10 @@ export default function AdminSuitePage() {
       } else {
         setSubAdminFormError(d.message || 'Failed to create sub-admin');
       }
-    } catch { setSubAdminFormError('Network error'); } finally { setCreatingSubAdmin(false); }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Network error — check your connection or API URL';
+      setSubAdminFormError(msg);
+    } finally { setCreatingSubAdmin(false); }
   };
 
   const handleDeleteSubAdmin = async (id: string, name: string) => {
@@ -517,6 +530,29 @@ export default function AdminSuitePage() {
               </div>
             ))}
           </div>
+          {/* Sub-admin personal stats (shown when logged in as sub-admin) */}
+          {!isSuperAdmin && myStats && (
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 space-y-3">
+              <h4 className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2">
+                <ClipboardCheck size={13} className="text-indigo-500" /> My Work Summary
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: 'Total Assigned', value: myStats.assigned, color: 'border-l-indigo-500', bg: 'bg-indigo-50', text: 'text-indigo-700', desc: 'advisors assigned to you' },
+                  { label: 'Under Review', value: myStats.underReview, color: 'border-l-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', desc: 'actively being reviewed' },
+                  { label: 'Submitted', value: myStats.submitted, color: 'border-l-purple-500', bg: 'bg-purple-50', text: 'text-purple-700', desc: 'awaiting super admin' },
+                  { label: 'Processed', value: myStats.processed, color: 'border-l-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', desc: 'approved or rejected' },
+                ].map((s, i) => (
+                  <div key={i} className={`${s.bg} rounded-xl p-4 border-l-4 ${s.color}`}>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider ${s.text} mb-1`}>{s.label}</p>
+                    <p className={`text-2xl font-black ${s.text}`}>{s.value}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{s.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
             <h4 className="text-xs font-bold text-slate-600 uppercase tracking-widest pb-3 border-b border-slate-100 mb-3">Audit Log</h4>
             <div className="space-y-1.5 max-h-40 overflow-y-auto font-mono text-[10px] text-slate-400">
@@ -1148,37 +1184,49 @@ export default function AdminSuitePage() {
           {/* Sub-admin list */}
           {subAdminsLoading ? (
             <div className="flex items-center justify-center py-12 text-slate-400"><Loader2 size={22} className="animate-spin mr-3" /> Loading…</div>
+          ) : subAdmins.length === 0 ? (
+            <p className="text-center py-12 text-slate-500 text-sm bg-white rounded-xl border border-slate-100">No sub-admins created yet.</p>
           ) : (
-            <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-              <table className="w-full text-xs text-slate-700">
-                <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
-                  {['Name', 'Email', 'Assigned Advisors', 'Created'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-[10px]">{h}</th>
-                  ))}
-                  <th className="px-4 py-3 text-[10px] font-semibold uppercase">Actions</th>
-                </tr></thead>
-                <tbody>
-                  {subAdmins.map((sa, i) => (
-                    <tr key={sa.id} className={`border-b border-slate-50 hover:bg-indigo-50/40 ${i % 2 === 0 ? '' : 'bg-slate-50/60'}`}>
-                      <td className="px-4 py-3 font-semibold text-slate-800">{sa.fullName}</td>
-                      <td className="px-4 py-3 text-slate-500">{sa.email}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                          {sa._count?.assignedAdvisors ?? 0}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-400">{new Date(sa.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                      <td className="px-4 py-3 text-center">
-                        <button onClick={() => handleDeleteSubAdmin(sa.id, sa.fullName)}
-                          className="text-[10px] text-red-500 hover:text-red-700 border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors">
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {subAdmins.length === 0 && <p className="text-center py-12 text-slate-500 text-sm">No sub-admins created yet.</p>}
+            <div className="space-y-3">
+              {subAdmins.map((sa) => {
+                const s = sa.stats ?? { assigned: 0, underReview: 0, submitted: 0, processed: 0 };
+                const pending = s.underReview + s.submitted;
+                return (
+                  <div key={sa.id} className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 hover:border-indigo-200 transition-colors">
+                    <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{sa.fullName}</p>
+                        <p className="text-xs text-slate-400">{sa.email}</p>
+                        <p className="text-[10px] text-slate-300 mt-0.5">
+                          Added {new Date(sa.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <button onClick={() => handleDeleteSubAdmin(sa.id, sa.fullName)}
+                        className="text-[10px] text-red-500 hover:text-red-700 border border-red-200 px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors shrink-0">
+                        Remove
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { label: 'Assigned', value: s.assigned, bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
+                        { label: 'Under Review', value: s.underReview, bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+                        { label: 'Submitted', value: s.submitted, bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+                        { label: 'Processed', value: s.processed, bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+                      ].map((stat) => (
+                        <div key={stat.label} className={`${stat.bg} border ${stat.border} rounded-lg px-3 py-2 text-center`}>
+                          <p className={`text-lg font-black ${stat.text}`}>{stat.value}</p>
+                          <p className={`text-[9px] font-bold uppercase tracking-wider ${stat.text} opacity-70`}>{stat.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {pending > 0 && (
+                      <p className="text-[10px] text-amber-600 mt-2 font-medium">
+                        ⏳ {pending} advisor{pending > 1 ? 's' : ''} in pipeline
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
