@@ -133,8 +133,13 @@ const AVATAR_COLORS = [
 async function fetchAdvisors(categories: string[], search: string, state?: string, district?: string): Promise<AdvisorCard[]> {
   const params = new URLSearchParams({ limit: '50' });
   if (categories.length > 0) {
-    const slug = CATEGORY_TO_SLUG[categories[0]];
-    if (slug) params.set('category', slug);
+    // Collect all unique slugs for the selected categories and pass as comma-separated
+    const slugs = [...new Set(categories.map(c => CATEGORY_TO_SLUG[c]).filter(Boolean))];
+    if (slugs.length === 1) {
+      params.set('category', slugs[0]);
+    } else if (slugs.length > 1) {
+      params.set('categories', slugs.join(','));
+    }
   }
   if (search.trim()) params.set('search', search.trim());
   if (state && state !== 'All India') params.set('state', state);

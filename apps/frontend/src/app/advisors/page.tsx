@@ -81,11 +81,14 @@ interface AdvisorCard {
 
 function AdvisorsListingInner() {
   const searchParams  = useSearchParams();
-  const categoryParam = searchParams.get('category') || '';
-  const stateParam    = searchParams.get('state') || '';
-  const searchParam   = searchParams.get('search') || '';
+  const categoryParam  = searchParams.get('category') || '';
+  const categoriesParam = searchParams.get('categories') || ''; // comma-separated multi
+  const stateParam     = searchParams.get('state') || '';
+  const searchParam    = searchParams.get('search') || '';
 
-  const categoryDisplayName = SLUG_TO_CATEGORY_NAME[categoryParam] || null;
+  // Display name: show first category from either single or multi param
+  const firstSlug = categoryParam || categoriesParam.split(',')[0] || '';
+  const categoryDisplayName = SLUG_TO_CATEGORY_NAME[firstSlug] || null;
 
   const [advisors, setAdvisors]         = useState<AdvisorCard[]>([]);
   const [loading, setLoading]           = useState(true);
@@ -106,7 +109,8 @@ function AdvisorsListingInner() {
     setLoading(true); setError('');
     try {
       const params = new URLSearchParams({ limit: '18' });
-      if (categoryParam) params.set('category', categoryParam);
+      if (categoriesParam) params.set('categories', categoriesParam);
+      else if (categoryParam) params.set('category', categoryParam);
       if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
       if (selectedState && selectedState !== 'All India') params.set('state', selectedState);
 
@@ -141,7 +145,7 @@ function AdvisorsListingInner() {
     } finally {
       setLoading(false);
     }
-  }, [categoryParam, debouncedSearch, selectedState]);
+  }, [categoryParam, categoriesParam, debouncedSearch, selectedState]);
 
   useEffect(() => { load(); }, [load]);
 

@@ -74,6 +74,7 @@ router.get('/', validateRequest(searchAdvisorsQuerySchema), async (req: Request,
   const {
     search,
     category,
+    categories: categoriesParam,  // comma-separated: m1,m2,m17
     specialization,
     location,
     state,
@@ -119,8 +120,15 @@ router.get('/', validateRequest(searchAdvisorsQuerySchema), async (req: Request,
     whereConditions.experienceYears = { gte: parseInt(minExperience as string) };
   }
 
-  // Category filter — strict: only advisors explicitly assigned this category
-  if (category) {
+  // Category filter — supports single ?category=m1 or multi ?categories=m1,m2,m17 (OR logic)
+  if (categoriesParam) {
+    const slugs = (categoriesParam as string).split(',').map(s => s.trim()).filter(Boolean);
+    if (slugs.length === 1) {
+      whereConditions.categories = { some: { category: { slug: slugs[0] } } };
+    } else if (slugs.length > 1) {
+      whereConditions.categories = { some: { category: { slug: { in: slugs } } } };
+    }
+  } else if (category) {
     whereConditions.categories = {
       some: { category: { slug: category as string } }
     };
