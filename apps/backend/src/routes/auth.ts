@@ -334,6 +334,11 @@ router.post('/login/password', validateRequest(passwordLoginSchema), async (req:
       return;
     }
 
+    if (!admin.isActive) {
+      res.status(403).json({ success: false, message: 'This account has been deactivated. Contact the super admin.' });
+      return;
+    }
+
     const accessToken = jwt.sign(
       { id: admin.id, phoneNumber: '0000000000', role: admin.role },
       JWT_ACCESS_SECRET,

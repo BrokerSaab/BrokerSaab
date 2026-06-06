@@ -808,7 +808,7 @@ router.post('/tickets/:id/assign', ...SUPER_ADMIN_ONLY, async (req: Authenticate
 router.get('/sub-admins/list', ...SUPER_ADMIN_ONLY, async (_req: Request, res: Response) => {
   try {
     const subAdmins = await prisma.adminUsers.findMany({
-      where: { role: Role.SUB_ADMIN },
+      where: { role: Role.SUB_ADMIN, isActive: true },
       select: { id: true, fullName: true, email: true },
       orderBy: { fullName: 'asc' },
     });
@@ -934,7 +934,7 @@ router.get('/sub-admins', ...SUPER_ADMIN_ONLY, async (_req: Request, res: Respon
   try {
     const subAdmins = await prisma.adminUsers.findMany({
       where: { role: Role.SUB_ADMIN },
-      select: { id: true, fullName: true, email: true, role: true, createdAt: true, createdByAdminId: true },
+      select: { id: true, seqId: true, fullName: true, email: true, role: true, isActive: true, createdAt: true, createdByAdminId: true },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -1017,6 +1017,40 @@ router.post('/repair-categories', ...SUPER_ADMIN_ONLY, async (_req: Request, res
   }
 });
 
+// ── POST /admin/sub-admins/bulk ───────────────────────────────────────
+router.post('/sub-admins/bulk', ...SUPER_ADMIN_ONLY,
+  validateRequest(z.object({
+    body: z.object({
+      entries: z.array(z.object({
+        fullName: z.string().min(2),
+        email: z.string().email(),
+        password: z.string().min(8),
+      })).min(1).max(10),
+    }),
+  })),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { entries } = req.body;
+    const createdByAdminId = req.user!.id;
+    const results: { email: string; status: string; message?: string; data?: object }[] = [];
+    for (const entry of entries) {
+      try {
+        const existing = await prisma.adminUsers.findUnique({ where: { email: entry.email } });
+        if (existing) { results.push({ email: entry.email, status: 'failed', message: 'Email already exists' }); continue; }
+        const passwordHash = await bcrypt.hash(entry.password, 12);
+        const sa = await prisma.adminUsers.create({
+          data: { fullName: entry.fullName, email: entry.email, passwordHash, role: Role.SUB_ADMIN, createdByAdminId },
+          select: { id: true, fullName: true, email: true, role: true, createdAt: true },
+        });
+        await logAuditEvent('CREATE_SUB_ADMIN', createdByAdminId,
+          { subAdminId: sa.id, email: entry.email, fullName: entry.fullName, method: 'bulk' }, undefined, req);
+        results.push({ email: entry.email, status: 'created', data: sa });
+      } catch { results.push({ email: entry.email, status: 'failed', message: 'Server error' }); }
+    }
+    const created = results.filter(r => r.status === 'created').length;
+    res.status(207).json({ success: true, created, failed: results.length - created, results });
+  }
+);
+
 // ── POST /admin/sub-admins ────────────────────────────────────────────
 router.post('/sub-admins', ...SUPER_ADMIN_ONLY,
   validateRequest(z.object({ body: z.object({ fullName: z.string().min(2), email: z.string().email(), password: z.string().min(8) }) })),
@@ -1076,6 +1110,57 @@ router.get('/my-stats', ...ADMIN_GUARD, async (req: AuthenticatedRequest, res: R
     res.status(500).json({ success: false, message: 'Failed to fetch stats' });
   }
 });
+
+// ── PATCH /admin/sub-admins/:id/status ────────────────────────────────
+router.patch('/sub-admins/:id/status', ...SUPER_ADMIN_ONLY,
+  validateRequest(z.object({ body: z.object({ isActive: z.boolean() }) })),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { id } = req.params;
+    const { isActive } = req.body;
+    try {
+      const subAdmin = await prisma.adminUsers.findUnique({ where: { id } });
+      if (!subAdmin || subAdmin.role !== Role.SUB_ADMIN) {
+        res.status(404).json({ success: false, message: 'Sub-admin not found' }); return;
+      }
+      const updated = await prisma.adminUsers.update({
+        where: { id },
+        data: { isActive },
+        select: { id: true, fullName: true, email: true, isActive: true },
+      });
+      await logAuditEvent(
+        isActive ? 'ACTIVATE_SUB_ADMIN' : 'DEACTIVATE_SUB_ADMIN',
+        req.user!.id,
+        { subAdminId: id, fullName: subAdmin.fullName, isActive },
+        undefined, req
+      );
+      res.json({ success: true, message: `${subAdmin.fullName} ${isActive ? 'activated' : 'deactivated'}.`, data: updated });
+    } catch (err) {
+      res.status(500).json({ success: false, message: 'Failed to update sub-admin status' });
+    }
+  }
+);
+
+// ── PATCH /admin/sub-admins/:id/password ──────────────────────────────
+router.patch('/sub-admins/:id/password', ...SUPER_ADMIN_ONLY,
+  validateRequest(z.object({ body: z.object({ password: z.string().min(8) }) })),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { id } = req.params;
+    const { password } = req.body;
+    try {
+      const subAdmin = await prisma.adminUsers.findUnique({ where: { id } });
+      if (!subAdmin || subAdmin.role !== Role.SUB_ADMIN) {
+        res.status(404).json({ success: false, message: 'Sub-admin not found' }); return;
+      }
+      const passwordHash = await bcrypt.hash(password, 12);
+      await prisma.adminUsers.update({ where: { id }, data: { passwordHash } });
+      await logAuditEvent('RESET_SUB_ADMIN_PASSWORD', req.user!.id,
+        { subAdminId: id, fullName: subAdmin.fullName }, undefined, req);
+      res.json({ success: true, message: `Password reset for ${subAdmin.fullName}.` });
+    } catch (err) {
+      res.status(500).json({ success: false, message: 'Failed to reset password' });
+    }
+  }
+);
 
 // ── DELETE /admin/sub-admins/:id ──────────────────────────────────────
 router.delete('/sub-admins/:id', ...SUPER_ADMIN_ONLY, async (req: AuthenticatedRequest, res: Response): Promise<void> => {

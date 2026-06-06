@@ -5,7 +5,7 @@ import {
   Users, FileText, CheckCircle, XCircle, TrendingUp, AlertTriangle,
   ShieldCheck, BookOpen, Loader2, Calendar, Clock, RefreshCw, BadgeCheck,
   BarChart2, CreditCard, Download, ChevronDown, ChevronRight, MapPin, X,
-  UserCheck, Award, Activity, Eye, MessageSquare, TicketCheck,
+  UserCheck, Award, Activity, Eye, EyeOff, MessageSquare, TicketCheck,
   UserPlus, Send, ClipboardCheck, Shield, Search, Lock
 } from 'lucide-react';
 
@@ -53,7 +53,8 @@ interface Advisor {
 
 interface SubAdminStats { assigned: number; underReview: number; submitted: number; processed: number; }
 interface SubAdmin {
-  id: string; seqId?: number; fullName: string; email: string; role: string; createdAt: string;
+  id: string; seqId?: number; fullName: string; email: string; role: string;
+  isActive: boolean; createdAt: string;
   stats: SubAdminStats;
 }
 
@@ -108,6 +109,23 @@ export default function AdminSuitePage() {
   const [creatingSubAdmin, setCreatingSubAdmin] = useState(false);
   const [subAdminFormError, setSubAdminFormError] = useState('');
   const [myStats, setMyStats] = useState<SubAdminStats | null>(null);
+  // Password reset modal
+  const [resetPasswordModal, setResetPasswordModal] = useState(false);
+  const [resetPasswordTargetId, setResetPasswordTargetId] = useState('');
+  const [resetPasswordTargetName, setResetPasswordTargetName] = useState('');
+  const [resetPasswordValue, setResetPasswordValue] = useState('');
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [resetPasswordShowPw, setResetPasswordShowPw] = useState(false);
+  // Bulk creation
+  type BulkEntry = { fullName: string; email: string; password: string };
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkEntries, setBulkEntries] = useState<BulkEntry[]>([{ fullName: '', email: '', password: '' }]);
+  const [bulkPreview, setBulkPreview] = useState(false);
+  const [bulkResults, setBulkResults] = useState<{ email: string; status: 'created' | 'failed'; message?: string }[] | null>(null);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  // Single form UX extras
+  const [showSinglePassword, setShowSinglePassword] = useState(false);
+  const [togglingStatus, setTogglingStatus] = useState<string | null>(null);
 
   // Users tab
   const [users, setUsers] = useState<User[]>([]);
@@ -540,6 +558,66 @@ export default function AdminSuitePage() {
         fetchAdvisors();
       }
     } catch { /* keep */ } finally { setAssigning(false); }
+  };
+
+  // ── Sub-admin helpers ─────────────────────────────────────────────
+  const pwStrength = (pw: string) => {
+    if (!pw) return { label: '', color: '', width: '0%' };
+    const score = [pw.length >= 8, /[A-Z]/.test(pw), /[a-z]/.test(pw), /\d/.test(pw), /[^A-Za-z0-9]/.test(pw)].filter(Boolean).length;
+    if (score <= 2) return { label: 'Weak', color: 'bg-red-400', width: '33%' };
+    if (score === 3) return { label: 'Fair', color: 'bg-amber-400', width: '60%' };
+    return { label: 'Strong', color: 'bg-emerald-400', width: '100%' };
+  };
+
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+    return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  };
+
+  const handleToggleSubAdminStatus = async (id: string, isActive: boolean, name: string) => {
+    setTogglingStatus(id);
+    try {
+      const res = await fetch(`${API}/admin/sub-admins/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ isActive }),
+      });
+      const d = await res.json();
+      if (d.success) setSubAdmins(prev => prev.map(sa => sa.id === id ? { ...sa, isActive } : sa));
+    } catch { /* empty */ } finally { setTogglingStatus(null); }
+  };
+
+  const openResetPassword = (id: string, name: string) => {
+    setResetPasswordTargetId(id); setResetPasswordTargetName(name);
+    setResetPasswordValue(''); setResetPasswordShowPw(false); setResetPasswordModal(true);
+  };
+
+  const confirmResetPassword = async () => {
+    if (resetPasswordValue.length < 8) return;
+    setResetPasswordLoading(true);
+    try {
+      const res = await fetch(`${API}/admin/sub-admins/${resetPasswordTargetId}/password`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ password: resetPasswordValue }),
+      });
+      const d = await res.json();
+      if (d.success) { setResetPasswordModal(false); setLogs(prev => [`Password reset for ${resetPasswordTargetName}.`, ...prev]); }
+    } catch { /* empty */ } finally { setResetPasswordLoading(false); }
+  };
+
+  const handleBulkCreate = async () => {
+    setBulkSubmitting(true);
+    try {
+      const valid = bulkEntries.filter(e => e.fullName.trim() && e.email.trim() && e.password.length >= 8);
+      const res = await fetch(`${API}/admin/sub-admins/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ entries: valid }),
+      });
+      const d = await res.json();
+      if (d.success) { setBulkResults(d.results); setBulkPreview(false); fetchSubAdmins(); }
+    } catch { /* empty */ } finally { setBulkSubmitting(false); }
   };
 
   // ── Create sub-admin ──────────────────────────────────────────────
@@ -1678,31 +1756,134 @@ export default function AdminSuitePage() {
 
           {/* Create sub-admin form */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 space-y-4">
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest flex items-center gap-2"><UserPlus size={13} className="text-indigo-500" /> Create New Sub-Admin</h3>
-            {subAdminFormError && (
-              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{subAdminFormError}</p>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <input
-                type="text" placeholder="Full Name" value={newSubAdmin.fullName}
-                onChange={e => setNewSubAdmin(p => ({ ...p, fullName: e.target.value }))}
-                className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 placeholder:text-slate-400"
-              />
-              <input
-                type="email" placeholder="Email Address" value={newSubAdmin.email}
-                onChange={e => setNewSubAdmin(p => ({ ...p, email: e.target.value }))}
-                className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 placeholder:text-slate-400"
-              />
-              <input
-                type="password" placeholder="Password (min 8 chars)" value={newSubAdmin.password}
-                onChange={e => setNewSubAdmin(p => ({ ...p, password: e.target.value }))}
-                className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 placeholder:text-slate-400"
-              />
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                <UserPlus size={13} className="text-indigo-500" /> Create New Sub-Admin
+              </h3>
+              <button onClick={() => { setBulkMode(m => !m); setBulkResults(null); setBulkEntries([{ fullName: '', email: '', password: '' }]); }}
+                className="text-[10px] font-semibold text-indigo-600 hover:underline">
+                {bulkMode ? 'Single mode' : 'Bulk create (up to 10)'}
+              </button>
             </div>
-            <button onClick={handleCreateSubAdmin} disabled={creatingSubAdmin}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all">
-              {creatingSubAdmin ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />} Create Sub-Admin
-            </button>
+
+            {/* ── Single mode ─────────────────────────────────────────── */}
+            {!bulkMode && (
+              <>
+                {subAdminFormError && (
+                  <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{subAdminFormError}</p>
+                )}
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Full Name</label>
+                    <input type="text" placeholder="e.g. Priya Sharma" value={newSubAdmin.fullName}
+                      onChange={e => setNewSubAdmin(p => ({ ...p, fullName: e.target.value }))}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 placeholder:text-slate-400" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Email Address</label>
+                    <input type="email" placeholder="e.g. priya@brokersaab.com" value={newSubAdmin.email}
+                      onChange={e => setNewSubAdmin(p => ({ ...p, email: e.target.value }))}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 placeholder:text-slate-400" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Password</label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input type={showSinglePassword ? 'text' : 'password'}
+                          placeholder="Min 8 characters" value={newSubAdmin.password}
+                          onChange={e => setNewSubAdmin(p => ({ ...p, password: e.target.value }))}
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2 pr-8 text-xs text-slate-700 outline-none focus:border-indigo-400 placeholder:text-slate-400" />
+                        <button type="button" onClick={() => setShowSinglePassword(s => !s)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                          {showSinglePassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                        </button>
+                      </div>
+                      <button type="button"
+                        onClick={() => { const pw = generatePassword(); setNewSubAdmin(p => ({ ...p, password: pw })); navigator.clipboard.writeText(pw); }}
+                        className="text-[10px] font-semibold px-2.5 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 hover:bg-indigo-50 hover:border-indigo-300 whitespace-nowrap">
+                        Auto-gen + Copy
+                      </button>
+                    </div>
+                    {newSubAdmin.password.length > 0 && (() => {
+                      const s = pwStrength(newSubAdmin.password);
+                      return (
+                        <div className="mt-1.5 space-y-0.5">
+                          <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full ${s.color} transition-all duration-300`} style={{ width: s.width }} />
+                          </div>
+                          <p className={`text-[9px] font-semibold ${s.color.replace('bg-', 'text-')}`}>{s.label}</p>
+                        </div>
+                      );
+                    })()}
+                    <p className="text-[10px] text-slate-400 mt-1">Use at least 8 characters. Mix uppercase, lowercase, numbers, and symbols.</p>
+                  </div>
+                </div>
+                <button onClick={handleCreateSubAdmin} disabled={creatingSubAdmin}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all">
+                  {creatingSubAdmin ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />} Create Sub-Admin
+                </button>
+              </>
+            )}
+
+            {/* ── Bulk mode ────────────────────────────────────────────── */}
+            {bulkMode && !bulkResults && (
+              <div className="space-y-3">
+                <p className="text-[10px] text-slate-500">Fill in each row. Rows with incomplete data will be skipped.</p>
+                <div className="space-y-2">
+                  {bulkEntries.map((entry, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center">
+                      <input type="text" placeholder="Full Name" value={entry.fullName}
+                        onChange={e => setBulkEntries(prev => prev.map((r, j) => j === i ? { ...r, fullName: e.target.value } : r))}
+                        className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 placeholder:text-slate-400" />
+                      <input type="email" placeholder="Email" value={entry.email}
+                        onChange={e => setBulkEntries(prev => prev.map((r, j) => j === i ? { ...r, email: e.target.value } : r))}
+                        className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 placeholder:text-slate-400" />
+                      <input type="text" placeholder="Password (min 8)" value={entry.password}
+                        onChange={e => setBulkEntries(prev => prev.map((r, j) => j === i ? { ...r, password: e.target.value } : r))}
+                        className="border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-400 placeholder:text-slate-400" />
+                      <button onClick={() => setBulkEntries(prev => prev.filter((_, j) => j !== i))}
+                        disabled={bulkEntries.length === 1}
+                        className="text-red-400 hover:text-red-600 disabled:opacity-20 p-1 shrink-0">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setBulkEntries(prev => [...prev, { fullName: '', email: '', password: '' }])}
+                    disabled={bulkEntries.length >= 10}
+                    className="text-[10px] font-semibold text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-lg hover:bg-indigo-50 disabled:opacity-40">
+                    + Add Row
+                  </button>
+                  <button onClick={() => setBulkPreview(true)}
+                    disabled={bulkEntries.filter(e => e.fullName.trim() && e.email.trim() && e.password.length >= 8).length === 0}
+                    className="text-[10px] font-bold px-4 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-40">
+                    Preview &amp; Submit
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Bulk results ─────────────────────────────────────────── */}
+            {bulkMode && bulkResults && (
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-slate-700">
+                  Results: <span className="text-emerald-600">{bulkResults.filter(r => r.status === 'created').length} created</span>
+                  {bulkResults.filter(r => r.status === 'failed').length > 0 && (
+                    <span className="text-red-500 ml-2">{bulkResults.filter(r => r.status === 'failed').length} failed</span>
+                  )}
+                </p>
+                {bulkResults.map((r, i) => (
+                  <div key={i} className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border ${r.status === 'created' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+                    {r.status === 'created' ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                    <span className="font-medium">{r.email}</span>
+                    {r.message && <span className="text-[10px] opacity-70">— {r.message}</span>}
+                  </div>
+                ))}
+                <button onClick={() => { setBulkResults(null); setBulkEntries([{ fullName: '', email: '', password: '' }]); }}
+                  className="text-[10px] font-semibold text-indigo-600 hover:underline">Create more</button>
+              </div>
+            )}
           </div>
 
           {/* Sub-admin list */}
@@ -1722,16 +1903,32 @@ export default function AdminSuitePage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-bold text-slate-800">{sa.fullName}</p>
                           <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">{genDisplayId('admin', sa.seqId)}</span>
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${sa.isActive !== false ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-500'}`}>
+                            {sa.isActive !== false ? 'Active' : 'Inactive'}
+                          </span>
                         </div>
                         <p className="text-xs text-slate-400">{sa.email}</p>
                         <p className="text-[10px] text-slate-300 mt-0.5">
                           Added {new Date(sa.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                       </div>
-                      <button onClick={() => handleDeleteSubAdmin(sa.id, sa.fullName)}
-                        className="text-[10px] text-red-500 hover:text-red-700 border border-red-200 px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors shrink-0">
-                        Remove
-                      </button>
+                      <div className="flex flex-wrap gap-2 shrink-0">
+                        <button
+                          onClick={() => handleToggleSubAdminStatus(sa.id, sa.isActive === false, sa.fullName)}
+                          disabled={togglingStatus === sa.id}
+                          className={`text-[10px] font-semibold border px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 ${sa.isActive !== false ? 'border-amber-200 text-amber-600 hover:bg-amber-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}`}>
+                          {togglingStatus === sa.id && <Loader2 size={10} className="animate-spin" />}
+                          {sa.isActive !== false ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button onClick={() => openResetPassword(sa.id, sa.fullName)}
+                          className="text-[10px] font-semibold border border-blue-200 text-blue-600 px-2.5 py-1 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-1">
+                          <Lock size={10} /> Reset PW
+                        </button>
+                        <button onClick={() => handleDeleteSubAdmin(sa.id, sa.fullName)}
+                          className="text-[10px] text-red-500 hover:text-red-700 border border-red-200 px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors">
+                          Remove
+                        </button>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {[
@@ -1760,6 +1957,108 @@ export default function AdminSuitePage() {
       )}
 
     </div>
+
+    {/* ── BULK PREVIEW MODAL ── */}
+    {bulkPreview && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-slate-800">Confirm Bulk Creation</h3>
+            <button onClick={() => setBulkPreview(false)} className="text-slate-300 hover:text-slate-500"><X size={18} /></button>
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-slate-100">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left">Name</th>
+                  <th className="px-3 py-2 text-left">Email</th>
+                  <th className="px-3 py-2 text-left">Password</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bulkEntries.filter(e => e.fullName.trim() && e.email.trim() && e.password.length >= 8).map((e, i) => (
+                  <tr key={i} className="border-t border-slate-100">
+                    <td className="px-3 py-2 text-slate-700">{e.fullName}</td>
+                    <td className="px-3 py-2 text-slate-500">{e.email}</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">{'•'.repeat(Math.min(e.password.length, 12))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setBulkPreview(false)}
+              className="px-4 py-2 text-xs text-slate-500 border border-slate-200 rounded-xl hover:bg-slate-50">Back</button>
+            <button onClick={handleBulkCreate} disabled={bulkSubmitting}
+              className="px-5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+              {bulkSubmitting ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}
+              Create {bulkEntries.filter(e => e.fullName.trim() && e.email.trim() && e.password.length >= 8).length} Sub-Admin{bulkEntries.filter(e => e.fullName.trim() && e.email.trim() && e.password.length >= 8).length !== 1 ? 's' : ''}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* ── PASSWORD RESET MODAL ── */}
+    {resetPasswordModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+              <Lock size={16} className="text-blue-500" /> Reset Password
+            </h3>
+            <button onClick={() => setResetPasswordModal(false)} className="text-slate-300 hover:text-slate-500"><X size={18} /></button>
+          </div>
+          <p className="text-xs text-slate-500">
+            Set a new password for <span className="font-semibold text-slate-700">{resetPasswordTargetName}</span>.
+            They will need to use this password on their next login.
+          </p>
+          <div>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1 block">New Password</label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={resetPasswordShowPw ? 'text' : 'password'}
+                  placeholder="Min 8 characters"
+                  value={resetPasswordValue}
+                  onChange={e => setResetPasswordValue(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 pr-8 text-xs text-slate-700 outline-none focus:border-indigo-400 placeholder:text-slate-400"
+                />
+                <button type="button" onClick={() => setResetPasswordShowPw(s => !s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  {resetPasswordShowPw ? <EyeOff size={13} /> : <Eye size={13} />}
+                </button>
+              </div>
+              <button type="button"
+                onClick={() => { const pw = generatePassword(); setResetPasswordValue(pw); navigator.clipboard.writeText(pw); }}
+                className="text-[10px] font-semibold px-2.5 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 hover:bg-indigo-50 whitespace-nowrap">
+                Auto-gen
+              </button>
+            </div>
+            {resetPasswordValue.length > 0 && (() => {
+              const s = pwStrength(resetPasswordValue);
+              return (
+                <div className="mt-1.5">
+                  <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={`h-full ${s.color} transition-all duration-300`} style={{ width: s.width }} />
+                  </div>
+                  <p className={`text-[9px] font-semibold mt-0.5 ${s.color.replace('bg-', 'text-')}`}>{s.label}</p>
+                </div>
+              );
+            })()}
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setResetPasswordModal(false)}
+              className="px-4 py-2 text-xs text-slate-500 border border-slate-200 rounded-xl hover:bg-slate-50">Cancel</button>
+            <button onClick={confirmResetPassword}
+              disabled={resetPasswordValue.length < 8 || resetPasswordLoading}
+              className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 disabled:opacity-40 flex items-center gap-2">
+              {resetPasswordLoading ? <Loader2 size={13} className="animate-spin" /> : <Lock size={13} />} Reset Password
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* ── REJECTION MODAL ── */}
     {rejectModalOpen && (
