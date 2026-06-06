@@ -1147,6 +1147,15 @@ ${availLines ? `<div class="section">
                       const r = await fetch(`${API}/auth/otp/verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phoneNumber: `+91${formData.phoneNumber}`, otp: otpValue }) });
                       const d = await r.json();
                       if (!r.ok) { setError(d.message || 'Invalid OTP'); return; }
+                      // Block if this number already has an account
+                      if (d.isNewUser === false) {
+                        if (d.user?.role === 'ADVISOR') {
+                          setError('This mobile number is already registered as an advisor. Please login to your advisor dashboard instead.');
+                        } else {
+                          setError('This mobile number is already registered as a client account. Advisor registration requires a new number.');
+                        }
+                        return;
+                      }
                       update('otpVerified', true);
                       if (d.tempToken) update('tempPhoneToken', d.tempToken);
                       setOtpSubStep('verified');
