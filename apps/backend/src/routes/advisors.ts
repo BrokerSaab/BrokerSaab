@@ -67,6 +67,9 @@ const setSpecializationsSchema = z.object({
   })
 });
 
+// Modules where advisors write free-text instead of picking predefined sub-services
+const OPEN_MODULE_SLUGS = ['m21', 'm22', 'm23', 'm24', 'm25'];
+
 /**
  * 1. GET /advisors
  * Search & Filter Advisors catalog
@@ -275,10 +278,14 @@ router.post(
         // 2. Upsert each specialization dynamically and collect IDs
         const specIds = [];
         for (const spec of specializations) {
+          // Open modules use per-advisor slugs so custom text doesn't overwrite other advisors' text
+          const dbSlug = OPEN_MODULE_SLUGS.includes(spec.slug)
+            ? `${spec.slug}-advisor-${advisor.id}`
+            : spec.slug;
           const dbSpec = await tx.specialization.upsert({
-            where: { slug: spec.slug },
+            where: { slug: dbSlug },
             update: { name: spec.name },
-            create: { slug: spec.slug, name: spec.name }
+            create: { slug: dbSlug, name: spec.name }
           });
           specIds.push(dbSpec.id);
         }
@@ -321,6 +328,14 @@ router.get('/me', authenticateJWT, requireRole([Role.ADVISOR]), async (req: Auth
     });
     if (!advisor) { res.status(404).json({ success: false, message: 'Advisor profile not found' }); return; }
 
+    // Normalize open-module per-advisor slugs back to their module slug for the frontend
+    const normalizeSlug = (rawSlug: string) => {
+      for (const mod of OPEN_MODULE_SLUGS) {
+        if (rawSlug.startsWith(`${mod}-advisor-`)) return mod;
+      }
+      return rawSlug;
+    };
+
     res.json({
       success: true,
       data: {
@@ -329,7 +344,10 @@ router.get('/me', authenticateJWT, requireRole([Role.ADVISOR]), async (req: Auth
         businessName: advisor.businessName,
         verificationStatus: advisor.verificationStatus,
         categorySlugs: advisor.categories.map(c => c.category.slug),
-        specializations: advisor.specializations.map(s => ({ slug: s.specialization.slug, name: s.specialization.name })),
+        specializations: advisor.specializations.map(s => ({
+          slug: normalizeSlug(s.specialization.slug),
+          name: s.specialization.name,
+        })),
       },
     });
   } catch (err) {

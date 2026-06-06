@@ -8,12 +8,13 @@ import {
   FileHeart, UserCheck, Award, Home, Percent, Briefcase, Lightbulb, Landmark,
   ShieldCheck, Car, Scale, Users, GraduationCap, HeartHandshake, TrendingUp,
   Globe, Zap, Sprout, Laptop, Flag, Plane, School, ClipboardList, FileCheck,
-  Layers, Save
+  Sparkles, Layers, Save
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MODULES_DATA } from '@/data/servicesData';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const OPEN_SLUGS = ['m21', 'm22', 'm23', 'm24', 'm25'];
 
 const ADVISOR_CATEGORIES = [
   { name: 'Birth, Death & Marriage Papers', slug: 'm1',  icon: FileHeart,     color: 'bg-rose-100',   iconColor: 'text-rose-600',   desc: 'Official civil registrations & personal certificates' },
@@ -40,7 +41,16 @@ const ADVISOR_CATEGORIES = [
   { name: 'Domestic College Admission',     slug: 'm22', icon: School,        color: 'bg-indigo-100', iconColor: 'text-indigo-600', desc: 'NEET/JEE/CAT counseling, seat allotment & college enrollment help' },
   { name: 'Job Placement & Recruitment',    slug: 'm23', icon: ClipboardList, color: 'bg-teal-100',   iconColor: 'text-teal-600',   desc: 'Resume building, interview prep, offer negotiation & post-placement' },
   { name: 'Visa & PR Immigration',          slug: 'm24', icon: FileCheck,     color: 'bg-red-100',    iconColor: 'text-red-600',    desc: 'Canada/UK/Australia PR, work permits, EOI, ITA & landing support' },
+  { name: 'Others / Custom Service',        slug: 'm25', icon: Sparkles,      color: 'bg-indigo-100', iconColor: 'text-indigo-600', desc: 'Any unique expertise not listed above — describe your own specialisation' },
 ];
+
+const OPEN_PLACEHOLDERS: Record<string, string> = {
+  m21: 'E.g., I guide students for UK, US, Canada admissions — IELTS coaching, SOP review, visa documentation.',
+  m22: 'E.g., I help NEET/JEE aspirants with counseling rounds, college shortlisting and enrollment.',
+  m23: 'E.g., I place IT professionals in MNC jobs — resume building, LinkedIn, interview prep and offer negotiation.',
+  m24: 'E.g., I specialize in Canada Express Entry, Australia PR, and UK Skilled Worker visa applications.',
+  m25: 'E.g., I provide CA services, MCA compliance, FEMA advisory for NRIs and export-import businesses.',
+};
 
 export default function AdvisorServicesPage() {
   const { isLoggedIn, user } = useAuth();
@@ -48,6 +58,7 @@ export default function AdvisorServicesPage() {
 
   const [selectedSlugs, setSelectedSlugs] = useState<string[]>([]);
   const [selectedSubSlugs, setSelectedSubSlugs] = useState<string[]>([]);
+  const [customSpecializations, setCustomSpecializations] = useState<Record<string, string>>({});
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -72,7 +83,18 @@ export default function AdvisorServicesPage() {
       const data = await res.json();
       if (data.success) {
         setSelectedSlugs(data.data.categorySlugs || []);
-        setSelectedSubSlugs((data.data.specializations || []).map((s: { slug: string }) => s.slug));
+        const specs: { slug: string; name: string }[] = data.data.specializations || [];
+        const openCustom: Record<string, string> = {};
+        const regularSubs: string[] = [];
+        for (const s of specs) {
+          if (OPEN_SLUGS.includes(s.slug)) {
+            openCustom[s.slug] = s.name;
+          } else {
+            regularSubs.push(s.slug);
+          }
+        }
+        setCustomSpecializations(openCustom);
+        setSelectedSubSlugs(regularSubs);
       }
     } catch {
       /* non-fatal — start with empty selection */
@@ -84,10 +106,16 @@ export default function AdvisorServicesPage() {
   const toggleCategory = (slug: string) => {
     setSelectedSlugs(prev => {
       if (prev.includes(slug)) {
-        // Deselecting: remove all sub-modules of this module too
         const module = MODULES_DATA.find(m => m.id === slug);
         const subSlugs = module?.subModules.map(s => s.id) ?? [];
         setSelectedSubSlugs(prev2 => prev2.filter(s => !subSlugs.includes(s)));
+        if (OPEN_SLUGS.includes(slug)) {
+          setCustomSpecializations(prev2 => {
+            const next = { ...prev2 };
+            delete next[slug];
+            return next;
+          });
+        }
         return prev.filter(s => s !== slug);
       }
       setExpandedModule(slug);
@@ -107,9 +135,17 @@ export default function AdvisorServicesPage() {
       setError('Please select at least one service module.');
       return;
     }
-    if (selectedSubSlugs.length === 0) {
-      setError('Please select at least one specific sub-service.');
+    const hasRegular = selectedSlugs.some(s => !OPEN_SLUGS.includes(s));
+    if (hasRegular && selectedSubSlugs.length === 0) {
+      setError('Please select at least one specific sub-service from your chosen modules.');
       return;
+    }
+    for (const slug of selectedSlugs.filter(s => OPEN_SLUGS.includes(s))) {
+      if (!customSpecializations[slug]?.trim()) {
+        const nm = ADVISOR_CATEGORIES.find(c => c.slug === slug)?.name ?? slug;
+        setError(`Please describe your specialisation for "${nm}".`);
+        return;
+      }
     }
 
     setSaving(true);
@@ -117,14 +153,19 @@ export default function AdvisorServicesPage() {
       const token = localStorage.getItem('accessToken');
       const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
-      // Build specialization objects: slug + name from MODULES_DATA
-      const specializationObjects = selectedSubSlugs.map(slug => {
+      const regularSpecs = selectedSubSlugs.map(slug => {
         for (const mod of MODULES_DATA) {
           const sub = mod.subModules.find(s => s.id === slug);
           if (sub) return { slug, name: sub.nameEn };
         }
         return { slug, name: slug };
       });
+
+      const openSpecs = Object.entries(customSpecializations)
+        .filter(([slug, text]) => selectedSlugs.includes(slug) && OPEN_SLUGS.includes(slug) && text.trim())
+        .map(([slug, text]) => ({ slug, name: text.trim() }));
+
+      const allSpecs = [...regularSpecs, ...openSpecs];
 
       const [catRes, specRes] = await Promise.all([
         fetch(`${API}/advisors/categories`, {
@@ -133,7 +174,7 @@ export default function AdvisorServicesPage() {
         }),
         fetch(`${API}/advisors/specializations`, {
           method: 'POST', headers,
-          body: JSON.stringify({ specializations: specializationObjects }),
+          body: JSON.stringify({ specializations: allSpecs }),
         }),
       ]);
 
@@ -184,7 +225,7 @@ export default function AdvisorServicesPage() {
               <Layers size={16} className="text-indigo-400" />
               Manage Your Services
             </h1>
-            <p className="text-slate-400 text-xs mt-0.5">Update the modules & sub-services you offer to clients</p>
+            <p className="text-slate-400 text-xs mt-0.5">Update the modules & specializations you offer to clients</p>
           </div>
         </div>
       </div>
@@ -193,7 +234,7 @@ export default function AdvisorServicesPage() {
 
         {/* Info banner */}
         <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl px-5 py-4 text-sm text-indigo-300">
-          Select all applicable service categories, then pick the specific sub-services you provide. Clients will discover you through these specializations.
+          Select all applicable service categories. For standard modules, pick your specific sub-services. For open modules (Study Abroad, Job Placement, etc.), describe your unique specialisation in a short paragraph.
         </div>
 
         {/* Step 1 — Category tiles */}
@@ -238,15 +279,12 @@ export default function AdvisorServicesPage() {
           </div>
         </div>
 
-        {/* Step 2 — Sub-module selection */}
+        {/* Step 2 — Specialization details */}
         {selectedSlugs.length > 0 && (
           <div>
             <h2 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
               <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-black">2</span>
-              Select Specific Sub-Services
-              {selectedSubSlugs.length > 0 && (
-                <span className="ml-auto text-xs text-indigo-400 font-normal">{selectedSubSlugs.length} selected</span>
-              )}
+              Add Specialization Details
             </h2>
 
             <div className="space-y-3">
@@ -256,8 +294,9 @@ export default function AdvisorServicesPage() {
                 const cat = ADVISOR_CATEGORIES.find(c => c.slug === slug);
                 const Icon = cat?.icon ?? Layers;
                 const isExpanded = expandedModule === slug;
-
+                const isOpenModule = module.subModules.length === 0;
                 const selectedCount = module.subModules.filter(s => selectedSubSlugs.includes(s.id)).length;
+                const customText = customSpecializations[slug] ?? '';
 
                 return (
                   <div key={slug} className="bg-slate-900 border border-white/8 rounded-xl overflow-hidden">
@@ -270,38 +309,59 @@ export default function AdvisorServicesPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-white text-sm font-semibold truncate">{module.titleEn}</p>
-                        <p className="text-slate-500 text-xs">{selectedCount}/{module.subModules.length} selected</p>
+                        {isOpenModule ? (
+                          <p className={`text-xs ${customText.trim() ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {customText.trim() ? 'Specialisation added ✓' : 'Tap to describe your specialisation'}
+                          </p>
+                        ) : (
+                          <p className="text-slate-500 text-xs">{selectedCount}/{module.subModules.length} selected</p>
+                        )}
                       </div>
                       {isExpanded ? <ChevronDown size={16} className="text-slate-400 shrink-0" /> : <ChevronRight size={16} className="text-slate-400 shrink-0" />}
                     </button>
 
                     {isExpanded && (
-                      <div className="border-t border-white/5 px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {module.subModules.map(sub => {
-                          const checked = selectedSubSlugs.includes(sub.id);
-                          return (
-                            <button
-                              key={sub.id}
-                              onClick={() => toggleSubSlug(sub.id)}
-                              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left transition-all ${
-                                checked
-                                  ? 'border-indigo-500/40 bg-indigo-500/10'
-                                  : 'border-white/5 bg-white/2 hover:border-white/15 hover:bg-white/5'
-                              }`}
-                            >
-                              <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                                checked ? 'bg-indigo-500 border-indigo-500' : 'border-white/20 bg-transparent'
-                              }`}>
-                                {checked && <Check size={10} className="text-white" />}
-                              </div>
-                              <div className="min-w-0">
-                                <p className={`text-xs font-medium leading-tight ${checked ? 'text-white' : 'text-slate-300'}`}>{sub.nameEn}</p>
-                                <p className="text-slate-500 text-[10px] mt-0.5 leading-tight">{sub.nameHi}</p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                      isOpenModule ? (
+                        <div className="border-t border-white/5 px-4 py-4">
+                          <p className="text-slate-300 text-xs font-semibold mb-2">Your specialisation in this area:</p>
+                          <textarea
+                            rows={3}
+                            maxLength={300}
+                            value={customText}
+                            onChange={e => setCustomSpecializations(prev => ({ ...prev, [slug]: e.target.value }))}
+                            placeholder={OPEN_PLACEHOLDERS[slug] ?? 'Describe what you specifically offer in this service area…'}
+                            className="w-full text-sm bg-slate-800 border border-white/10 focus:border-indigo-500 rounded-xl px-3 py-2.5 resize-none outline-none transition-colors text-slate-200 placeholder-slate-500"
+                          />
+                          <p className="text-[11px] text-slate-500 mt-1 text-right">{customText.length}/300 characters</p>
+                        </div>
+                      ) : (
+                        <div className="border-t border-white/5 px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {module.subModules.map(sub => {
+                            const checked = selectedSubSlugs.includes(sub.id);
+                            return (
+                              <button
+                                key={sub.id}
+                                onClick={() => toggleSubSlug(sub.id)}
+                                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left transition-all ${
+                                  checked
+                                    ? 'border-indigo-500/40 bg-indigo-500/10'
+                                    : 'border-white/5 bg-white/2 hover:border-white/15 hover:bg-white/5'
+                                }`}
+                              >
+                                <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                                  checked ? 'bg-indigo-500 border-indigo-500' : 'border-white/20 bg-transparent'
+                                }`}>
+                                  {checked && <Check size={10} className="text-white" />}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className={`text-xs font-medium leading-tight ${checked ? 'text-white' : 'text-slate-300'}`}>{sub.nameEn}</p>
+                                  <p className="text-slate-500 text-[10px] mt-0.5 leading-tight">{sub.nameHi}</p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )
                     )}
                   </div>
                 );

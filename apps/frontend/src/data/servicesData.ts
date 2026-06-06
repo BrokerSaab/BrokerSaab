@@ -3,7 +3,7 @@ import {
   FileHeart, UserCheck, Award, Home, Percent, Briefcase, Lightbulb, Landmark,
   ShieldCheck, Car, Scale, Users, GraduationCap, HeartHandshake, TrendingUp,
   Globe, Zap, Sprout, Laptop,
-  Flag, Plane, School, ClipboardList, FileCheck
+  Flag, Plane, School, ClipboardList, FileCheck, Sparkles
 } from 'lucide-react';
 
 export interface SubModule {
@@ -40,7 +40,7 @@ export const ICON_MAP: Record<string, React.ComponentType<any>> = {
   FileHeart, UserCheck, Award, Home, Percent, Briefcase, Lightbulb, Landmark,
   ShieldCheck, Car, Scale, Users, GraduationCap, HeartHandshake, TrendingUp,
   Globe, Zap, Sprout, Laptop,
-  Flag, Plane, School, ClipboardList, FileCheck
+  Flag, Plane, School, ClipboardList, FileCheck, Sparkles
 };
 
 export const MODULE_COLORS: ModuleColor[] = [
@@ -68,6 +68,7 @@ export const MODULE_COLORS: ModuleColor[] = [
   { gradient: 'from-indigo-400 to-violet-500',    bg: 'bg-indigo-50',   bgDark: 'bg-indigo-950/30',  text: 'text-indigo-500',  border: 'border-indigo-200',  borderDark: 'border-indigo-800/40',  iconBg: 'bg-gradient-to-br from-indigo-400 to-violet-500',   accent: '#818CF8' },
   { gradient: 'from-green-400 to-teal-500',       bg: 'bg-green-50',    bgDark: 'bg-green-950/30',   text: 'text-green-600',   border: 'border-green-200',   borderDark: 'border-green-800/40',   iconBg: 'bg-gradient-to-br from-green-400 to-teal-500',      accent: '#4ADE80' },
   { gradient: 'from-red-500 to-rose-600',         bg: 'bg-red-50',      bgDark: 'bg-red-950/30',     text: 'text-red-600',     border: 'border-red-200',     borderDark: 'border-red-800/40',     iconBg: 'bg-gradient-to-br from-red-500 to-rose-600',        accent: '#EF4444' },
+  { gradient: 'from-indigo-500 to-purple-600',    bg: 'bg-indigo-50',   bgDark: 'bg-indigo-950/30',  text: 'text-indigo-600',  border: 'border-indigo-200',  borderDark: 'border-indigo-800/40',  iconBg: 'bg-gradient-to-br from-indigo-500 to-purple-600',   accent: '#6366F1' },
 ];
 
 export const MODULES_DATA: Module[] = [
@@ -451,14 +452,7 @@ export const MODULES_DATA: Module[] = [
     description: "End-to-end guidance for foreign university admissions: IELTS prep, SOP, shortlisting, visa and pre-departure.",
     descriptionHi: "विदेशी विश्वविद्यालय में दाखिले के लिए IELTS, SOP, university shortlisting, visa और pre-departure guidance।",
     iconName: "Plane",
-    subModules: [
-      { id: "s21-1", nameEn: "Student Lead & Profile Assessment",    nameHi: "विद्यार्थी प्रोफाइल मूल्यांकन",    keywords: ["study abroad inquiry", "profile assessment", "eligibility check", "GPA"], route: "/advisors?category=m21" },
-      { id: "s21-2", nameEn: "Document Collection (SOP/LOR/Scores)", nameHi: "SOP, LOR और स्कोरकार्ड संग्रह",     keywords: ["IELTS score", "TOEFL", "SOP writing", "letter of recommendation", "academic transcript"], route: "/advisors?category=m21" },
-      { id: "s21-3", nameEn: "University Shortlisting",              nameHi: "विश्वविद्यालय चयन",                keywords: ["university ranking", "course selection", "country preference", "QS ranking"], route: "/advisors?category=m21" },
-      { id: "s21-4", nameEn: "Application Processing",               nameHi: "आवेदन प्रक्रिया",                  keywords: ["university application", "deadline tracking", "admission form"], route: "/advisors?category=m21" },
-      { id: "s21-5", nameEn: "Offer Letter & Enrollment",            nameHi: "ऑफर लेटर और एनरोलमेंट",           keywords: ["offer letter", "conditional offer", "enrollment confirmation", "tuition deposit"], route: "/advisors?category=m21" },
-      { id: "s21-6", nameEn: "Pre-Departure & Visa Link",            nameHi: "रवानगी पूर्व तैयारी और वीज़ा",     keywords: ["student visa", "pre departure", "checklist", "orientation", "forex travel card"], route: "/advisors?category=m21" },
-    ]
+    subModules: []
   },
   {
     id: "m22",
@@ -467,14 +461,7 @@ export const MODULES_DATA: Module[] = [
     description: "Complete support for Indian college admissions: NEET/JEE/CAT counseling, seat allotment and enrollment.",
     descriptionHi: "भारतीय college में दाखिले के लिए NEET/JEE/CAT counseling, seat allotment और enrollment में पूरी मदद।",
     iconName: "School",
-    subModules: [
-      { id: "s22-1", nameEn: "Student Inquiry & Stream Guidance",   nameHi: "stream और course guidance",        keywords: ["neet counselling", "jee counselling", "CAT college", "stream selection", "after 12th"], route: "/advisors?category=m22" },
-      { id: "s22-2", nameEn: "Document Collection",                 nameHi: "दस्तावेज़ संग्रह",                  keywords: ["marksheet", "domicile", "scorecard", "entrance scorecard", "category certificate"], route: "/advisors?category=m22" },
-      { id: "s22-3", nameEn: "College Shortlisting",                nameHi: "कॉलेज चयन",                        keywords: ["college shortlist", "cutoff matching", "state quota", "management quota", "NRI quota"], route: "/advisors?category=m22" },
-      { id: "s22-4", nameEn: "Application & Fee Processing",        nameHi: "आवेदन और फीस प्रक्रिया",           keywords: ["application form", "college fee", "payment tracking", "submission"], route: "/advisors?category=m22" },
-      { id: "s22-5", nameEn: "Counseling Rounds & Seat Allotment",  nameHi: "काउंसलिंग और seat allotment",      keywords: ["seat allotment", "round 1 2 3", "josaa", "mcc counselling", "upgrade option"], route: "/advisors?category=m22" },
-      { id: "s22-6", nameEn: "Enrollment & Joining Formalities",    nameHi: "एनरोलमेंट और joining",             keywords: ["college joining", "enrollment", "fee receipt", "original document submission"], route: "/advisors?category=m22" },
-    ]
+    subModules: []
   },
   {
     id: "m23",
@@ -483,14 +470,7 @@ export const MODULES_DATA: Module[] = [
     description: "Corporate job placement: resume building, interview preparation, offer negotiation and post-joining support.",
     descriptionHi: "Corporate नौकरी के लिए resume, interview prep, offer negotiation और post-joining support।",
     iconName: "ClipboardList",
-    subModules: [
-      { id: "s23-1", nameEn: "Candidate Profile & Resume Building",  nameHi: "candidate profile और resume",      keywords: ["resume writing", "CV build", "linkedin profile", "skill tagging", "job ready"], route: "/advisors?category=m23" },
-      { id: "s23-2", nameEn: "Document Collection",                  nameHi: "दस्तावेज़ संग्रह",                 keywords: ["relieving letter", "payslip", "experience certificate", "offer letter copy"], route: "/advisors?category=m23" },
-      { id: "s23-3", nameEn: "Job Matching & Employer Shortlisting", nameHi: "job matching और employer",         keywords: ["job matching", "employer shortlist", "MNC jobs", "job description mapping"], route: "/advisors?category=m23" },
-      { id: "s23-4", nameEn: "Interview Scheduling & Feedback",      nameHi: "interview schedule और feedback",   keywords: ["interview rounds", "HR round", "technical interview", "feedback tracking"], route: "/advisors?category=m23" },
-      { id: "s23-5", nameEn: "Offer Management & Negotiation",       nameHi: "offer management और negotiation",  keywords: ["offer letter", "CTC negotiation", "joining date", "counter offer"], route: "/advisors?category=m23" },
-      { id: "s23-6", nameEn: "Post-Placement Follow-up",             nameHi: "placement के बाद follow-up",       keywords: ["joining confirmation", "replacement clause", "retention", "BGV background check"], route: "/advisors?category=m23" },
-    ]
+    subModules: []
   },
   {
     id: "m24",
@@ -499,13 +479,15 @@ export const MODULES_DATA: Module[] = [
     description: "Expert visa, work permit and PR guidance for Canada, Australia, UK, USA and other countries.",
     descriptionHi: "Canada, Australia, UK, USA जैसे देशों के लिए visa, work permit और PR की विशेषज्ञ मार्गदर्शन।",
     iconName: "FileCheck",
-    subModules: [
-      { id: "s24-1", nameEn: "Eligibility Assessment & Country Shortlisting", nameHi: "eligibility check और country selection", keywords: ["immigration eligibility", "CRS score", "PR points", "country selection", "visa type"], route: "/advisors?category=m24" },
-      { id: "s24-2", nameEn: "Document Collection (PCC/WES/Financial)",       nameHi: "PCC, WES और financial documents",       keywords: ["PCC", "police clearance", "WES evaluation", "ECA", "financial documents", "employment proof"], route: "/advisors?category=m24" },
-      { id: "s24-3", nameEn: "Visa Application & Biometrics",                 nameHi: "visa application और biometrics",         keywords: ["visa application", "biometric appointment", "visa fee", "online form"], route: "/advisors?category=m24" },
-      { id: "s24-4", nameEn: "Case Tracking & Embassy Correspondence",        nameHi: "case tracking और embassy",              keywords: ["visa status", "case tracking", "embassy appointment", "IRCC", "VFS global"], route: "/advisors?category=m24" },
-      { id: "s24-5", nameEn: "PR Pathway (EOI / ITA)",                        nameHi: "PR pathway — EOI और ITA",               keywords: ["express entry", "EOI", "invitation to apply", "ITA", "PR pathway", "provincial nominee"], route: "/advisors?category=m24" },
-      { id: "s24-6", nameEn: "Post-Approval & Landing Support",               nameHi: "approval के बाद landing support",       keywords: ["COPR", "landing formalities", "SIN number", "PR card", "settlement"], route: "/advisors?category=m24" },
-    ]
+    subModules: []
+  },
+  {
+    id: "m25",
+    titleEn: "Others / Custom Service",
+    titleHi: "अन्य / कस्टम सेवा",
+    description: "Any specialization not listed above — describe your unique expertise and connect with the right clients.",
+    descriptionHi: "ऊपर सूचीबद्ध नहीं की गई कोई भी विशेषज्ञता — अपनी अनूठी सेवा का वर्णन करें।",
+    iconName: "Sparkles",
+    subModules: []
   }
 ];

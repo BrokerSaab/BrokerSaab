@@ -131,6 +131,7 @@ const SEED_CATEGORIES = [
   { slug: 'm22', name: 'Domestic College Admission' },
   { slug: 'm23', name: 'Job Placement & Recruitment' },
   { slug: 'm24', name: 'Visa & PR Immigration' },
+  { slug: 'm25', name: 'Others / Custom Service' },
 ];
 
 async function ensureCategories() {
@@ -142,7 +143,7 @@ async function ensureCategories() {
         create: { slug: cat.slug, name: cat.name },
       });
     }
-    console.log('[Startup] 24 service categories ensured.');
+    console.log('[Startup] 25 service categories ensured.');
   } catch (err) {
     console.error('[Startup] Category seed failed (non-fatal):', err);
   }

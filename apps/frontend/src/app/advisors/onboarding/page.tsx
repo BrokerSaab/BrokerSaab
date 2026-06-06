@@ -46,6 +46,7 @@ interface FormData {
   bio: string;
   selectedSlugs: string[];
   selectedSubSlugs: string[];
+  customSpecializations: Record<string, string>;
   slots: Slot[];
   // New fields
   advisorType: 'REGULAR' | 'AUTHORIZED' | '';
@@ -99,13 +100,14 @@ const ADVISOR_CATEGORIES = [
   { name: 'Domestic College Admission',    slug: 'm22', icon: School,        color: 'bg-indigo-100', iconColor: 'text-indigo-600', desc: 'NEET/JEE/CAT counseling, seat allotment & college enrollment help' },
   { name: 'Job Placement & Recruitment',   slug: 'm23', icon: ClipboardList, color: 'bg-teal-100',   iconColor: 'text-teal-600',   desc: 'Resume building, interview prep, offer negotiation & post-placement' },
   { name: 'Visa & PR Immigration',         slug: 'm24', icon: FileCheck,     color: 'bg-red-100',    iconColor: 'text-red-600',    desc: 'Canada/UK/Australia PR, work permits, EOI, ITA & landing support' },
+  { name: 'Others / Custom Service',       slug: 'm25', icon: Sparkles,      color: 'bg-indigo-100', iconColor: 'text-indigo-600', desc: 'Any unique expertise not listed above — describe your own specialisation' },
 ];
 
 const INITIAL_FORM: FormData = {
   phoneNumber: '', email: '', password: '', confirmPassword: '',
   fullName: '', businessName: '', licenseNumber: '', experienceYears: '',
   location: '', state: '', city: '', consultationFee: '', languages: [], bio: '',
-  selectedSlugs: [], selectedSubSlugs: [], slots: [],
+  selectedSlugs: [], selectedSubSlugs: [], customSpecializations: {}, slots: [],
   advisorType: '', otpVerified: false, tempPhoneToken: '',
   aadhaarNumber: '', aadhaarConsentGiven: false,
   aadhaarFile: null, passportPhotoFile: null, licenseFile: null,
@@ -147,7 +149,15 @@ function validate(step: Step, data: FormData, confirmed: boolean): string | null
   }
   if (step === 'services') {
     if (data.selectedSlugs.length === 0) return 'Select at least one service category.';
-    if (data.selectedSubSlugs.length === 0) return 'Select at least one specific sub-service (specialisation).';
+    const OPEN_SLUGS = ['m21', 'm22', 'm23', 'm24', 'm25'];
+    const hasRegularModules = data.selectedSlugs.some(s => !OPEN_SLUGS.includes(s));
+    if (hasRegularModules && data.selectedSubSlugs.length === 0) return 'Select at least one specific sub-service from your chosen modules.';
+    for (const slug of data.selectedSlugs.filter(s => OPEN_SLUGS.includes(s))) {
+      if (!data.customSpecializations?.[slug]?.trim()) {
+        const nm = ADVISOR_CATEGORIES.find(c => c.slug === slug)?.name ?? slug;
+        return `Please describe your specialisation for "${nm}".`;
+      }
+    }
   }
   if (step === 'availability') {
     for (const s of data.slots) {
@@ -338,6 +348,7 @@ export default function AdvisorOnboarding() {
           bio: formData.bio,
           selectedSlugs: formData.selectedSlugs,
           selectedSubSlugs: formData.selectedSubSlugs,
+          customSpecializations: formData.customSpecializations,
           licenseNumber: formData.licenseNumber,
           gstNumber: formData.gstNumber,
         },
@@ -507,26 +518,28 @@ export default function AdvisorOnboarding() {
         }
       }
 
-      // 2b. Set specialisations (sub-services)
-      if (formData.selectedSubSlugs.length > 0) {
-        try {
-          const specsPayload = formData.selectedSubSlugs.map(subId => {
-            for (const mod of MODULES_DATA) {
-              const sub = mod.subModules.find(s => s.id === subId);
-              if (sub) {
-                return { slug: sub.id, name: sub.nameEn };
-              }
-            }
-            return null;
-          }).filter(Boolean);
+      // 2b. Set specialisations (sub-services + custom open-module descriptions)
+      const OPEN_SLUGS = ['m21', 'm22', 'm23', 'm24', 'm25'];
+      const regularSpecs = formData.selectedSubSlugs.map(subId => {
+        for (const mod of MODULES_DATA) {
+          const sub = mod.subModules.find(s => s.id === subId);
+          if (sub) return { slug: sub.id, name: sub.nameEn };
+        }
+        return null;
+      }).filter(Boolean) as { slug: string; name: string }[];
 
-          if (specsPayload.length > 0) {
-            await fetch(`${API}/advisors/specializations`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-              body: JSON.stringify({ specializations: specsPayload }),
-            });
-          }
+      const customSpecs = Object.entries(formData.customSpecializations || {})
+        .filter(([slug, text]) => formData.selectedSlugs.includes(slug) && OPEN_SLUGS.includes(slug) && text.trim())
+        .map(([slug, text]) => ({ slug, name: text.trim() }));
+
+      const allSpecs = [...regularSpecs, ...customSpecs];
+      if (allSpecs.length > 0) {
+        try {
+          await fetch(`${API}/advisors/specializations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+            body: JSON.stringify({ specializations: allSpecs }),
+          });
         } catch (err) {
           console.error('[onboarding] Failed to save specialisations:', err);
         }
@@ -1162,6 +1175,7 @@ ${availLines ? `<div class="section">
                         bio: s.bio || prev.bio,
                         selectedSlugs: s.selectedSlugs?.length ? s.selectedSlugs : prev.selectedSlugs,
                         selectedSubSlugs: s.selectedSubSlugs?.length ? s.selectedSubSlugs : prev.selectedSubSlugs,
+                        customSpecializations: s.customSpecializations || prev.customSpecializations,
                         licenseNumber: s.licenseNumber || prev.licenseNumber,
                         gstNumber: s.gstNumber || prev.gstNumber,
                       }));
@@ -1672,9 +1686,19 @@ ${availLines ? `<div class="section">
               const catIdx = ADVISOR_CATEGORIES.findIndex(c => c.slug === expandedModule);
               const colorSet = MODULE_COLORS[catIdx % MODULE_COLORS.length];
               const Icon = cat.icon;
+              const isOpenModule = modData.subModules.length === 0;
               const allSubIds = modData.subModules.map(s => s.id);
               const selectedSubIds = formData.selectedSubSlugs.filter(id => allSubIds.includes(id));
-              const allSelected = selectedSubIds.length === allSubIds.length;
+              const allSelected = !isOpenModule && selectedSubIds.length === allSubIds.length;
+
+              const customText = formData.customSpecializations?.[expandedModule] ?? '';
+              const OPEN_PLACEHOLDERS: Record<string, string> = {
+                m21: 'E.g., I guide students for UK, US, Canada admissions — IELTS coaching, SOP review, visa documentation.',
+                m22: 'E.g., I help NEET/JEE aspirants with counseling rounds, college shortlisting and enrollment.',
+                m23: 'E.g., I place IT professionals in MNC jobs — resume building, LinkedIn, interview prep and offer negotiation.',
+                m24: 'E.g., I specialize in Canada Express Entry, Australia PR, and UK Skilled Worker visa applications.',
+                m25: 'E.g., I provide CA services, MCA compliance, FEMA advisory for NRIs and export-import businesses.',
+              };
 
               return (
                 <div ref={subModulesRef} className="mb-6 rounded-2xl overflow-hidden border-2 animate-in slide-in-from-top-2 duration-300"
@@ -1690,28 +1714,30 @@ ${availLines ? `<div class="section">
                       <div>
                         <h3 className="text-sm font-bold text-gray-900">{cat.name}</h3>
                         <p className="text-[11px] text-gray-500">
-                          {selectedSubIds.length} of {allSubIds.length} specialisations selected
+                          {isOpenModule ? 'Describe your specific expertise below' : `${selectedSubIds.length} of ${allSubIds.length} specialisations selected`}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button type="button"
-                        onClick={() => {
-                          if (allSelected) {
-                            update('selectedSubSlugs', formData.selectedSubSlugs.filter(id => !allSubIds.includes(id)));
-                          } else {
-                            const newSubs = [...formData.selectedSubSlugs, ...allSubIds.filter(id => !formData.selectedSubSlugs.includes(id))];
-                            update('selectedSubSlugs', newSubs);
-                          }
-                        }}
-                        className="text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-all hover:shadow-sm"
-                        style={{
-                          color: colorSet.accent,
-                          borderColor: `${colorSet.accent}40`,
-                          background: allSelected ? `${colorSet.accent}10` : 'white'
-                        }}>
-                        {allSelected ? 'Deselect All' : 'Select All'}
-                      </button>
+                      {!isOpenModule && (
+                        <button type="button"
+                          onClick={() => {
+                            if (allSelected) {
+                              update('selectedSubSlugs', formData.selectedSubSlugs.filter(id => !allSubIds.includes(id)));
+                            } else {
+                              const newSubs = [...formData.selectedSubSlugs, ...allSubIds.filter(id => !formData.selectedSubSlugs.includes(id))];
+                              update('selectedSubSlugs', newSubs);
+                            }
+                          }}
+                          className="text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-all hover:shadow-sm"
+                          style={{
+                            color: colorSet.accent,
+                            borderColor: `${colorSet.accent}40`,
+                            background: allSelected ? `${colorSet.accent}10` : 'white'
+                          }}>
+                          {allSelected ? 'Deselect All' : 'Select All'}
+                        </button>
+                      )}
                       <button type="button" onClick={() => setExpandedModule(null)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
                         <X size={14} />
@@ -1719,7 +1745,25 @@ ${availLines ? `<div class="section">
                     </div>
                   </div>
 
-                  {/* Sub-module grid */}
+                  {/* Open module: free-text textarea */}
+                  {isOpenModule && (
+                    <div className="p-4 bg-white">
+                      <p className="text-xs font-semibold text-gray-600 mb-2">Your specialisation in this area:</p>
+                      <textarea
+                        rows={3}
+                        maxLength={300}
+                        value={customText}
+                        onChange={e => update('customSpecializations', { ...formData.customSpecializations, [expandedModule]: e.target.value })}
+                        placeholder={OPEN_PLACEHOLDERS[expandedModule] ?? 'Describe what you specifically offer in this service area…'}
+                        className="w-full text-sm border-2 border-gray-200 focus:border-indigo-400 rounded-xl px-3 py-2.5 resize-none outline-none transition-colors"
+                      />
+                      <p className="text-[11px] text-gray-400 mt-1 text-right">{customText.length}/300 characters</p>
+                    </div>
+                  )}
+
+                  {/* Regular module: Sub-module grid */}
+                  {!isOpenModule && (
+                  <>
                   <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-2.5 bg-white">
                     {modData.subModules.map((sub) => {
                       const isSubSelected = formData.selectedSubSlugs.includes(sub.id);
@@ -1795,6 +1839,8 @@ ${availLines ? `<div class="section">
                       Done ✓
                     </button>
                   </div>
+                  </>
+                  )}
                 </div>
               );
             })()}
