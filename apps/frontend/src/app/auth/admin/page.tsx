@@ -48,7 +48,7 @@ export default function AdminLoginPage() {
 
   // ── Admin / Advisor password login ──────────────────────────────
   const handlePasswordLogin = async (role: 'admin' | 'advisor') => {
-    if (!email.trim()) { setError('Please enter your email'); return; }
+    if (!email.trim()) { setError('Please enter your email or phone number'); return; }
     if (!password.trim() || password.length < 6) { setError('Password must be at least 6 characters'); return; }
     setLoading(true); setError('');
     try {
@@ -305,7 +305,7 @@ export default function AdminLoginPage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
                   <div className={inputWrap}>
                     <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><Mail size={17} className="text-gray-400" /></span>
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key==='Enter' && handlePasswordLogin('admin')}
+                    <input type="text" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key==='Enter' && handlePasswordLogin('admin')}
                       placeholder="admin@brokersaab.com" className={inputBase} autoFocus />
                   </div>
                 </div>
@@ -473,11 +473,11 @@ export default function AdminLoginPage() {
                 {error && <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl"><AlertCircle size={15} className="shrink-0 mt-0.5" /><span>{error}</span></div>}
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email or Phone Number</label>
                   <div className={inputWrap}>
                     <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><Mail size={17} className="text-gray-400" /></span>
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key==='Enter' && handlePasswordLogin('advisor')}
-                      placeholder="advisor@email.com" className={inputBase} autoFocus />
+                    <input type="text" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key==='Enter' && handlePasswordLogin('advisor')}
+                      placeholder="advisor@email.com or +91XXXXXXXXXX" className={inputBase} autoFocus />
                   </div>
                 </div>
 

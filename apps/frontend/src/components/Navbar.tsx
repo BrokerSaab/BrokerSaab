@@ -8,50 +8,58 @@ import {
   Home, Shield, FileCheck, Briefcase, Percent, FileText, Coins, Landmark,
   Scale, Building2, CreditCard, Languages, ArrowRight,
   FileHeart, UserCheck, Award, Lightbulb, Car, Users, GraduationCap,
-  HeartHandshake, TrendingUp, Globe, Zap, Sprout, Laptop
+  HeartHandshake, TrendingUp, Globe, Zap, Sprout, Laptop,
+  Flag, Plane, School, ClipboardList, Sparkles, MapPin
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MODULE_COLORS } from '@/data/servicesData';
 
 /* ═══════════════════════════════════════════════
-   ALL 19 SERVICE MODULES FOR MEGA-MENU
+   ALL 25 SERVICE MODULES FOR MEGA-MENU
    ═══════════════════════════════════════════════ */
 interface NavModule {
   id: string;
   titleEn: string;
   titleHi: string;
   icon: React.ComponentType<any>;
-  count: number;
 }
 
 const NAV_MODULES: NavModule[] = [
-  { id: 'm1',  titleEn: 'Birth, Death & Marriage',       titleHi: 'जन्म, मृत्यु और विवाह',        icon: FileHeart,      count: 7 },
-  { id: 'm2',  titleEn: 'Identity Cards & Docs',         titleHi: 'पहचान पत्र (Aadhaar, PAN)',     icon: UserCheck,      count: 9 },
-  { id: 'm3',  titleEn: 'Income, Caste & Residence',     titleHi: 'आय, जाति और निवास',             icon: Award,          count: 10 },
-  { id: 'm4',  titleEn: 'Property & Land Papers',        titleHi: 'जमीन और संपत्ति (रजिस्ट्री)',     icon: Home,           count: 17 },
-  { id: 'm5',  titleEn: 'Tax / GST Filing',              titleHi: 'टैक्स / GST फाइलिंग',           icon: Percent,        count: 8 },
-  { id: 'm6',  titleEn: 'Business Registration',         titleHi: 'व्यापार रजिस्ट्रेशन',            icon: Briefcase,      count: 15 },
-  { id: 'm7',  titleEn: 'Brand & IP Protection',         titleHi: 'ब्रांड और आविष्कार सुरक्षा',     icon: Lightbulb,      count: 5 },
-  { id: 'm8',  titleEn: 'Bank, Loan & Credit',           titleHi: 'बैंक, लोन और क्रेडिट कार्ड',     icon: Landmark,       count: 12 },
-  { id: 'm9',  titleEn: 'Insurance (Bima)',               titleHi: 'बीमा (Bima)',                    icon: ShieldCheck,    count: 9 },
-  { id: 'm10', titleEn: 'Vehicle & RTO Work',            titleHi: 'गाड़ी और RTO',                   icon: Car,            count: 14 },
-  { id: 'm11', titleEn: 'Legal & Court Help',             titleHi: 'कानूनी और कोर्ट सहायता',         icon: Scale,          count: 15 },
-  { id: 'm12', titleEn: 'Job, PF & Labour',              titleHi: 'नौकरी, PF और श्रमिक',            icon: Users,          count: 7 },
-  { id: 'm13', titleEn: 'School & College Papers',       titleHi: 'स्कूल और कॉलेज कागज़',           icon: GraduationCap,  count: 6 },
-  { id: 'm14', titleEn: 'Pension & Govt Schemes',        titleHi: 'पेंशन और सरकारी योजना',          icon: HeartHandshake, count: 6 },
-  { id: 'm15', titleEn: 'Savings & Investment',          titleHi: 'बचत और निवेश',                   icon: TrendingUp,     count: 6 },
-  { id: 'm16', titleEn: 'Passport, Visa & Foreign',      titleHi: 'पासपोर्ट, वीज़ा और विदेश',       icon: Globe,          count: 5 },
-  { id: 'm17', titleEn: 'Electricity, Water & Gas',      titleHi: 'बिजली, पानी और गैस',             icon: Zap,            count: 5 },
-  { id: 'm18', titleEn: 'Farmer & Agriculture',          titleHi: 'किसान और खेती सेवाएं',           icon: Sprout,         count: 5 },
-  { id: 'm19', titleEn: 'Online Form & Doc Help',        titleHi: 'ऑनलाइन फॉर्म सहायता',           icon: Laptop,         count: 4 },
+  { id: 'm1',  titleEn: 'Birth, Death & Marriage',    titleHi: 'जन्म, मृत्यु और विवाह',        icon: FileHeart      },
+  { id: 'm2',  titleEn: 'Identity Cards & Docs',      titleHi: 'पहचान पत्र (Aadhaar, PAN)',     icon: UserCheck      },
+  { id: 'm3',  titleEn: 'Income, Caste & Residence',  titleHi: 'आय, जाति और निवास',             icon: Award          },
+  { id: 'm4',  titleEn: 'Property & Land Papers',     titleHi: 'जमीन और संपत्ति',               icon: Home           },
+  { id: 'm5',  titleEn: 'Tax / GST Filing',           titleHi: 'टैक्स / GST फाइलिंग',          icon: Percent        },
+  { id: 'm6',  titleEn: 'Business Registration',      titleHi: 'व्यापार रजिस्ट्रेशन',           icon: Briefcase      },
+  { id: 'm7',  titleEn: 'Brand & IP Protection',      titleHi: 'ब्रांड और आविष्कार सुरक्षा',    icon: Lightbulb      },
+  { id: 'm8',  titleEn: 'Bank, Loan & Credit',        titleHi: 'बैंक, लोन और क्रेडिट',          icon: Landmark       },
+  { id: 'm9',  titleEn: 'Insurance (Bima)',            titleHi: 'बीमा (Bima)',                   icon: ShieldCheck    },
+  { id: 'm10', titleEn: 'Vehicle & RTO Work',         titleHi: 'गाड़ी और RTO',                  icon: Car            },
+  { id: 'm11', titleEn: 'Legal & Court Help',         titleHi: 'कानूनी और कोर्ट सहायता',        icon: Scale          },
+  { id: 'm12', titleEn: 'Job, PF & Labour',           titleHi: 'नौकरी, PF और श्रमिक',           icon: Users          },
+  { id: 'm13', titleEn: 'School & College Papers',    titleHi: 'स्कूल और कॉलेज कागज़',          icon: GraduationCap  },
+  { id: 'm14', titleEn: 'Pension & Govt Schemes',     titleHi: 'पेंशन और सरकारी योजना',         icon: HeartHandshake },
+  { id: 'm15', titleEn: 'Savings & Investment',       titleHi: 'बचत और निवेश',                  icon: TrendingUp     },
+  { id: 'm16', titleEn: 'Passport, Visa & Foreign',   titleHi: 'पासपोर्ट, वीज़ा और विदेश',      icon: Globe          },
+  { id: 'm17', titleEn: 'Electricity, Water & Gas',   titleHi: 'बिजली, पानी और गैस',            icon: Zap            },
+  { id: 'm18', titleEn: 'Farmer & Agriculture',       titleHi: 'किसान और खेती सेवाएं',          icon: Sprout         },
+  { id: 'm19', titleEn: 'Online Form & Doc Help',     titleHi: 'ऑनलाइन फॉर्म सहायता',          icon: Laptop         },
+  { id: 'm20', titleEn: 'Central Govt Schemes',       titleHi: 'केंद्र सरकार योजनाएं',          icon: Flag           },
+  { id: 'm21', titleEn: 'Study Abroad Consulting',    titleHi: 'विदेश में पढ़ाई',                icon: Plane          },
+  { id: 'm22', titleEn: 'Domestic College Admission', titleHi: 'भारत में कॉलेज दाखिला',         icon: School         },
+  { id: 'm23', titleEn: 'Job Placement & Recruit',    titleHi: 'नौकरी और रोजगार',               icon: ClipboardList  },
+  { id: 'm24', titleEn: 'Visa & PR Immigration',      titleHi: 'वीज़ा और PR',                   icon: FileCheck      },
+  { id: 'm25', titleEn: 'Others / Custom Service',    titleHi: 'अन्य / कस्टम सेवा',             icon: Sparkles       },
+  { id: 'm26', titleEn: 'Tour & Travel',              titleHi: 'टूर और ट्रैवल',                 icon: MapPin         },
 ];
 
-// Split into 4 columns for the mega-menu
-const COL_1 = NAV_MODULES.slice(0, 5);
-const COL_2 = NAV_MODULES.slice(5, 10);
+// Split into 5 columns for the mega-menu (26 modules total — COL_5 has 6)
+const COL_1 = NAV_MODULES.slice(0,  5);
+const COL_2 = NAV_MODULES.slice(5,  10);
 const COL_3 = NAV_MODULES.slice(10, 15);
-const COL_4 = NAV_MODULES.slice(15, 19);
+const COL_4 = NAV_MODULES.slice(15, 20);
+const COL_5 = NAV_MODULES.slice(20, 26);
 
 export default function Navbar() {
   const { user, isLoggedIn, openLoginModal, logout } = useAuth();
@@ -148,8 +156,9 @@ export default function Navbar() {
     const Icon = mod.icon;
     const colorIdx = NAV_MODULES.findIndex(m => m.id === mod.id);
     const colors = MODULE_COLORS[colorIdx % MODULE_COLORS.length];
-    const acc = colors.accent;           // hex e.g. "#F43F5E"
+    const acc = colors.accent;
     const isHovered = hoveredModule === mod.id;
+    const seqNum = colorIdx + 1;
 
     return (
       <Link
@@ -158,43 +167,63 @@ export default function Navbar() {
         onClick={(e) => handleModuleClick(mod.id, e)}
         onMouseEnter={() => setHoveredModule(mod.id)}
         onMouseLeave={() => setHoveredModule(null)}
-        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all duration-200"
+        className="flex items-start gap-2 px-2.5 py-2 rounded-xl border-2 transition-all duration-200"
         style={{
-          background:   isHovered ? `${acc}12` : 'rgba(255,255,255,0.85)',
-          borderColor:  isHovered ? `${acc}60` : `${acc}30`,
-          transform:    isHovered ? 'translateY(-1px)' : 'none',
-          boxShadow:    isHovered ? `0 6px 18px ${acc}18` : 'none',
+          background:      isHovered ? 'white' : 'rgba(255,255,255,0.82)',
+          borderColor:     isHovered ? acc : `${acc}35`,
+          transform:       isHovered ? 'scale(1.11)' : 'scale(1)',
+          transformOrigin: 'center center',
+          zIndex:          isHovered ? 20 : 1,
+          position:        'relative',
+          boxShadow:       isHovered
+            ? `0 8px 24px ${acc}35, 0 0 0 2px white`
+            : '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
+        {/* Icon */}
         <div
-          className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg text-white shadow-sm transition-transform"
-          style={{
-            background: `linear-gradient(135deg,${acc},${acc}cc)`,
-            transform:  isHovered ? 'scale(1.08)' : 'scale(1)',
-          }}
+          className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg text-white shadow-sm mt-0.5"
+          style={{ background: `linear-gradient(135deg,${acc},${acc}cc)` }}
         >
-          <Icon size={14} />
+          <Icon size={13} />
         </div>
-        <div className="min-w-0 flex-1">
+
+        {/* Text */}
+        <div className="flex-1 min-w-0">
           <span
-            className="text-[11.5px] font-bold block truncate leading-tight transition-colors"
-            style={{ color: isHovered ? acc : '#1e293b' }}
+            className="text-[11px] font-bold block leading-tight transition-colors"
+            style={{
+              color:      isHovered ? acc : '#1e293b',
+              whiteSpace: isHovered ? 'normal' : 'nowrap',
+              overflow:   isHovered ? 'visible' : 'hidden',
+              textOverflow: isHovered ? 'unset' : 'ellipsis',
+            }}
           >
             {language === 'EN' ? mod.titleEn : mod.titleHi}
           </span>
-          <span className="text-[9px] font-medium leading-tight block truncate mt-0.5" style={{ color: isHovered ? `${acc}90` : '#94a3b8' }}>
+          <span
+            className="text-[9px] font-medium leading-tight block mt-0.5"
+            style={{
+              color:      isHovered ? `${acc}aa` : '#94a3b8',
+              whiteSpace: 'nowrap',
+              overflow:   'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
             {language === 'EN' ? mod.titleHi : mod.titleEn}
           </span>
         </div>
+
+        {/* Sequential number badge */}
         <span
-          className="text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 border"
+          className="text-[8.5px] font-black px-1 py-0.5 rounded shrink-0 border leading-none mt-0.5"
           style={{
-            color:       isHovered ? acc : '#64748b',
-            borderColor: isHovered ? `${acc}50` : '#e2e8f0',
-            background:  'white',
+            color:       isHovered ? 'white' : '#94a3b8',
+            borderColor: isHovered ? acc : '#e2e8f0',
+            background:  isHovered ? acc : 'white',
           }}
         >
-          {mod.count}
+          #{seqNum}
         </span>
       </Link>
     );
@@ -256,23 +285,26 @@ export default function Navbar() {
               />
             </Link>
 
-            {/* ── Mega-menu: 4-column grid with all 19 modules ── */}
-            {/* ── Mega-menu: 4-column grid with all 19 modules ── */}
+            {/* ── Mega-menu: 5-column grid with all 25 modules ── */}
             <div
-              className={`absolute top-full left-1/2 -translate-x-1/2 translate-y-1 w-[900px] bg-gradient-to-b from-[#f2fbf6] to-[#e6f7ec] border border-emerald-500/25 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.08),inset_0_2px_4px_rgba(255,255,255,0.95)] z-50 transition-all duration-300 ease-in-out overflow-hidden ${
+              className={`absolute top-full left-1/2 -translate-x-1/2 translate-y-1 w-[1060px] rounded-3xl border border-emerald-500/25 shadow-[0_20px_50px_rgba(0,0,0,0.10)] z-50 transition-all duration-300 ease-in-out ${
                 servicesOpen
                   ? 'opacity-100 visible translate-y-2'
                   : 'opacity-0 invisible -translate-y-2 pointer-events-none'
               }`}
+              style={{ position: 'absolute' }}
             >
-              {/* Ambient Glows */}
-              <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-400/10 rounded-full blur-[80px] pointer-events-none -z-10" />
-              <div className="absolute bottom-0 right-0 w-64 h-64 bg-teal-400/5 rounded-full blur-[80px] pointer-events-none -z-10" />
+              {/* Background layer — overflow-hidden so it clips to border-radius */}
+              <div className="absolute inset-0 bg-gradient-to-b from-[#f2fbf6] to-[#e6f7ec] rounded-3xl -z-10 overflow-hidden pointer-events-none">
+                <div className="absolute top-0 left-0 w-64 h-64 bg-emerald-400/10 rounded-full blur-[80px]" />
+                <div className="absolute bottom-0 right-0 w-64 h-64 bg-teal-400/5 rounded-full blur-[80px]" />
+              </div>
 
               {/* Top accent bar */}
               <div className="h-[3.5px] bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-500 rounded-t-3xl" />
 
-              <div className="px-5 pt-4 pb-3">
+              {/* Grid content — overflow visible so hovered tiles can scale out */}
+              <div className="px-5 pt-4 pb-4" style={{ overflow: 'visible' }}>
                 {/* Header */}
                 <div className="flex items-center justify-between mb-3 px-1">
                   <div>
@@ -280,7 +312,7 @@ export default function Navbar() {
                       {language === 'EN' ? 'All Service Categories' : 'सभी सेवा श्रेणियां'}
                     </h3>
                     <p className="text-[10px] text-slate-500 font-medium">
-                      {language === 'EN' ? '19 modules · 170+ sub-services' : '19 श्रेणियां · 170+ उप-सेवाएं'}
+                      {language === 'EN' ? '26 modules · 180+ sub-services' : '26 श्रेणियां · 180+ उप-सेवाएं'}
                     </p>
                   </div>
                   <Link
@@ -293,27 +325,30 @@ export default function Navbar() {
                   </Link>
                 </div>
 
-                {/* 4-column grid */}
-                <div className="grid grid-cols-4 gap-1">
-                  <div className="space-y-0.5">
+                {/* 5-column grid */}
+                <div className="grid grid-cols-5 gap-1" style={{ overflow: 'visible' }}>
+                  <div className="space-y-1" style={{ overflow: 'visible' }}>
                     {COL_1.map(renderModuleLink)}
                   </div>
-                  <div className="space-y-0.5">
+                  <div className="space-y-1" style={{ overflow: 'visible' }}>
                     {COL_2.map(renderModuleLink)}
                   </div>
-                  <div className="space-y-0.5">
+                  <div className="space-y-1" style={{ overflow: 'visible' }}>
                     {COL_3.map(renderModuleLink)}
                   </div>
-                  <div className="space-y-0.5">
+                  <div className="space-y-1" style={{ overflow: 'visible' }}>
                     {COL_4.map(renderModuleLink)}
+                  </div>
+                  <div className="space-y-1" style={{ overflow: 'visible' }}>
+                    {COL_5.map(renderModuleLink)}
                   </div>
                 </div>
               </div>
 
               {/* Bottom bar */}
-              <div className="px-5 py-3 border-t border-slate-200/80 flex items-center justify-between bg-emerald-50/30">
+              <div className="px-5 py-3 border-t border-slate-200/80 flex items-center justify-between bg-emerald-50/30 rounded-b-3xl">
                 <span className="text-[10px] text-slate-500 font-medium">
-                  {language === 'EN' ? 'Click any category to see sub-services' : 'उप-सेवाएं देखने के लिए किसी श्रेणी पर क्लिक करें'}
+                  {language === 'EN' ? 'Hover to preview · Click to explore advisors' : 'होवर करें · क्लिक करके विशेषज्ञ खोजें'}
                 </span>
                 <Link
                   href="/#services-section"

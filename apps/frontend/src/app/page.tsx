@@ -63,6 +63,12 @@ const CATEGORY_TO_SLUG: Record<string, string> = {
   'Electricity, Water & Gas': 'm17',
   'Farmer & Agriculture': 'm18',
   'Online Form & Doc Help': 'm19',
+  'Study Abroad Consulting': 'm21',
+  'Domestic College Admission': 'm22',
+  'Job Placement & Recruitment': 'm23',
+  'Visa & PR Immigration': 'm24',
+  'Others / Custom Service': 'm25',
+  'Tour & Travel': 'm26',
 };
 
 const SLUG_TO_CATEGORY_NAME: Record<string, string> = {
@@ -73,6 +79,12 @@ const SLUG_TO_CATEGORY_NAME: Record<string, string> = {
   'm5': 'Tax / GST Filing',
   'm6': 'Business Registration',
   'm7': 'Brand & IP Protection',
+  'm21': 'Study Abroad Consulting',
+  'm22': 'Domestic College Admission',
+  'm23': 'Job Placement & Recruitment',
+  'm24': 'Visa & PR Immigration',
+  'm25': 'Others / Custom Service',
+  'm26': 'Tour & Travel',
   'm8': 'Bank, Loan & Credit',
   'm9': 'Insurance (Bima)',
   'm10': 'Vehicle & RTO Work',
@@ -572,6 +584,20 @@ export default function DiscoverPage() {
   }, [isMockAdvisor, isLoggedIn, openLoginModal, revealedContacts, router]);
 
   const handleTileClick = useCallback((moduleId: string) => {
+    const mod = MODULES_DATA.find(m => m.id === moduleId);
+    // Modules with no sub-services → skip modal, filter advisors directly
+    if (mod && mod.subModules.length === 0) {
+      const categoryName = SLUG_TO_CATEGORY_NAME[moduleId];
+      if (categoryName) {
+        setSelectedCategories([categoryName]);
+        setSelectedCategory(categoryName);
+      }
+      setTimeout(() => {
+        const el = document.getElementById('advisors-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      return;
+    }
     setServiceModal(moduleId);
   }, []);
 
@@ -661,39 +687,56 @@ export default function DiscoverPage() {
       </button>
 
       {/* ── Persistent Location Bar — always visible ── */}
-      <div className="flex items-center justify-between px-4 sm:px-6 py-2"
+      <div className="flex items-center justify-between px-4 sm:px-6 py-2.5"
         style={{
           background: selectedState
             ? 'linear-gradient(90deg, rgba(212,175,55,0.12), rgba(212,175,55,0.06))'
-            : 'rgba(5,14,27,0.7)',
-          borderBottom: `1px solid ${selectedState ? 'rgba(212,175,55,0.22)' : 'rgba(255,255,255,0.05)'}`,
+            : 'linear-gradient(90deg, rgba(212,175,55,0.08), rgba(10,20,40,0.9), rgba(212,175,55,0.08))',
+          borderBottom: `1px solid ${selectedState ? 'rgba(212,175,55,0.22)' : 'rgba(212,175,55,0.35)'}`,
+          borderTop: selectedState ? 'none' : '1px solid rgba(212,175,55,0.18)',
           backdropFilter: 'blur(8px)',
+          boxShadow: selectedState ? 'none' : '0 2px 16px rgba(212,175,55,0.08)',
         }}>
 
         {/* Left: location pill */}
         <button
           onClick={() => setShowStatePicker(true)}
-          className="flex items-center gap-2 group transition-all"
+          className="flex items-center gap-2.5 group transition-all"
         >
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all group-hover:scale-[1.02]"
+          {/* Pulsing ring — only when no location set */}
+          {!selectedState && (
+            <span className="relative flex shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-40"
+                style={{ background: 'rgba(212,175,55,0.6)' }} />
+              <span className="relative flex items-center justify-center w-7 h-7 rounded-full"
+                style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.5)' }}>
+                <MapPin size={14} style={{ color: '#D4AF37' }} />
+              </span>
+            </span>
+          )}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all group-hover:scale-[1.03]"
             style={{
-              background: selectedState ? 'rgba(212,175,55,0.18)' : 'rgba(255,255,255,0.07)',
-              border: `1px solid ${selectedState ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.12)'}`,
+              background: selectedState ? 'rgba(212,175,55,0.18)' : 'rgba(212,175,55,0.14)',
+              border: `1px solid ${selectedState ? 'rgba(212,175,55,0.4)' : 'rgba(212,175,55,0.55)'}`,
+              boxShadow: selectedState ? 'none' : '0 0 10px rgba(212,175,55,0.2)',
             }}>
-            <MapPin size={13} style={{ color: selectedState ? '#D4AF37' : 'rgba(255,255,255,0.5)' }} className="shrink-0" />
+            {selectedState && (
+              <MapPin size={13} style={{ color: '#D4AF37' }} className="shrink-0" />
+            )}
             <span className="text-xs font-bold"
-              style={{ color: selectedState ? '#D4AF37' : 'rgba(255,255,255,0.55)' }}>
+              style={{ color: selectedState ? '#D4AF37' : '#e8c84a' }}>
               {selectedDistrict
                 ? `${selectedDistrict}, ${selectedState}`
-                : selectedState || 'All India'}
+                : selectedState || 'Set your location'}
             </span>
-            <ChevronDown size={11}
-              style={{ color: selectedState ? '#D4AF37' : 'rgba(255,255,255,0.35)' }} />
+            <ChevronDown size={11} style={{ color: '#D4AF37' }} />
           </div>
           {selectedState ? (
             <span className="text-[10px] text-white/40 hidden sm:inline">Change location</span>
           ) : (
-            <span className="text-[10px] text-white/35 hidden sm:inline">📍 Set your location</span>
+            <span className="text-[11px] font-semibold hidden sm:inline" style={{ color: 'rgba(212,175,55,0.75)' }}>
+              — tap to filter advisors by state
+            </span>
           )}
         </button>
 
@@ -726,15 +769,6 @@ export default function DiscoverPage() {
               className="text-[10px] text-white/35 hover:text-white/70 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-white/5"
             >
               <X size={11} /> Clear
-            </button>
-          )}
-          {!selectedState && (
-            <button
-              onClick={() => setShowStatePicker(true)}
-              className="text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all hover:scale-[1.02]"
-              style={{ background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.25)', color: '#D4AF37' }}
-            >
-              📍 Select State
             </button>
           )}
         </div>

@@ -39,7 +39,8 @@ const completeRegistrationSchema = z.object({
 
 const passwordLoginSchema = z.object({
   body: z.object({
-    email: z.string().email('Invalid email address'),
+    // Accept email address OR phone number (advisors sometimes enter their phone)
+    email: z.string().min(1, 'Email or phone number is required'),
     password: z.string().min(6, 'Password must be at least 6 characters')
   })
 });
@@ -323,10 +324,13 @@ router.post('/password/set', authenticateJWT, validateRequest(setPasswordSchema)
  * Standard password login endpoint for Admin users and Advisors.
  */
 router.post('/login/password', validateRequest(passwordLoginSchema), async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body;
+  const { email: identifier, password } = req.body;
+  // identifier may be an email address or a phone number (e.g. +91XXXXXXXXXX or 9876543210)
+  const isPhone = /^\+?\d{10,15}$/.test(identifier.replace(/\s/g, ''));
+  const email = isPhone ? '' : identifier;
 
-  // 1. Search AdminUsers table
-  const admin = await prisma.adminUsers.findUnique({ where: { email } });
+  // 1. Search AdminUsers table (email only — admins always use email)
+  const admin = !isPhone ? await prisma.adminUsers.findUnique({ where: { email } }) : null;
   if (admin) {
     const valid = await bcrypt.compare(password, admin.passwordHash);
     if (!valid) {
@@ -363,22 +367,28 @@ router.post('/login/password', validateRequest(passwordLoginSchema), async (req:
     return;
   }
 
-  // 2. Search Advisors/Users table
-  const advisor = await prisma.advisor.findUnique({ where: { email } });
+  // 2. Search Advisors/Users table — by email or by phone number
+  let advisor = null;
+  if (isPhone) {
+    // Normalise: ensure +91 prefix for Indian numbers without country code
+    const normalised = identifier.startsWith('+') ? identifier : `+91${identifier.replace(/\D/g, '').slice(-10)}`;
+    advisor = await prisma.advisor.findFirst({ where: { phoneNumber: normalised } });
+    if (!advisor) advisor = await prisma.advisor.findFirst({ where: { phoneNumber: identifier } });
+  } else {
+    advisor = await prisma.advisor.findUnique({ where: { email } });
+  }
+
   if (advisor) {
-    // Note: In our current Prisma model, the password hash lives in User model. We can fetch User associated with the phone or email.
-    const user = await prisma.user.findUnique({
-      where: { phoneNumber: advisor.phoneNumber }
-    });
+    const user = await prisma.user.findUnique({ where: { phoneNumber: advisor.phoneNumber } });
 
     if (!user || !user.passwordHash) {
-      res.status(400).json({ success: false, message: 'Advisor user account mismatch' });
+      res.status(400).json({ success: false, message: 'No password set for this advisor account. Please use OTP login.' });
       return;
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
-      res.status(400).json({ success: false, message: 'Incorrect credentials' });
+      res.status(400).json({ success: false, message: 'Incorrect password. Please try again.' });
       return;
     }
 

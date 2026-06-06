@@ -8,7 +8,7 @@ import {
   FileHeart, UserCheck, Award, Home, Percent, Briefcase, Lightbulb, Landmark,
   ShieldCheck, Car, Scale, Users, GraduationCap, HeartHandshake, TrendingUp,
   Globe, Zap, Sprout, Laptop, Flag, Plane, School, ClipboardList, FileCheck,
-  Sparkles, Layers, Save
+  Sparkles, Layers, Save, MapPin
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MODULES_DATA } from '@/data/servicesData';
@@ -42,6 +42,7 @@ const ADVISOR_CATEGORIES = [
   { name: 'Job Placement & Recruitment',    slug: 'm23', icon: ClipboardList, color: 'bg-teal-100',   iconColor: 'text-teal-600',   desc: 'Resume building, interview prep, offer negotiation & post-placement' },
   { name: 'Visa & PR Immigration',          slug: 'm24', icon: FileCheck,     color: 'bg-red-100',    iconColor: 'text-red-600',    desc: 'Canada/UK/Australia PR, work permits, EOI, ITA & landing support' },
   { name: 'Others / Custom Service',        slug: 'm25', icon: Sparkles,      color: 'bg-indigo-100', iconColor: 'text-indigo-600', desc: 'Any unique expertise not listed above — describe your own specialisation' },
+  { name: 'Tour & Travel',                  slug: 'm26', icon: MapPin,        color: 'bg-orange-100', iconColor: 'text-orange-600', desc: 'Bus, train & flight bookings, hotel stays, tour packages, cab services & travel insurance' },
 ];
 
 const OPEN_PLACEHOLDERS: Record<string, string> = {

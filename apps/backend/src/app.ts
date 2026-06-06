@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import http from 'http';
+import path from 'path';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -50,8 +51,11 @@ app.post('/api/v1/contacts/webhook', express.raw({ type: '*/*' }), contactWebhoo
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded KYC files
-app.use('/uploads', express.static('uploads'));
+// Serve uploaded KYC files — CORP: cross-origin allows Vercel frontend to load images/files
+app.use('/uploads', (_req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, '..', 'uploads')));
 
 // Routing API endpoints
 app.use('/api/v1/auth', authRoutes);
@@ -132,6 +136,7 @@ const SEED_CATEGORIES = [
   { slug: 'm23', name: 'Job Placement & Recruitment' },
   { slug: 'm24', name: 'Visa & PR Immigration' },
   { slug: 'm25', name: 'Others / Custom Service' },
+  { slug: 'm26', name: 'Tour & Travel' },
 ];
 
 async function ensureCategories() {

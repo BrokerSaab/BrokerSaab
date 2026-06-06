@@ -3,7 +3,8 @@ import {
   FileHeart, UserCheck, Award, Home, Percent, Briefcase, Lightbulb, Landmark,
   ShieldCheck, Car, Scale, Users, GraduationCap, HeartHandshake, TrendingUp,
   Globe, Zap, Sprout, Laptop,
-  Flag, Plane, School, ClipboardList, FileCheck, Sparkles
+  Flag, Plane, School, ClipboardList, FileCheck, Sparkles,
+  MapPin
 } from 'lucide-react';
 
 export interface SubModule {
@@ -40,7 +41,7 @@ export const ICON_MAP: Record<string, React.ComponentType<any>> = {
   FileHeart, UserCheck, Award, Home, Percent, Briefcase, Lightbulb, Landmark,
   ShieldCheck, Car, Scale, Users, GraduationCap, HeartHandshake, TrendingUp,
   Globe, Zap, Sprout, Laptop,
-  Flag, Plane, School, ClipboardList, FileCheck, Sparkles
+  Flag, Plane, School, ClipboardList, FileCheck, Sparkles, MapPin
 };
 
 export const MODULE_COLORS: ModuleColor[] = [
@@ -69,6 +70,7 @@ export const MODULE_COLORS: ModuleColor[] = [
   { gradient: 'from-green-400 to-teal-500',       bg: 'bg-green-50',    bgDark: 'bg-green-950/30',   text: 'text-green-600',   border: 'border-green-200',   borderDark: 'border-green-800/40',   iconBg: 'bg-gradient-to-br from-green-400 to-teal-500',      accent: '#4ADE80' },
   { gradient: 'from-red-500 to-rose-600',         bg: 'bg-red-50',      bgDark: 'bg-red-950/30',     text: 'text-red-600',     border: 'border-red-200',     borderDark: 'border-red-800/40',     iconBg: 'bg-gradient-to-br from-red-500 to-rose-600',        accent: '#EF4444' },
   { gradient: 'from-indigo-500 to-purple-600',    bg: 'bg-indigo-50',   bgDark: 'bg-indigo-950/30',  text: 'text-indigo-600',  border: 'border-indigo-200',  borderDark: 'border-indigo-800/40',  iconBg: 'bg-gradient-to-br from-indigo-500 to-purple-600',   accent: '#6366F1' },
+  { gradient: 'from-orange-500 to-amber-600',     bg: 'bg-orange-50',   bgDark: 'bg-orange-950/30',  text: 'text-orange-700',  border: 'border-orange-300',  borderDark: 'border-orange-800/40',  iconBg: 'bg-gradient-to-br from-orange-500 to-amber-600',    accent: '#EA580C' },
 ];
 
 export const MODULES_DATA: Module[] = [
@@ -489,5 +491,99 @@ export const MODULES_DATA: Module[] = [
     descriptionHi: "ऊपर सूचीबद्ध नहीं की गई कोई भी विशेषज्ञता — अपनी अनूठी सेवा का वर्णन करें।",
     iconName: "Sparkles",
     subModules: []
+  },
+  {
+    id: "m26",
+    titleEn: "Tour & Travel",
+    titleHi: "टूर और ट्रैवल",
+    description: "Complete travel assistance — bus, train & flight bookings, hotel stays, tour packages, cab services, pilgrimage tours and travel insurance.",
+    descriptionHi: "बस, ट्रेन और फ्लाइट बुकिंग, होटल आरक्षण, टूर पैकेज, कैब सेवाएं, तीर्थयात्रा और यात्रा बीमा — सभी यात्रा सहायता।",
+    iconName: "MapPin",
+    subModules: [
+      {
+        id: "s26-1",
+        nameEn: "Bus Ticket Booking",
+        nameHi: "बस टिकट बुकिंग",
+        keywords: ["bus ticket", "state bus", "KSRTC", "MSRTC", "AC bus", "sleeper bus", "online bus booking"],
+        route: "/advisors?category=m26"
+      },
+      {
+        id: "s26-2",
+        nameEn: "Railway / Train Tickets",
+        nameHi: "रेलवे / ट्रेन टिकट",
+        keywords: ["train ticket", "IRCTC", "tatkal booking", "railway reservation", "sleeper class", "AC coach", "waitlist"],
+        route: "/advisors?category=m26"
+      },
+      {
+        id: "s26-3",
+        nameEn: "Flight Ticket Booking",
+        nameHi: "फ्लाइट टिकट बुकिंग",
+        keywords: ["flight ticket", "air ticket", "domestic flight", "international flight", "cheap flights", "airline booking"],
+        route: "/advisors?category=m26"
+      },
+      {
+        id: "s26-4",
+        nameEn: "Hotel & Accommodation",
+        nameHi: "होटल और आवास बुकिंग",
+        keywords: ["hotel booking", "resort", "OYO", "homestay", "dharamshala", "accommodation", "lodge"],
+        route: "/advisors?category=m26"
+      },
+      {
+        id: "s26-5",
+        nameEn: "Cab / Taxi Booking",
+        nameHi: "कैब / टैक्सी बुकिंग",
+        keywords: ["cab booking", "taxi", "Ola", "Uber", "outstation cab", "airport pickup", "car rental"],
+        route: "/advisors?category=m26"
+      },
+      {
+        id: "s26-6",
+        nameEn: "Domestic Tour Packages",
+        nameHi: "देश के भीतर टूर पैकेज",
+        keywords: ["domestic tour", "India tour", "Goa package", "Rajasthan tour", "Kerala tour", "Kashmir package", "hill station"],
+        route: "/advisors?category=m26"
+      },
+      {
+        id: "s26-7",
+        nameEn: "International Tour Packages",
+        nameHi: "विदेश टूर पैकेज",
+        keywords: ["international tour", "Dubai package", "Thailand tour", "Europe trip", "Singapore package", "Bali tour", "foreign trip"],
+        route: "/advisors?category=m26"
+      },
+      {
+        id: "s26-8",
+        nameEn: "Honeymoon / Couple Packages",
+        nameHi: "हनीमून / कपल पैकेज",
+        keywords: ["honeymoon package", "couple trip", "romantic tour", "anniversary trip", "Maldives honeymoon", "hill station couple"],
+        route: "/advisors?category=m26"
+      },
+      {
+        id: "s26-9",
+        nameEn: "Pilgrimage / Religious Tours",
+        nameHi: "तीर्थयात्रा / धार्मिक टूर",
+        keywords: ["char dham", "Vaishno Devi", "Tirupati", "Shirdi", "Kashi Vishwanath", "yatra", "pilgrimage tour", "Amarnath"],
+        route: "/advisors?category=m26"
+      },
+      {
+        id: "s26-10",
+        nameEn: "Adventure & Trekking Tours",
+        nameHi: "एडवेंचर और ट्रेकिंग",
+        keywords: ["trekking", "adventure tour", "Himalayan trek", "Manali adventure", "river rafting", "paragliding", "camping"],
+        route: "/advisors?category=m26"
+      },
+      {
+        id: "s26-11",
+        nameEn: "Travel Insurance",
+        nameHi: "यात्रा बीमा",
+        keywords: ["travel insurance", "trip insurance", "international travel cover", "baggage cover", "medical abroad", "flight cancellation cover"],
+        route: "/advisors?category=m26"
+      },
+      {
+        id: "s26-12",
+        nameEn: "Visa Assistance for Tourism",
+        nameHi: "पर्यटन वीज़ा सहायता",
+        keywords: ["tourist visa", "visit visa", "schengen visa", "Dubai tourist visa", "Thailand visa on arrival", "visitor visa"],
+        route: "/advisors?category=m26"
+      }
+    ]
   }
 ];

@@ -667,6 +667,23 @@ export default function AdminSuitePage() {
 
   const getDocUrl = (docUrl: string) => `${BASE_URL}${docUrl}`;
 
+  const handleDocDownload = async (docUrl: string, filename: string) => {
+    try {
+      const res = await fetch(getDocUrl(docUrl));
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(getDocUrl(docUrl), '_blank');
+    }
+  };
+
   const [exporting, setExporting] = useState<string | null>(null);
 
   const handleExport = async (entity: string) => {
@@ -707,8 +724,6 @@ export default function AdminSuitePage() {
 
   const showBulkAssignBar = isSuperAdmin && selectedForAssign.size > 0;
 
-  const getDocDownloadUrl = (docUrl: string) =>
-    `${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:5000'}${docUrl}`;
 
   return (
     <div className="min-h-screen bg-[#F4F6FB]">
@@ -1044,10 +1059,10 @@ export default function AdminSuitePage() {
                                   className="flex-1 flex items-center justify-center gap-1 text-[9px] font-semibold text-indigo-600 hover:text-white hover:bg-indigo-600 bg-indigo-50 border border-indigo-200 rounded py-1 transition-all">
                                   <Eye size={9} /> View
                                 </a>
-                                <a href={fileUrl} download={filename}
+                                <button onClick={() => handleDocDownload(doc.documentUrl, filename)}
                                   className="flex-1 flex items-center justify-center gap-1 text-[9px] font-semibold text-emerald-600 hover:text-white hover:bg-emerald-600 bg-emerald-50 border border-emerald-200 rounded py-1 transition-all">
                                   <Download size={9} /> Download
-                                </a>
+                                </button>
                               </div>
                             </div>
                           );

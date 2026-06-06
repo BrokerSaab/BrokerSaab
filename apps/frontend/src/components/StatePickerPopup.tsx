@@ -7,7 +7,6 @@ import DistrictGridMap from './DistrictGridMap';
 import { INDIA_STATES_SORTED } from '@/data/indiaStates';
 import { DISTRICTS_BY_STATE, getStateIdByDisplayName } from '@/data/indiaDistricts';
 
-const SESSION_KEY  = 'bs_state_shown_v1';
 const STATE_KEY    = 'bs_user_state';
 const DISTRICT_KEY = 'bs_user_district';
 
@@ -17,20 +16,11 @@ interface Props {
 }
 
 export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
-  const [autoOpen, setAutoOpen] = useState(false);
   const [step, setStep]         = useState<'state' | 'district'>('state');
   const [selected, setSelected] = useState<string>('');           // state name
   const [district, setDistrict] = useState<string>('');           // district name
 
-  const open = forceOpen || autoOpen;
-
-  /* Auto-show once per session, 1.2 s delay */
-  useEffect(() => {
-    if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(SESSION_KEY)) {
-      const t = setTimeout(() => setAutoOpen(true), 1200);
-      return () => clearTimeout(t);
-    }
-  }, []);
+  const open = !!forceOpen;
 
   /* Reset internal state whenever the popup opens fresh */
   useEffect(() => {
@@ -61,7 +51,6 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
     localStorage.setItem(STATE_KEY, stateName);
     if (districtName) localStorage.setItem(DISTRICT_KEY, districtName);
     else localStorage.removeItem(DISTRICT_KEY);
-    sessionStorage.setItem(SESSION_KEY, '1');
 
     window.dispatchEvent(new CustomEvent('state-selected', { detail: { state: stateName } }));
     if (districtName) {
@@ -69,7 +58,6 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
         detail: { state: stateName, district: districtName },
       }));
     }
-    setAutoOpen(false);
     onForceClose?.();
   };
 
