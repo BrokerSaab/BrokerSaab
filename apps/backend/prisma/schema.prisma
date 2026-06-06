@@ -101,6 +101,7 @@ model Advisor {
   fullName           String
   businessName       String?
   avatarUrl          String?
+  coverImageUrl      String?
   bio                String?            @db.Text
   experienceYears    Int
   licenseNumber      String?            @unique
@@ -406,14 +407,44 @@ model Notification {
 }
 
 model SupportTickets {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  subject     String
-  description String   @db.Text
-  status      String   @default("OPEN") // OPEN, RESOLVED, CLOSED
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String           @id @default(uuid())
+  seqId             Int              @unique @default(autoincrement())
+  ticketNumber      String           @unique @default("")
+  userId            String
+  user              User             @relation(fields: [userId], references: [id])
+  subject           String
+  description       String           @db.Text
+  category          String           @default("GENERAL")  // GENERAL | BILLING | TECHNICAL | BOOKING_ISSUE | ADVISOR_ISSUE | OTHER
+  priority          String           @default("MEDIUM")   // LOW | MEDIUM | HIGH | URGENT
+  status            String           @default("OPEN")     // OPEN | IN_PROGRESS | RESOLVED | CLOSED
+  assignedToAdminId String?
+  assignedToAdmin   AdminUsers?      @relation("AssignedTickets", fields: [assignedToAdminId], references: [id])
+  closingNotes      String?          @db.Text
+  resolvedAt        DateTime?
+  closedAt          DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  activities        TicketActivity[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([assignedToAdminId])
+}
+
+model TicketActivity {
+  id              String         @id @default(uuid())
+  ticketId        String
+  ticket          SupportTickets @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  action          String         // STATUS_CHANGED | ASSIGNED | CLOSED
+  fromStatus      String?
+  toStatus        String?
+  note            String?        @db.Text
+  performedByName String
+  performedByRole String         // SUPER_ADMIN | SUB_ADMIN | CLIENT | ADVISOR | SYSTEM
+  createdAt       DateTime       @default(now())
+
+  @@index([ticketId])
 }
 
 model AuditLog {
@@ -440,5 +471,6 @@ model AdminUsers {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  assignedAdvisors Advisor[] @relation("SubAdminAdvisors")
+  assignedAdvisors Advisor[]        @relation("SubAdminAdvisors")
+  assignedTickets  SupportTickets[] @relation("AssignedTickets")
 }

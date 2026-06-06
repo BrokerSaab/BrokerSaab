@@ -452,6 +452,65 @@ router.get('/contact-subscriptions', ...ADMIN_GUARD, async (req: Request, res: R
 });
 
 /**
+ * GET /admin/contact-unlocks — all individual advisor contact unlocks with user + advisor info
+ */
+router.get('/contact-unlocks', ...ADMIN_GUARD, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { search = '', page = '1', limit = '50' } = req.query as Record<string, string>;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const where: any = {};
+    if (search.trim()) {
+      where.OR = [
+        { user:   { fullName:   { contains: search.trim(), mode: 'insensitive' } } },
+        { user:   { phoneNumber:{ contains: search.trim(), mode: 'insensitive' } } },
+        { advisor:{ fullName:   { contains: search.trim(), mode: 'insensitive' } } },
+      ];
+    }
+
+    const [unlocks, total] = await prisma.$transaction([
+      prisma.contactUnlock.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: parseInt(limit),
+        include: {
+          user: { select: { id: true, fullName: true, phoneNumber: true, email: true } },
+          advisor: {
+            select: {
+              id: true, fullName: true, businessName: true, phoneNumber: true, email: true,
+              location: true, state: true,
+              categories: { include: { category: { select: { name: true } } } },
+            },
+          },
+        },
+      }),
+      prisma.contactUnlock.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: unlocks.map((u) => ({
+        id: u.id,
+        unlockedAt: u.createdAt,
+        isFree: u.isFree,
+        user: u.user,
+        advisor: {
+          ...u.advisor,
+          categories: u.advisor.categories.map((c) => c.category.name),
+        },
+      })),
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
+  } catch (err) {
+    console.error('[admin/contact-unlocks]', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch contact unlocks' });
+  }
+});
+
+/**
  * GET /admin/export/:entity — download XLSX for advisors | users | funnel | subscriptions | bookings
  */
 router.get('/export/:entity', ...ADMIN_GUARD, async (req: Request, res: Response): Promise<void> => {
@@ -601,18 +660,29 @@ router.patch(
   }
 );
 
+const TICKET_ADMIN_INCLUDE = {
+  user: { select: { fullName: true, phoneNumber: true, email: true, role: true } },
+  assignedToAdmin: { select: { id: true, fullName: true } },
+  activities: { orderBy: { createdAt: 'asc' as const } },
+} as const;
+
 // ── GET /admin/tickets ────────────────────────────────────────────
-router.get('/tickets', authenticateJWT, requireRole([Role.SUPER_ADMIN, Role.SUB_ADMIN]), async (req: Request, res: Response) => {
+router.get('/tickets', ...ADMIN_GUARD, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    const adminId   = req.user!.id;
+    const adminRole = req.user!.role as string;
     const status = (req.query.status as string) || 'ALL';
     const search = (req.query.search as string) || '';
     const limit  = Math.min(parseInt(req.query.limit as string) || 50, 100);
 
     const where: any = {};
+    // SUB_ADMIN sees only their assigned tickets
+    if (adminRole === Role.SUB_ADMIN) where.assignedToAdminId = adminId;
     if (status !== 'ALL') where.status = status;
     if (search) {
       where.OR = [
         { subject: { contains: search, mode: 'insensitive' } },
+        { ticketNumber: { contains: search, mode: 'insensitive' } },
         { user: { fullName: { contains: search, mode: 'insensitive' } } },
         { user: { phoneNumber: { contains: search, mode: 'insensitive' } } },
       ];
@@ -623,7 +693,7 @@ router.get('/tickets', authenticateJWT, requireRole([Role.SUPER_ADMIN, Role.SUB_
         where,
         orderBy: { createdAt: 'desc' },
         take: limit,
-        include: { user: { select: { fullName: true, phoneNumber: true, email: true } } },
+        include: TICKET_ADMIN_INCLUDE,
       }),
       prisma.supportTickets.count({ where }),
     ]);
@@ -636,26 +706,116 @@ router.get('/tickets', authenticateJWT, requireRole([Role.SUPER_ADMIN, Role.SUB_
 });
 
 // ── PATCH /admin/tickets/:id ──────────────────────────────────────
-router.patch('/tickets/:id', authenticateJWT, requireRole([Role.SUPER_ADMIN, Role.SUB_ADMIN]), async (req: Request, res: Response) => {
+router.patch('/tickets/:id', ...ADMIN_GUARD, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { id } = req.params;
-    const { status } = req.body;
+    const adminId = req.user!.id;
+    const { id }  = req.params;
+    const { status, closingNotes, note } = req.body;
 
     const allowed = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
     if (!allowed.includes(status)) {
       return res.status(400).json({ success: false, message: `Invalid status. Allowed: ${allowed.join(', ')}` });
     }
+    if (status === 'CLOSED' && !closingNotes?.trim()) {
+      return res.status(400).json({ success: false, message: 'Closing notes are required when closing a ticket.' });
+    }
+
+    const existing = await prisma.supportTickets.findUnique({ where: { id }, select: { status: true } });
+    if (!existing) return res.status(404).json({ success: false, message: 'Ticket not found' });
+
+    const admin = await prisma.adminUsers.findUnique({ where: { id: adminId }, select: { fullName: true, role: true } });
+    const adminName = admin?.fullName || 'Admin';
+    const adminRole = (admin?.role as string) || 'ADMIN';
+
+    const updateData: any = {
+      status,
+      ...(status === 'CLOSED' && { closingNotes: closingNotes.trim(), closedAt: new Date() }),
+      ...(status === 'RESOLVED' && { resolvedAt: new Date() }),
+      activities: {
+        create: {
+          action: status === 'CLOSED' ? 'CLOSED' : 'STATUS_CHANGED',
+          fromStatus: existing.status,
+          toStatus: status,
+          note: status === 'CLOSED' ? closingNotes.trim() : (note?.trim() || null),
+          performedByName: adminName,
+          performedByRole: adminRole,
+        },
+      },
+    };
 
     const ticket = await prisma.supportTickets.update({
       where: { id },
-      data: { status },
-      include: { user: { select: { fullName: true, phoneNumber: true, email: true } } },
+      data: updateData,
+      include: TICKET_ADMIN_INCLUDE,
     });
 
     return res.json({ success: true, ticket });
   } catch (err) {
     console.error('[admin/tickets PATCH]', err);
     return res.status(500).json({ success: false, message: 'Failed to update ticket' });
+  }
+});
+
+// ── POST /admin/tickets/:id/assign ────────────────────────────────
+router.post('/tickets/:id/assign', ...SUPER_ADMIN_ONLY, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const superAdminId = req.user!.id;
+    const { id }       = req.params;
+    const { adminId }  = req.body;
+
+    if (!adminId) {
+      return res.status(400).json({ success: false, message: 'adminId is required' });
+    }
+
+    const [subAdmin, existing, superAdmin] = await Promise.all([
+      prisma.adminUsers.findUnique({ where: { id: adminId }, select: { fullName: true, role: true } }),
+      prisma.supportTickets.findUnique({ where: { id }, select: { status: true } }),
+      prisma.adminUsers.findUnique({ where: { id: superAdminId }, select: { fullName: true } }),
+    ]);
+
+    if (!subAdmin || subAdmin.role !== Role.SUB_ADMIN) {
+      return res.status(400).json({ success: false, message: 'Target admin must be a SUB_ADMIN' });
+    }
+    if (!existing) return res.status(404).json({ success: false, message: 'Ticket not found' });
+
+    const ticket = await prisma.supportTickets.update({
+      where: { id },
+      data: {
+        assignedToAdminId: adminId,
+        status: existing.status === 'OPEN' ? 'IN_PROGRESS' : existing.status,
+        activities: {
+          create: {
+            action: 'ASSIGNED',
+            fromStatus: existing.status,
+            toStatus: existing.status === 'OPEN' ? 'IN_PROGRESS' : existing.status,
+            note: `Assigned to ${subAdmin.fullName}`,
+            performedByName: superAdmin?.fullName || 'Super Admin',
+            performedByRole: Role.SUPER_ADMIN,
+          },
+        },
+      },
+      include: TICKET_ADMIN_INCLUDE,
+    });
+
+    return res.json({ success: true, ticket });
+  } catch (err) {
+    console.error('[admin/tickets/:id/assign POST]', err);
+    return res.status(500).json({ success: false, message: 'Failed to assign ticket' });
+  }
+});
+
+// ── GET /admin/sub-admins/list ────────────────────────────────────
+router.get('/sub-admins/list', ...SUPER_ADMIN_ONLY, async (_req: Request, res: Response) => {
+  try {
+    const subAdmins = await prisma.adminUsers.findMany({
+      where: { role: Role.SUB_ADMIN },
+      select: { id: true, fullName: true, email: true },
+      orderBy: { fullName: 'asc' },
+    });
+    return res.json({ success: true, data: subAdmins });
+  } catch (err) {
+    console.error('[admin/sub-admins/list GET]', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch sub-admins' });
   }
 });
 

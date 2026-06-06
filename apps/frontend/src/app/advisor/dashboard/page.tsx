@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Calendar, Clock, User, AlertCircle, Loader2, ArrowLeft,
   CheckCircle2, XCircle, ShieldCheck, RefreshCw, LayoutDashboard,
-  Phone, MessageSquare, BadgeCheck
+  Phone, MessageSquare, BadgeCheck, Camera
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -150,9 +150,20 @@ export default function AdvisorDashboard() {
               {user?.fullName} — manage your consultation requests
             </p>
           </div>
-          <button onClick={fetchBookings} className="ml-auto text-slate-400 hover:text-gold-400 transition-colors p-2" title="Refresh">
-            <RefreshCw size={16} />
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <Link href="/advisor/profile"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105"
+              style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}
+              title="Edit Profile Images">
+              <Camera size={13} /> Edit Profile
+            </Link>
+            <Link href="/contact" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/10 transition-all">
+              <MessageSquare size={13} /> Support
+            </Link>
+            <button onClick={fetchBookings} className="text-slate-400 hover:text-gold-400 transition-colors p-2" title="Refresh">
+              <RefreshCw size={16} />
+            </button>
+          </div>
         </div>
       </div>
 

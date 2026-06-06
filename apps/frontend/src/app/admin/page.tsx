@@ -4,14 +4,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Users, FileText, CheckCircle, XCircle, TrendingUp, AlertTriangle,
   ShieldCheck, BookOpen, Loader2, Calendar, Clock, RefreshCw, BadgeCheck,
-  BarChart2, CreditCard, Download, ChevronDown, MapPin, X,
+  BarChart2, CreditCard, Download, ChevronDown, ChevronRight, MapPin, X,
   UserCheck, Award, Activity, Eye, MessageSquare, TicketCheck,
-  UserPlus, Send, ClipboardCheck, Shield, Search
+  UserPlus, Send, ClipboardCheck, Shield, Search, Lock
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
-type AdminTab = 'overview' | 'advisors' | 'users' | 'funnel' | 'subscriptions' | 'contact-packs' | 'bookings' | 'support' | 'sub-admins';
+type AdminTab = 'overview' | 'advisors' | 'users' | 'funnel' | 'subscriptions' | 'contact-packs' | 'contact-unlocks' | 'bookings' | 'support' | 'sub-admins';
 type BookingStatus = 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
 
 const STATUS_BADGE: Record<BookingStatus, string> = {
@@ -61,7 +61,13 @@ interface User { id: string; seqId?: number; fullName?: string; email?: string; 
 interface Subscription { id: string; advisorId: string; razorpayOrderId: string; razorpayPaymentId?: string; amount: string; status: string; subscribedAt?: string; expiresAt?: string; advisor: { fullName: string; email: string; advisorType: string }; }
 interface Booking { id: string; bookingNumber: string; scheduledDate: string; startTime: string; endTime: string; status: BookingStatus; totalFee: string; mode: string; client?: { fullName?: string; phoneNumber: string }; advisor?: { fullName: string }; }
 interface FunnelStep { step: number; label: string; count: number; }
-interface FunnelSession { id: string; phoneNumber: string; currentStep: number; stepLabel: string; lastActiveAt: string; advisorId?: string; }
+interface FunnelSessionSnapshot {
+  advisorType?: string; fullName?: string; email?: string; state?: string;
+  city?: string; businessName?: string; languages?: string[];
+  selectedSlugs?: string[]; licenseNumber?: string; gstNumber?: string;
+  experienceYears?: string; consultationFee?: string;
+}
+interface FunnelSession { id: string; phoneNumber: string; currentStep: number; stepLabel: string; lastActiveAt: string; advisorId?: string; formSnapshot?: FunnelSessionSnapshot; }
 interface Metrics { totalClients: number; totalAdvisors: number; approvedAdvisors: number; authorizedAdvisors: number; regularAdvisors: number; pendingVerification: number; consultationsCompleted: number; grossRevenue: string; platformCommission: string; activeSubscriptions: number; subscriptionRevenue: string; abandonedFunnels: number; completedOnboardings: number; }
 
 export default function AdminSuitePage() {
@@ -111,6 +117,7 @@ export default function AdminSuitePage() {
   const [funnelSteps, setFunnelSteps] = useState<FunnelStep[]>([]);
   const [funnelSessions, setFunnelSessions] = useState<FunnelSession[]>([]);
   const [funnelLoading, setFunnelLoading] = useState(false);
+  const [expandedFunnelRow, setExpandedFunnelRow] = useState<string | null>(null);
 
   // Subscriptions tab
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -123,19 +130,48 @@ export default function AdminSuitePage() {
   const [contactSubsLoading, setContactSubsLoading] = useState(false);
   const [contactSubStatusFilter, setContactSubStatusFilter] = useState('ALL');
 
+  // Contact Unlocks tab
+  interface ContactUnlockRecord {
+    id: string; unlockedAt: string; isFree: boolean;
+    user: { id: string; fullName?: string; phoneNumber: string; email?: string };
+    advisor: { id: string; fullName: string; businessName?: string; phoneNumber: string; email?: string; location: string; state?: string; categories: string[] };
+  }
+  const [contactUnlocks, setContactUnlocks]         = useState<ContactUnlockRecord[]>([]);
+  const [contactUnlocksLoading, setContactUnlocksLoading] = useState(false);
+  const [contactUnlocksSearch, setContactUnlocksSearch]   = useState('');
+  const [contactUnlocksTotal, setContactUnlocksTotal]     = useState(0);
+
   // Bookings tab
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [bookingFilter, setBookingFilter] = useState<BookingStatus | 'ALL'>('ALL');
 
   // Support tickets tab
-  interface SupportTicket { id: string; subject: string; description: string; status: string; createdAt: string; user: { fullName?: string; phoneNumber: string; email?: string }; }
+  interface TicketActivityItem { action: string; fromStatus?: string; toStatus?: string; note?: string; performedByName: string; performedByRole: string; createdAt: string; }
+  interface SupportTicket {
+    id: string; ticketNumber: string; subject: string; description: string;
+    category: string; priority: string; status: string; closingNotes?: string;
+    resolvedAt?: string; closedAt?: string;
+    user: { fullName?: string; phoneNumber: string; email?: string; role?: string };
+    assignedToAdmin?: { id: string; fullName: string };
+    activities: TicketActivityItem[];
+    createdAt: string;
+  }
   const [tickets, setTickets]                   = useState<SupportTicket[]>([]);
   const [ticketsLoading, setTicketsLoading]     = useState(false);
   const [ticketStatusFilter, setTicketStatusFilter] = useState('ALL');
   const [selectedTicket, setSelectedTicket]     = useState<SupportTicket | null>(null);
   const [ticketTotal, setTicketTotal]           = useState(0);
   const [openTicketCount, setOpenTicketCount]   = useState(0);
+  // Closing modal
+  const [closingModal, setClosingModal]         = useState(false);
+  const [closingNoteText, setClosingNoteText]   = useState('');
+  const [closingTicketId, setClosingTicketId]   = useState<string|null>(null);
+  const [closingSubmitting, setClosingSubmitting] = useState(false);
+  // Sub-admin assignment
+  const [ticketSubAdmins, setTicketSubAdmins]   = useState<{id:string;fullName:string}[]>([]);
+  const [assigningTicket, setAssigningTicket]   = useState<string|null>(null);
+  const [assignTargetId, setAssignTargetId]     = useState('');
 
   const token = () => (typeof localStorage !== 'undefined' ? localStorage.getItem('accessToken') || '' : '');
 
@@ -243,9 +279,65 @@ export default function AdminSuitePage() {
       if (ticketStatusFilter !== 'ALL') params.set('status', ticketStatusFilter);
       const r = await fetch(`${API}/admin/tickets?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
       const d = await r.json();
-      if (d.success) { setTickets(d.tickets); setTicketTotal(d.total); }
+      if (d.success) {
+        setTickets(d.tickets);
+        setTicketTotal(d.total);
+        setSelectedTicket(prev => prev ? (d.tickets.find((t: SupportTicket) => t.id === prev.id) ?? prev) : null);
+      }
     } catch { /* empty */ } finally { setTicketsLoading(false); }
   }, [ticketStatusFilter]);
+
+  const fetchTicketSubAdmins = useCallback(async () => {
+    if (!isSuperAdmin) return;
+    try {
+      const r = await fetch(`${API}/admin/sub-admins/list`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.success) setTicketSubAdmins(d.data);
+    } catch { /* ignore */ }
+  }, [isSuperAdmin]);
+
+  const assignTicket = useCallback(async (ticketId: string, adminId: string) => {
+    if (!adminId) return;
+    setAssigningTicket(ticketId);
+    try {
+      const r = await fetch(`${API}/admin/tickets/${ticketId}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ adminId }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        setTickets(prev => prev.map(t => t.id === ticketId ? d.ticket : t));
+        setSelectedTicket(prev => prev?.id === ticketId ? d.ticket : prev);
+        setAssignTargetId('');
+      }
+    } catch { /* ignore */ } finally { setAssigningTicket(null); }
+  }, []);
+
+  const openClosingModal = (ticketId: string) => {
+    setClosingTicketId(ticketId);
+    setClosingNoteText('');
+    setClosingModal(true);
+  };
+
+  const confirmCloseTicket = useCallback(async () => {
+    if (!closingTicketId || !closingNoteText.trim()) return;
+    setClosingSubmitting(true);
+    try {
+      const r = await fetch(`${API}/admin/tickets/${closingTicketId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ status: 'CLOSED', closingNotes: closingNoteText.trim() }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        setTickets(prev => prev.map(t => t.id === closingTicketId ? d.ticket : t));
+        setSelectedTicket(prev => prev?.id === closingTicketId ? d.ticket : prev);
+        setOpenTicketCount(c => Math.max(0, c - 1));
+        setClosingModal(false);
+      }
+    } catch { /* ignore */ } finally { setClosingSubmitting(false); }
+  }, [closingTicketId, closingNoteText]);
 
   const fetchContactSubs = useCallback(async () => {
     setContactSubsLoading(true);
@@ -258,7 +350,19 @@ export default function AdminSuitePage() {
     } catch { /* empty */ } finally { setContactSubsLoading(false); }
   }, [contactSubStatusFilter]);
 
+  const fetchContactUnlocks = useCallback(async () => {
+    setContactUnlocksLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: '100' });
+      if (contactUnlocksSearch.trim()) params.set('search', contactUnlocksSearch.trim());
+      const r = await fetch(`${API}/admin/contact-unlocks?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.success) { setContactUnlocks(d.data); setContactUnlocksTotal(d.total); }
+    } catch { /* empty */ } finally { setContactUnlocksLoading(false); }
+  }, [contactUnlocksSearch]);
+
   const updateTicketStatus = useCallback(async (id: string, status: string) => {
+    if (status === 'CLOSED') { openClosingModal(id); return; }
     try {
       const r = await fetch(`${API}/admin/tickets/${id}`, {
         method: 'PATCH',
@@ -267,12 +371,13 @@ export default function AdminSuitePage() {
       });
       const d = await r.json();
       if (d.success) {
-        setTickets(prev => prev.map(t => t.id === id ? { ...t, status } : t));
-        setSelectedTicket(prev => (prev?.id === id ? { ...prev, status } : prev));
+        setTickets(prev => prev.map(t => t.id === id ? d.ticket : t));
+        setSelectedTicket(prev => (prev?.id === id ? d.ticket : prev));
         setLogs(prev => [`Ticket ${id.slice(-6).toUpperCase()} → ${status}`, ...prev]);
         if (status !== 'OPEN') setOpenTicketCount(c => Math.max(0, c - 1));
       }
     } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { fetchDashboard(); fetchMyStats(); }, [fetchDashboard, fetchMyStats]);
@@ -281,8 +386,9 @@ export default function AdminSuitePage() {
   useEffect(() => { if (activeTab === 'funnel') fetchFunnel(); }, [activeTab, fetchFunnel]);
   useEffect(() => { if (activeTab === 'subscriptions') fetchSubscriptions(); }, [activeTab, fetchSubscriptions]);
   useEffect(() => { if (activeTab === 'contact-packs') fetchContactSubs(); }, [activeTab, fetchContactSubs]);
+  useEffect(() => { if (activeTab === 'contact-unlocks') fetchContactUnlocks(); }, [activeTab, fetchContactUnlocks]);
   useEffect(() => { if (activeTab === 'bookings') fetchBookings(); }, [activeTab, fetchBookings]);
-  useEffect(() => { if (activeTab === 'support') fetchTickets(); }, [activeTab, fetchTickets]);
+  useEffect(() => { if (activeTab === 'support') { fetchTickets(); fetchTicketSubAdmins(); } }, [activeTab, fetchTickets, fetchTicketSubAdmins]);
   useEffect(() => { if (activeTab === 'sub-admins') fetchSubAdmins(); }, [activeTab, fetchSubAdmins]);
   useEffect(() => {
     fetch(`${API}/admin/tickets?status=OPEN&limit=0`, { headers: { Authorization: `Bearer ${token()}` } })
@@ -512,6 +618,7 @@ export default function AdminSuitePage() {
     { key: 'funnel', label: 'Onboarding Funnel', icon: Activity },
     { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
     { key: 'contact-packs', label: 'Contact Packs', icon: Eye },
+    { key: 'contact-unlocks', label: 'Contact Unlocks', icon: UserCheck },
     { key: 'bookings', label: 'Bookings', icon: BookOpen },
     { key: 'support', label: openTicketCount > 0 ? `Support (${openTicketCount})` : 'Support', icon: MessageSquare },
   ];
@@ -1010,20 +1117,60 @@ export default function AdminSuitePage() {
               <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
                 <table className="w-full text-xs text-slate-700">
                   <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
-                    {['Phone', 'Step Reached', 'Label', 'Last Active', 'Advisor Created'].map(h => (
+                    {['Phone', 'Name', 'Email', 'State', 'Step', 'Last Active', 'Done', ''].map(h => (
                       <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-[10px]">{h}</th>
                     ))}
                   </tr></thead>
                   <tbody>
-                    {funnelSessions.map((s, i) => (
-                      <tr key={s.id} className={`border-b border-slate-50 hover:bg-indigo-50/40 ${i % 2 === 0 ? '' : 'bg-slate-50/60'}`}>
-                        <td className="px-4 py-3 font-mono">{s.phoneNumber}</td>
-                        <td className="px-4 py-3 text-center">{s.currentStep}/8</td>
-                        <td className="px-4 py-3">{s.stepLabel}</td>
-                        <td className="px-4 py-3 text-slate-500">{new Date(s.lastActiveAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
-                        <td className="px-4 py-3 text-center">{s.advisorId ? <CheckCircle size={13} className="text-emerald-400 mx-auto" /> : <XCircle size={13} className="text-red-400 mx-auto" />}</td>
-                      </tr>
-                    ))}
+                    {funnelSessions.map((s, i) => {
+                      const snap = s.formSnapshot;
+                      const open = expandedFunnelRow === s.id;
+                      return (
+                        <React.Fragment key={s.id}>
+                          <tr className={`border-b border-slate-50 hover:bg-indigo-50/40 ${i % 2 === 0 ? '' : 'bg-slate-50/60'}`}>
+                            <td className="px-4 py-3 font-mono">{s.phoneNumber}</td>
+                            <td className="px-4 py-3 font-medium">{snap?.fullName || '—'}</td>
+                            <td className="px-4 py-3 text-slate-400">{snap?.email || '—'}</td>
+                            <td className="px-4 py-3">{snap?.state || '—'}</td>
+                            <td className="px-4 py-3">{s.currentStep}/8 · <span className="text-slate-400">{s.stepLabel}</span></td>
+                            <td className="px-4 py-3 text-slate-500">{new Date(s.lastActiveAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                            <td className="px-4 py-3 text-center">{s.advisorId ? <CheckCircle size={13} className="text-emerald-400 mx-auto" /> : <XCircle size={13} className="text-red-400 mx-auto" />}</td>
+                            <td className="px-4 py-3">
+                              {snap && Object.keys(snap).some(k => (snap as any)[k]) && (
+                                <button onClick={() => setExpandedFunnelRow(open ? null : s.id)}
+                                  className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                                  {open ? 'Hide' : 'Details'} {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                          {open && snap && (
+                            <tr className="bg-indigo-50/60 border-b border-indigo-100">
+                              <td colSpan={8} className="px-6 py-3">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                                  {([
+                                    ['Type', snap.advisorType],
+                                    ['Business', snap.businessName],
+                                    ['City', snap.city],
+                                    ['Experience', snap.experienceYears ? `${snap.experienceYears} yrs` : undefined],
+                                    ['Fee', snap.consultationFee ? `₹${snap.consultationFee}` : undefined],
+                                    ['Languages', snap.languages?.join(', ')],
+                                    ['License', snap.licenseNumber],
+                                    ['GST', snap.gstNumber],
+                                    ['Services', snap.selectedSlugs?.join(', ')],
+                                  ] as [string, string | undefined][]).filter(([, v]) => v).map(([label, value]) => (
+                                    <div key={label}>
+                                      <p className="text-[9px] font-black uppercase tracking-wider text-indigo-500 mb-0.5">{label}</p>
+                                      <p className="font-semibold text-slate-700 truncate">{value}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
                 {funnelSessions.length === 0 && <p className="text-center py-12 text-slate-500 text-sm">No onboarding sessions recorded yet.</p>}
@@ -1140,6 +1287,96 @@ export default function AdminSuitePage() {
         </div>
       )}
 
+      {/* ── CONTACT UNLOCKS ── */}
+      {activeTab === 'contact-unlocks' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-slate-800">Advisor Contact Unlocks</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Every advisor contact revealed by a user — {contactUnlocksTotal} total</p>
+            </div>
+            <div className="flex gap-2 items-center">
+              {/* Search */}
+              <div className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-500">
+                <Search size={13} />
+                <input
+                  type="text"
+                  placeholder="Search user or advisor…"
+                  value={contactUnlocksSearch}
+                  onChange={e => setContactUnlocksSearch(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && fetchContactUnlocks()}
+                  className="outline-none bg-transparent w-44 placeholder-slate-400 text-slate-700"
+                />
+              </div>
+              <button onClick={fetchContactUnlocks} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 transition-colors">
+                <RefreshCw size={13} /> Refresh
+              </button>
+            </div>
+          </div>
+
+          {contactUnlocksLoading ? (
+            <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 size={22} className="animate-spin mr-3" /> Loading…</div>
+          ) : (
+            <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+              <table className="w-full text-xs text-slate-700">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
+                    {['User', 'User Phone', 'Advisor', 'Advisor Phone', 'Service Categories', 'Location', 'Unlock Type', 'Unlocked On'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {contactUnlocks.map((u, i) => (
+                    <tr key={u.id} className={`border-b border-slate-50 hover:bg-indigo-50/40 transition-colors ${i % 2 === 0 ? '' : 'bg-slate-50/50'}`}>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-800">{u.user.fullName || '—'}</p>
+                        {u.user.email && <p className="text-[10px] text-slate-400 mt-0.5">{u.user.email}</p>}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-600">{u.user.phoneNumber}</td>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-800">{u.advisor.fullName}</p>
+                        {u.advisor.businessName && <p className="text-[10px] text-slate-400 mt-0.5">{u.advisor.businessName}</p>}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-600">{u.advisor.phoneNumber}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {u.advisor.categories.length > 0
+                            ? u.advisor.categories.slice(0, 2).map(cat => (
+                                <span key={cat} className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-indigo-50 text-indigo-600 border border-indigo-100">
+                                  {cat}
+                                </span>
+                              ))
+                            : <span className="text-slate-400">—</span>
+                          }
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                        {u.advisor.location}{u.advisor.state ? `, ${u.advisor.state}` : ''}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${u.isFree ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                          {u.isFree ? '🎁 Free' : 'Credit'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                        {new Date(u.unlockedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        <div className="text-[10px] text-slate-400">
+                          {new Date(u.unlockedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {contactUnlocks.length === 0 && (
+                <p className="text-center py-12 text-slate-500 text-sm">No contact unlocks found.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── BOOKINGS ── */}
       {activeTab === 'bookings' && (
         <div className="space-y-4">
@@ -1192,13 +1429,14 @@ export default function AdminSuitePage() {
       {/* ── SUPPORT TICKETS ── */}
       {activeTab === 'support' && (
         <div className="space-y-5">
+          {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <TicketCheck size={18} className="text-indigo-600" /> Support Tickets
-                {ticketTotal > 0 && <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-medium">{ticketTotal} total</span>}
+                {ticketTotal > 0 && <span className="text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5 rounded-full font-bold">{ticketTotal} total</span>}
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">User-submitted issues from the chatbot widget</p>
+              <p className="text-xs text-slate-400 mt-0.5">Tickets raised by clients and advisors via /contact</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map(s => (
@@ -1212,6 +1450,7 @@ export default function AdminSuitePage() {
               </button>
             </div>
           </div>
+
           {ticketsLoading ? (
             <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 size={22} className="animate-spin mr-3" /> Loading tickets…</div>
           ) : tickets.length === 0 ? (
@@ -1221,54 +1460,207 @@ export default function AdminSuitePage() {
               {ticketStatusFilter !== 'ALL' && <button onClick={() => setTicketStatusFilter('ALL')} className="mt-3 text-xs text-indigo-500 hover:underline">Clear filter</button>}
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                {tickets.map(ticket => (
-                  <div key={ticket.id} onClick={() => setSelectedTicket(ticket)}
-                    className={`bg-white rounded-xl p-4 border cursor-pointer transition-all hover:shadow-md ${selectedTicket?.id === ticket.id ? 'border-indigo-400 shadow-md ring-1 ring-indigo-200' : 'border-slate-100 hover:border-slate-200'}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[10px] font-mono text-slate-400">BS-{ticket.id.slice(-8).toUpperCase()}</span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ticket.status === 'OPEN' ? 'bg-red-50 text-red-600 border border-red-200' : ticket.status === 'IN_PROGRESS' ? 'bg-amber-50 text-amber-600 border border-amber-200' : ticket.status === 'RESOLVED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>{ticket.status.replace('_', ' ')}</span>
-                        </div>
-                        <p className="text-sm font-semibold text-slate-800 truncate">{ticket.subject}</p>
-                        <p className="text-xs text-slate-400 mt-0.5 truncate">{ticket.user.fullName || ticket.user.phoneNumber}{ticket.user.email ? ` · ${ticket.user.email}` : ''}</p>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              {/* Left: ticket list */}
+              <div className="lg:col-span-2 space-y-2">
+                {tickets.map(ticket => {
+                  const statusColor = ticket.status === 'OPEN' ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : ticket.status === 'IN_PROGRESS' ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                    : ticket.status === 'RESOLVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-slate-50 text-slate-500 border-slate-200';
+                  const prioColor = ticket.priority === 'URGENT' ? 'text-red-600' : ticket.priority === 'HIGH' ? 'text-amber-600' : ticket.priority === 'MEDIUM' ? 'text-blue-600' : 'text-slate-400';
+                  return (
+                    <div key={ticket.id} onClick={() => setSelectedTicket(ticket)}
+                      className={`bg-white rounded-xl p-4 border cursor-pointer transition-all hover:shadow-md ${selectedTicket?.id === ticket.id ? 'border-indigo-400 shadow-md ring-1 ring-indigo-200' : 'border-slate-100 hover:border-slate-200'}`}>
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <span className="text-[10px] font-mono font-bold text-indigo-600">{ticket.ticketNumber || `BS-${ticket.id.slice(-8).toUpperCase()}`}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>{ticket.status.replace('_', ' ')}</span>
                       </div>
-                      <div className="text-[10px] text-slate-300 shrink-0 text-right">
-                        {new Date(ticket.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}<br />
-                        {new Date(ticket.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                      <p className="text-sm font-semibold text-slate-800 truncate mb-1">{ticket.subject}</p>
+                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                        <span className="text-[10px] text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-full">{ticket.category?.replace('_', ' ')}</span>
+                        <span className={`text-[10px] font-semibold ${prioColor}`}>{ticket.priority}</span>
                       </div>
+                      <p className="text-[11px] text-slate-400 truncate">{ticket.user.fullName || ticket.user.phoneNumber}</p>
+                      {ticket.assignedToAdmin && (
+                        <p className="text-[10px] text-slate-400 mt-0.5">↳ {ticket.assignedToAdmin.fullName}</p>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+
+              {/* Right: detail panel */}
               {selectedTicket ? (
-                <div className="bg-white rounded-2xl border border-slate-100 p-6 space-y-5 h-fit sticky top-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-mono text-slate-400">BS-{selectedTicket.id.slice(-8).toUpperCase()}</span>
-                      <button onClick={() => setSelectedTicket(null)} className="text-slate-300 hover:text-slate-500"><X size={16} /></button>
+                <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-100 p-6 space-y-5 h-fit sticky top-4 max-h-[85vh] overflow-y-auto">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="text-xs font-mono font-bold text-indigo-600">{selectedTicket.ticketNumber || `BS-${selectedTicket.id.slice(-8).toUpperCase()}`}</span>
+                      <h3 className="text-base font-bold text-slate-800 mt-0.5">{selectedTicket.subject}</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        From: <strong className="text-slate-600">{selectedTicket.user.fullName || 'User'}</strong>
+                        {' · '}{selectedTicket.user.phoneNumber}
+                        {selectedTicket.user.email && <> · {selectedTicket.user.email}</>}
+                        {selectedTicket.user.role && <span className="ml-1 text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{selectedTicket.user.role}</span>}
+                      </p>
                     </div>
-                    <h3 className="text-base font-bold text-slate-800">{selectedTicket.subject}</h3>
-                    <p className="text-xs text-slate-400 mt-1">From: <strong className="text-slate-600">{selectedTicket.user.fullName || 'User'}</strong>{' · '}{selectedTicket.user.phoneNumber}{selectedTicket.user.email && <> · {selectedTicket.user.email}</>}</p>
+                    <button onClick={() => setSelectedTicket(null)} className="text-slate-300 hover:text-slate-500 shrink-0"><X size={16} /></button>
                   </div>
-                  <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border border-slate-100">{selectedTicket.description}</div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Update Status</p>
-                    <div className="flex flex-wrap gap-2">
-                      {['IN_PROGRESS', 'RESOLVED', 'CLOSED'].map(s => (
-                        <button key={s} onClick={() => updateTicketStatus(selectedTicket.id, s)} disabled={selectedTicket.status === s}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${s === 'IN_PROGRESS' ? 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100' : s === 'RESOLVED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'}`}>
-                          {s === 'IN_PROGRESS' ? '🔄 In Progress' : s === 'RESOLVED' ? '✅ Resolved' : '🔒 Close'}
+
+                  {/* Badges */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(() => {
+                      const c = selectedTicket.status === 'OPEN' ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : selectedTicket.status === 'IN_PROGRESS' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                        : selectedTicket.status === 'RESOLVED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-slate-50 text-slate-500 border border-slate-200';
+                      return <span className={`text-xs font-bold px-3 py-1 rounded-full ${c}`}>{selectedTicket.status.replace('_', ' ')}</span>;
+                    })()}
+                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-50 text-slate-600 border border-slate-200">
+                      {selectedTicket.priority} priority
+                    </span>
+                    <span className="text-xs text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full">
+                      {selectedTicket.category?.replace('_', ' ')}
+                    </span>
+                    {selectedTicket.assignedToAdmin && (
+                      <span className="text-xs flex items-center gap-1 bg-slate-50 text-slate-600 border border-slate-200 px-3 py-1 rounded-full">
+                        <UserCheck size={11} /> {selectedTicket.assignedToAdmin.fullName}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Description */}
+                  <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border border-slate-100">
+                    {selectedTicket.description}
+                  </div>
+
+                  {/* Closing notes */}
+                  {selectedTicket.closingNotes && (
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <Lock size={11} /> Closing Notes
+                      </p>
+                      <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{selectedTicket.closingNotes}</p>
+                    </div>
+                  )}
+
+                  {/* Assign section (SUPER_ADMIN only) */}
+                  {isSuperAdmin && selectedTicket.status !== 'CLOSED' && (
+                    <div className="border-t border-slate-100 pt-4">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Assign to Sub-Admin</p>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={assignTargetId}
+                          onChange={e => setAssignTargetId(e.target.value)}
+                          className="flex-1 text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:border-indigo-400"
+                        >
+                          <option value="">Select sub-admin…</option>
+                          {ticketSubAdmins.map(sa => (
+                            <option key={sa.id} value={sa.id}>{sa.fullName}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => assignTicket(selectedTicket.id, assignTargetId)}
+                          disabled={!assignTargetId || assigningTicket === selectedTicket.id}
+                          className="px-4 py-2 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                        >
+                          {assigningTicket === selectedTicket.id ? <><Loader2 size={12} className="animate-spin" /> Assigning…</> : <><UserCheck size={12} /> Assign</>}
                         </button>
-                      ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Update Status */}
+                  {selectedTicket.status !== 'CLOSED' && (
+                    <div className="border-t border-slate-100 pt-4">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Update Status</p>
+                      <div className="flex flex-wrap gap-2">
+                        {['IN_PROGRESS', 'RESOLVED', 'CLOSED'].map(s => (
+                          <button key={s} onClick={() => updateTicketStatus(selectedTicket.id, s)}
+                            disabled={selectedTicket.status === s}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                              s === 'IN_PROGRESS' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                              : s === 'RESOLVED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                              : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
+                            }`}>
+                            {s === 'IN_PROGRESS' ? '🔄 In Progress' : s === 'RESOLVED' ? '✅ Resolved' : '🔒 Close Ticket'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Activity Timeline */}
+                  {selectedTicket.activities?.length > 0 && (
+                    <div className="border-t border-slate-100 pt-4">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Activity Timeline</p>
+                      <div className="space-y-3">
+                        {selectedTicket.activities.map((act, i) => (
+                          <div key={i} className="flex items-start gap-3">
+                            <div className="mt-0.5 w-5 h-5 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+                              {act.action === 'ASSIGNED' ? <UserCheck size={11} className="text-indigo-500" />
+                               : act.action === 'CLOSED' ? <Lock size={11} className="text-slate-500" />
+                               : <Activity size={11} className="text-indigo-400" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-slate-700">
+                                {act.action === 'ASSIGNED' ? (act.note || 'Ticket assigned')
+                                 : act.action === 'CLOSED' ? 'Ticket closed'
+                                 : act.toStatus ? `Status → ${act.toStatus.replace('_', ' ')}` : act.action}
+                              </p>
+                              {act.note && act.action !== 'ASSIGNED' && (
+                                <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{act.note}</p>
+                              )}
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                {act.performedByName} · {new Date(act.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="hidden lg:flex items-center justify-center bg-white rounded-2xl border border-dashed border-slate-200 h-48 text-slate-300 text-sm">← Click a ticket to view details</div>
+                <div className="hidden lg:col-span-3 lg:flex items-center justify-center bg-white rounded-2xl border border-dashed border-slate-200 h-64 text-slate-300 text-sm">
+                  ← Click a ticket to view details
+                </div>
               )}
+            </div>
+          )}
+
+          {/* Closing Notes Modal */}
+          {closingModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <Lock size={16} className="text-red-500" /> Close Ticket
+                  </h3>
+                  <button onClick={() => setClosingModal(false)} className="text-slate-300 hover:text-slate-500"><X size={18} /></button>
+                </div>
+                <p className="text-sm text-slate-500">Provide closing notes to explain the resolution before closing this ticket.</p>
+                <textarea
+                  value={closingNoteText}
+                  onChange={e => setClosingNoteText(e.target.value)}
+                  placeholder="Describe how this issue was resolved…"
+                  rows={4}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-indigo-400 resize-none"
+                />
+                <div className="flex items-center gap-3 justify-end">
+                  <button onClick={() => setClosingModal(false)} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmCloseTicket}
+                    disabled={!closingNoteText.trim() || closingSubmitting}
+                    className="px-5 py-2 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {closingSubmitting ? <><Loader2 size={13} className="animate-spin" /> Closing…</> : <>🔒 Close Ticket</>}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Calendar, Clock, MapPin, ShieldCheck, AlertCircle, Loader2,
-  ArrowLeft, XCircle, CheckCircle2, RefreshCw, BookOpen, Phone, Eye
+  ArrowLeft, XCircle, CheckCircle2, RefreshCw, BookOpen, Phone, Eye,
+  UserCheck, MessageSquare
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -91,6 +92,17 @@ export default function BookingsPage() {
   const [error, setError] = useState('');
   const [contactCredits, setContactCredits] = useState<{ creditsRemaining: number; expiresAt: string | null } | null>(null);
 
+  interface ContactedAdvisor {
+    id: string; unlockedAt: string; isFree: boolean;
+    advisor: {
+      id: string; fullName: string; businessName?: string; avatarUrl?: string;
+      location: string; state?: string; consultationFee: string;
+      phoneNumber: string; email?: string; experienceYears: number; categories: string[];
+    };
+  }
+  const [contactedAdvisors, setContactedAdvisors] = useState<ContactedAdvisor[]>([]);
+  const [contactedLoading, setContactedLoading]   = useState(false);
+
   useEffect(() => {
     if (!isLoggedIn) {
       openLoginModal(() => router.push('/bookings'));
@@ -98,6 +110,7 @@ export default function BookingsPage() {
     }
     fetchBookings();
     fetchContactCredits();
+    fetchContactedAdvisors();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn]);
 
@@ -108,6 +121,17 @@ export default function BookingsPage() {
       const data = await res.json();
       if (data.success) setContactCredits({ creditsRemaining: data.creditsRemaining, expiresAt: data.expiresAt });
     } catch { /* ignore */ }
+  };
+
+  const fetchContactedAdvisors = async () => {
+    setContactedLoading(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(`${API}/contacts/my-unlocks`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setContactedAdvisors(data.data);
+    } catch { /* ignore */ }
+    finally { setContactedLoading(false); }
   };
 
   const fetchBookings = async () => {
@@ -171,9 +195,17 @@ export default function BookingsPage() {
               {user?.fullName ? `Bookings for ${user.fullName}` : 'Your booking history'}
             </p>
           </div>
-          <button onClick={fetchBookings} className="ml-auto text-slate-400 hover:text-gold-400 transition-colors p-2" title="Refresh">
-            <RefreshCw size={16} />
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <Link href="/#services-section" className="btn-gold inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold">
+              <Phone size={13} /> Find Advisors
+            </Link>
+            <Link href="/contact" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/10 transition-all">
+              <MessageSquare size={13} /> Support
+            </Link>
+            <button onClick={fetchBookings} className="text-slate-400 hover:text-gold-400 transition-colors p-2" title="Refresh">
+              <RefreshCw size={16} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -197,7 +229,7 @@ export default function BookingsPage() {
               </div>
             </div>
             {contactCredits.creditsRemaining === 0 && (
-              <Link href="/advisors" className="px-3 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all hover:scale-105"
+              <Link href="/buy-pack" className="px-3 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all hover:scale-105"
                 style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}>
                 Buy Pack — ₹116.82
               </Link>
@@ -215,16 +247,7 @@ export default function BookingsPage() {
           <div className="flex items-center justify-center py-20 text-slate-400">
             <Loader2 size={24} className="animate-spin mr-3" /> Loading your consultations…
           </div>
-        ) : bookings.length === 0 ? (
-          <div className="text-center py-20 space-y-4">
-            <BookOpen size={48} className="text-slate-600 mx-auto" />
-            <p className="text-slate-400 font-medium">No consultations yet</p>
-            <p className="text-slate-500 text-sm">Book your first consultation with a verified advisor.</p>
-            <Link href="/" className="btn-gold inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm mt-2">
-              <Phone size={15} /> Find Advisors
-            </Link>
-          </div>
-        ) : (
+        ) : bookings.length === 0 ? null : (
           <div className="space-y-4">
             {bookings.map(booking => {
               const s = STATUS_STYLES[booking.status];
@@ -315,6 +338,95 @@ export default function BookingsPage() {
             })}
           </div>
         )}
+        {/* ── CONTACTED ADVISORS ── */}
+        <div className="mt-10">
+          {/* Section header */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <UserCheck size={15} className="text-indigo-400" />
+              <h2 className="text-sm font-bold text-white">Advisors You've Contacted</h2>
+              {contactedAdvisors.length > 0 && (
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  {contactedAdvisors.length}
+                </span>
+              )}
+            </div>
+            <button onClick={fetchContactedAdvisors} className="text-slate-500 hover:text-indigo-400 transition-colors p-1" title="Refresh">
+              <RefreshCw size={13} />
+            </button>
+          </div>
+
+          {contactedLoading ? (
+            <div className="flex items-center justify-center py-10 text-slate-400">
+              <Loader2 size={20} className="animate-spin mr-2" /> Loading…
+            </div>
+          ) : contactedAdvisors.length === 0 ? (
+            <div className="border border-white/5 rounded-2xl px-5 py-7 text-center bg-white/[0.02]">
+              <Eye size={28} className="text-slate-600 mx-auto mb-2" />
+              <p className="text-slate-400 text-sm font-medium">No contacts revealed yet</p>
+              <p className="text-slate-500 text-xs mt-1">Advisors whose contact details you unlock will appear here.</p>
+            </div>
+          ) : (
+            <div className="rounded-2xl overflow-hidden border border-white/10">
+              {contactedAdvisors.map(({ id, unlockedAt, isFree, advisor }, idx) => {
+                const initials = advisor.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+                const isLast = idx === contactedAdvisors.length - 1;
+                return (
+                  <div
+                    key={id}
+                    className={`flex items-center gap-4 px-4 py-3.5 bg-white/[0.03] hover:bg-indigo-500/10 transition-all ${!isLast ? 'border-b border-white/5' : ''}`}
+                  >
+                    {/* Avatar */}
+                    {advisor.avatarUrl ? (
+                      <img
+                        src={advisor.avatarUrl.startsWith('http') ? advisor.avatarUrl : `/uploads${advisor.avatarUrl.replace('/uploads', '')}`}
+                        alt={advisor.fullName}
+                        className="w-9 h-9 rounded-xl object-cover border border-white/10 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-black text-white shrink-0">
+                        {initials}
+                      </div>
+                    )}
+
+                    {/* Name + service */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <Link
+                          href={`/advisors/${advisor.id}`}
+                          className="text-sm font-bold text-white hover:text-indigo-300 transition-colors truncate"
+                        >
+                          {advisor.fullName}
+                        </Link>
+                        <ShieldCheck size={12} className="text-emerald-400 shrink-0" />
+                      </div>
+                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                        {advisor.categories.length > 0
+                          ? advisor.categories.slice(0, 2).join(' · ')
+                          : advisor.location}
+                      </p>
+                    </div>
+
+                    {/* Right side: badge + date */}
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                        isFree
+                          ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                          : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'
+                      }`}>
+                        {isFree ? '🎁 Free' : '🪙 Credit used'}
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        {new Date(unlockedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );
