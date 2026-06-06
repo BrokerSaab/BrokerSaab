@@ -10,6 +10,7 @@ import {
   Home, Shield, Scale, Percent, Landmark, CreditCard, Search, X,
   FileHeart, UserCheck, Lightbulb, Car, Users, GraduationCap,
   HeartHandshake, TrendingUp, Globe, Zap, Sprout, Laptop,
+  Flag, Plane, School, ClipboardList,
   ChevronDown, ChevronRight, Sparkles, ArrowLeft, Printer, Download, Clock
 } from 'lucide-react';
 
@@ -92,7 +93,12 @@ const ADVISOR_CATEGORIES = [
   { name: 'Passport, Visa & Foreign', slug: 'm16', icon: Globe, color: 'bg-blue-100', iconColor: 'text-blue-600', desc: 'Passport application assistance, student visas & stamps' },
   { name: 'Electricity, Water & Gas', slug: 'm17', icon: Zap, color: 'bg-yellow-100', iconColor: 'text-yellow-600', desc: 'New utility connections, load extensions & name changes' },
   { name: 'Farmer & Agriculture', slug: 'm18', icon: Sprout, color: 'bg-green-100', iconColor: 'text-green-600', desc: 'PM-KISAN entries, subsidies & agricultural certificates' },
-  { name: 'Online Form & Doc Help', slug: 'm19', icon: Laptop, color: 'bg-purple-100', iconColor: 'text-purple-600', desc: 'Electronic form submissions, scans & document help' },
+  { name: 'Online Form & Doc Help',        slug: 'm19', icon: Laptop,        color: 'bg-purple-100', iconColor: 'text-purple-600', desc: 'Electronic form submissions, scans & document help' },
+  { name: 'Central Government Schemes',    slug: 'm20', icon: Flag,          color: 'bg-orange-100', iconColor: 'text-orange-600', desc: 'PM-KISAN, Ayushman, Mudra Loan, PMAY & other central welfare schemes' },
+  { name: 'Study Abroad Consulting',       slug: 'm21', icon: Plane,         color: 'bg-sky-100',    iconColor: 'text-sky-600',    desc: 'Foreign university admissions, SOP/LOR, student visa & pre-departure' },
+  { name: 'Domestic College Admission',    slug: 'm22', icon: School,        color: 'bg-indigo-100', iconColor: 'text-indigo-600', desc: 'NEET/JEE/CAT counseling, seat allotment & college enrollment help' },
+  { name: 'Job Placement & Recruitment',   slug: 'm23', icon: ClipboardList, color: 'bg-teal-100',   iconColor: 'text-teal-600',   desc: 'Resume building, interview prep, offer negotiation & post-placement' },
+  { name: 'Visa & PR Immigration',         slug: 'm24', icon: FileCheck,     color: 'bg-red-100',    iconColor: 'text-red-600',    desc: 'Canada/UK/Australia PR, work permits, EOI, ITA & landing support' },
 ];
 
 const INITIAL_FORM: FormData = {

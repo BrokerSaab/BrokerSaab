@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Calendar, Clock, User, AlertCircle, Loader2, ArrowLeft,
   CheckCircle2, XCircle, ShieldCheck, RefreshCw, LayoutDashboard,
-  Phone, MessageSquare, BadgeCheck, Camera
+  Phone, MessageSquare, BadgeCheck, Camera, Layers
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -156,6 +156,9 @@ export default function AdvisorDashboard() {
               style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}
               title="Edit Profile Images">
               <Camera size={13} /> Edit Profile
+            </Link>
+            <Link href="/advisor/services" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/10 transition-all">
+              <Layers size={13} /> Services
             </Link>
             <Link href="/contact" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/10 transition-all">
               <MessageSquare size={13} /> Support

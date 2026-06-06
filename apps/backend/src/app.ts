@@ -126,6 +126,11 @@ const SEED_CATEGORIES = [
   { slug: 'm17', name: 'Electricity, Water & Gas' },
   { slug: 'm18', name: 'Farmer & Agriculture' },
   { slug: 'm19', name: 'Online Form & Doc Help' },
+  { slug: 'm20', name: 'Central Government Schemes' },
+  { slug: 'm21', name: 'Study Abroad Consulting' },
+  { slug: 'm22', name: 'Domestic College Admission' },
+  { slug: 'm23', name: 'Job Placement & Recruitment' },
+  { slug: 'm24', name: 'Visa & PR Immigration' },
 ];
 
 async function ensureCategories() {
@@ -137,7 +142,7 @@ async function ensureCategories() {
         create: { slug: cat.slug, name: cat.name },
       });
     }
-    console.log('[Startup] 19 service categories ensured.');
+    console.log('[Startup] 24 service categories ensured.');
   } catch (err) {
     console.error('[Startup] Category seed failed (non-fatal):', err);
   }
@@ -166,11 +171,13 @@ async function ensureAdminUser() {
   }
 }
 
-// Launch server instance
-Promise.all([ensureAdminUser(), ensureCategories()]).then(() => {
-  server.listen(PORT as number, () => {
-    console.log(`BrokerSaab Server is online on port ${PORT} in ${process.env.NODE_ENV} mode.`);
-  });
+// Bind the port immediately so Render / cloud hosts detect it within the timeout window.
+// Seeding runs after binding — a seed failure is non-fatal and never blocks the server.
+server.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`BrokerSaab Server is online on port ${PORT} in ${process.env.NODE_ENV} mode.`);
+  Promise.all([ensureAdminUser(), ensureCategories()]).catch(err =>
+    console.error('[Startup] Seed step failed (non-fatal):', err)
+  );
 });
 
 export { app, server, io };

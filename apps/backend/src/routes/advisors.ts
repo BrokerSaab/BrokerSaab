@@ -298,6 +298,47 @@ router.post(
 );
 
 /**
+ * GET /advisors/me
+ * Returns the authenticated advisor's current categories and specializations.
+ * Must be registered BEFORE /:id to avoid being swallowed by the wildcard.
+ */
+router.get('/me', authenticateJWT, requireRole([Role.ADVISOR]), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.user!.id;
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+
+    const advisor = await prisma.advisor.findUnique({
+      where: { phoneNumber: user.phoneNumber },
+      select: {
+        id: true,
+        fullName: true,
+        businessName: true,
+        verificationStatus: true,
+        categories: { include: { category: { select: { slug: true, name: true } } } },
+        specializations: { include: { specialization: { select: { slug: true, name: true } } } },
+      },
+    });
+    if (!advisor) { res.status(404).json({ success: false, message: 'Advisor profile not found' }); return; }
+
+    res.json({
+      success: true,
+      data: {
+        id: advisor.id,
+        fullName: advisor.fullName,
+        businessName: advisor.businessName,
+        verificationStatus: advisor.verificationStatus,
+        categorySlugs: advisor.categories.map(c => c.category.slug),
+        specializations: advisor.specializations.map(s => ({ slug: s.specialization.slug, name: s.specialization.name })),
+      },
+    });
+  } catch (err) {
+    console.error('[advisors/me]', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch advisor profile' });
+  }
+});
+
+/**
  * 2. GET /advisors/:id
  * Retrieve single advisor portfolio profile details, active availability slots, and reviews.
  */

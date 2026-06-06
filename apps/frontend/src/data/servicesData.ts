@@ -2,7 +2,8 @@ import React from 'react';
 import {
   FileHeart, UserCheck, Award, Home, Percent, Briefcase, Lightbulb, Landmark,
   ShieldCheck, Car, Scale, Users, GraduationCap, HeartHandshake, TrendingUp,
-  Globe, Zap, Sprout, Laptop
+  Globe, Zap, Sprout, Laptop,
+  Flag, Plane, School, ClipboardList, FileCheck
 } from 'lucide-react';
 
 export interface SubModule {
@@ -38,7 +39,8 @@ export interface ModuleColor {
 export const ICON_MAP: Record<string, React.ComponentType<any>> = {
   FileHeart, UserCheck, Award, Home, Percent, Briefcase, Lightbulb, Landmark,
   ShieldCheck, Car, Scale, Users, GraduationCap, HeartHandshake, TrendingUp,
-  Globe, Zap, Sprout, Laptop
+  Globe, Zap, Sprout, Laptop,
+  Flag, Plane, School, ClipboardList, FileCheck
 };
 
 export const MODULE_COLORS: ModuleColor[] = [
@@ -61,6 +63,11 @@ export const MODULE_COLORS: ModuleColor[] = [
   { gradient: 'from-yellow-400 to-orange-500',    bg: 'bg-yellow-50',   bgDark: 'bg-yellow-950/30',  text: 'text-yellow-600',  border: 'border-yellow-200',  borderDark: 'border-yellow-800/40',  iconBg: 'bg-gradient-to-br from-yellow-400 to-orange-500',   accent: '#FBBF24' },
   { gradient: 'from-green-500 to-emerald-600',    bg: 'bg-green-50',    bgDark: 'bg-green-950/30',   text: 'text-green-600',   border: 'border-green-200',   borderDark: 'border-green-800/40',   iconBg: 'bg-gradient-to-br from-green-500 to-emerald-600',   accent: '#22C55E' },
   { gradient: 'from-purple-500 to-indigo-600',    bg: 'bg-purple-50',   bgDark: 'bg-purple-950/30',  text: 'text-purple-600',  border: 'border-purple-200',  borderDark: 'border-purple-800/40',  iconBg: 'bg-gradient-to-br from-purple-500 to-indigo-600',   accent: '#A855F7' },
+  { gradient: 'from-orange-400 to-amber-500',     bg: 'bg-orange-50',   bgDark: 'bg-orange-950/30',  text: 'text-orange-600',  border: 'border-orange-200',  borderDark: 'border-orange-800/40',  iconBg: 'bg-gradient-to-br from-orange-400 to-amber-500',    accent: '#FB923C' },
+  { gradient: 'from-sky-400 to-cyan-500',         bg: 'bg-sky-50',      bgDark: 'bg-sky-950/30',     text: 'text-sky-600',     border: 'border-sky-200',     borderDark: 'border-sky-800/40',     iconBg: 'bg-gradient-to-br from-sky-400 to-cyan-500',        accent: '#38BDF8' },
+  { gradient: 'from-indigo-400 to-violet-500',    bg: 'bg-indigo-50',   bgDark: 'bg-indigo-950/30',  text: 'text-indigo-500',  border: 'border-indigo-200',  borderDark: 'border-indigo-800/40',  iconBg: 'bg-gradient-to-br from-indigo-400 to-violet-500',   accent: '#818CF8' },
+  { gradient: 'from-green-400 to-teal-500',       bg: 'bg-green-50',    bgDark: 'bg-green-950/30',   text: 'text-green-600',   border: 'border-green-200',   borderDark: 'border-green-800/40',   iconBg: 'bg-gradient-to-br from-green-400 to-teal-500',      accent: '#4ADE80' },
+  { gradient: 'from-red-500 to-rose-600',         bg: 'bg-red-50',      bgDark: 'bg-red-950/30',     text: 'text-red-600',     border: 'border-red-200',     borderDark: 'border-red-800/40',     iconBg: 'bg-gradient-to-br from-red-500 to-rose-600',        accent: '#EF4444' },
 ];
 
 export const MODULES_DATA: Module[] = [
@@ -417,6 +424,88 @@ export const MODULES_DATA: Module[] = [
       { id: "s19-2", nameEn: "CSC Center Services", nameHi: "जन सेवा केंद्र (CSC) आवेदन", keywords: ["CSC", "jan seva kendra", "e-mitra", "e-district"], route: "/advisors?category=documentation-expert" },
       { id: "s19-3", nameEn: "Online Form Submissions", nameHi: "सरकारी ऑनलाइन फॉर्म भरना", keywords: ["form filling", "online application", "sarkari form"], route: "/advisors?category=documentation-expert" },
       { id: "s19-4", nameEn: "Scanning & Document Copy", nameHi: "दस्तावेज़ स्कैनिंग और फोटोकॉपी", keywords: ["scan", "printout", "photocopy", "lamination"], route: "/advisors?category=documentation-expert" }
+    ]
+  },
+  {
+    id: "m20",
+    titleEn: "Central Government Schemes",
+    titleHi: "केंद्र सरकार की योजनाएं",
+    description: "Expert guidance for PM-KISAN, Ayushman Bharat, Mudra Loan, PMAY, PMEGP and other Central Govt welfare programmes.",
+    descriptionHi: "PM-KISAN, आयुष्मान भारत, मुद्रा लोन, PMAY, PMEGP जैसी केंद्र सरकार की योजनाओं के लिए विशेषज्ञ मार्गदर्शन।",
+    iconName: "Flag",
+    subModules: [
+      { id: "s20-1", nameEn: "PM-KISAN (Farm Income Support)",   nameHi: "पीएम किसान सम्मान निधि",              keywords: ["PM KISAN", "pm kisan", "farmer income", "kisan samman", "₹6000 farmer"], route: "/advisors?category=m20" },
+      { id: "s20-2", nameEn: "PMFBY (Crop Insurance)",           nameHi: "प्रधानमंत्री फसल बीमा योजना",         keywords: ["PMFBY", "crop insurance", "fasal bima", "farm insurance"], route: "/advisors?category=m20" },
+      { id: "s20-3", nameEn: "Ayushman Bharat (PM-JAY)",         nameHi: "आयुष्मान भारत – पीएम जन आरोग्य",     keywords: ["ayushman bharat", "PM-JAY", "health card", "5 lakh health cover", "golden card"], route: "/advisors?category=m20" },
+      { id: "s20-4", nameEn: "Atal Pension Yojana (APY)",        nameHi: "अटल पेंशन योजना",                    keywords: ["atal pension", "APY", "pension scheme", "retirement savings"], route: "/advisors?category=m20" },
+      { id: "s20-5", nameEn: "PM Mudra Yojana (PMMY)",           nameHi: "प्रधानमंत्री मुद्रा योजना",           keywords: ["mudra loan", "PMMY", "shishu loan", "kishore loan", "tarun loan", "small business loan"], route: "/advisors?category=m20" },
+      { id: "s20-6", nameEn: "PMEGP (Employment Generation)",    nameHi: "प्रधानमंत्री रोजगार सृजन कार्यक्रम", keywords: ["PMEGP", "employment generation", "self employment", "subsidy loan"], route: "/advisors?category=m20" },
+      { id: "s20-7", nameEn: "PM Awas Yojana (PMAY)",            nameHi: "प्रधानमंत्री आवास योजना",             keywords: ["PMAY", "awas yojana", "housing scheme", "pucca house", "EWS housing"], route: "/advisors?category=m20" },
+      { id: "s20-8", nameEn: "PM Ujjwala Yojana (PMUY)",         nameHi: "प्रधानमंत्री उज्ज्वला योजना",        keywords: ["ujjwala", "free LPG", "cooking gas BPL", "PMUY"], route: "/advisors?category=m20" },
+    ]
+  },
+  {
+    id: "m21",
+    titleEn: "Study Abroad Consulting",
+    titleHi: "विदेश में पढ़ाई — Study Abroad",
+    description: "End-to-end guidance for foreign university admissions: IELTS prep, SOP, shortlisting, visa and pre-departure.",
+    descriptionHi: "विदेशी विश्वविद्यालय में दाखिले के लिए IELTS, SOP, university shortlisting, visa और pre-departure guidance।",
+    iconName: "Plane",
+    subModules: [
+      { id: "s21-1", nameEn: "Student Lead & Profile Assessment",    nameHi: "विद्यार्थी प्रोफाइल मूल्यांकन",    keywords: ["study abroad inquiry", "profile assessment", "eligibility check", "GPA"], route: "/advisors?category=m21" },
+      { id: "s21-2", nameEn: "Document Collection (SOP/LOR/Scores)", nameHi: "SOP, LOR और स्कोरकार्ड संग्रह",     keywords: ["IELTS score", "TOEFL", "SOP writing", "letter of recommendation", "academic transcript"], route: "/advisors?category=m21" },
+      { id: "s21-3", nameEn: "University Shortlisting",              nameHi: "विश्वविद्यालय चयन",                keywords: ["university ranking", "course selection", "country preference", "QS ranking"], route: "/advisors?category=m21" },
+      { id: "s21-4", nameEn: "Application Processing",               nameHi: "आवेदन प्रक्रिया",                  keywords: ["university application", "deadline tracking", "admission form"], route: "/advisors?category=m21" },
+      { id: "s21-5", nameEn: "Offer Letter & Enrollment",            nameHi: "ऑफर लेटर और एनरोलमेंट",           keywords: ["offer letter", "conditional offer", "enrollment confirmation", "tuition deposit"], route: "/advisors?category=m21" },
+      { id: "s21-6", nameEn: "Pre-Departure & Visa Link",            nameHi: "रवानगी पूर्व तैयारी और वीज़ा",     keywords: ["student visa", "pre departure", "checklist", "orientation", "forex travel card"], route: "/advisors?category=m21" },
+    ]
+  },
+  {
+    id: "m22",
+    titleEn: "Domestic College Admission",
+    titleHi: "भारत में कॉलेज दाखिला — Domestic Admission",
+    description: "Complete support for Indian college admissions: NEET/JEE/CAT counseling, seat allotment and enrollment.",
+    descriptionHi: "भारतीय college में दाखिले के लिए NEET/JEE/CAT counseling, seat allotment और enrollment में पूरी मदद।",
+    iconName: "School",
+    subModules: [
+      { id: "s22-1", nameEn: "Student Inquiry & Stream Guidance",   nameHi: "stream और course guidance",        keywords: ["neet counselling", "jee counselling", "CAT college", "stream selection", "after 12th"], route: "/advisors?category=m22" },
+      { id: "s22-2", nameEn: "Document Collection",                 nameHi: "दस्तावेज़ संग्रह",                  keywords: ["marksheet", "domicile", "scorecard", "entrance scorecard", "category certificate"], route: "/advisors?category=m22" },
+      { id: "s22-3", nameEn: "College Shortlisting",                nameHi: "कॉलेज चयन",                        keywords: ["college shortlist", "cutoff matching", "state quota", "management quota", "NRI quota"], route: "/advisors?category=m22" },
+      { id: "s22-4", nameEn: "Application & Fee Processing",        nameHi: "आवेदन और फीस प्रक्रिया",           keywords: ["application form", "college fee", "payment tracking", "submission"], route: "/advisors?category=m22" },
+      { id: "s22-5", nameEn: "Counseling Rounds & Seat Allotment",  nameHi: "काउंसलिंग और seat allotment",      keywords: ["seat allotment", "round 1 2 3", "josaa", "mcc counselling", "upgrade option"], route: "/advisors?category=m22" },
+      { id: "s22-6", nameEn: "Enrollment & Joining Formalities",    nameHi: "एनरोलमेंट और joining",             keywords: ["college joining", "enrollment", "fee receipt", "original document submission"], route: "/advisors?category=m22" },
+    ]
+  },
+  {
+    id: "m23",
+    titleEn: "Job Placement & Recruitment",
+    titleHi: "नौकरी और रोजगार — Job Placement",
+    description: "Corporate job placement: resume building, interview preparation, offer negotiation and post-joining support.",
+    descriptionHi: "Corporate नौकरी के लिए resume, interview prep, offer negotiation और post-joining support।",
+    iconName: "ClipboardList",
+    subModules: [
+      { id: "s23-1", nameEn: "Candidate Profile & Resume Building",  nameHi: "candidate profile और resume",      keywords: ["resume writing", "CV build", "linkedin profile", "skill tagging", "job ready"], route: "/advisors?category=m23" },
+      { id: "s23-2", nameEn: "Document Collection",                  nameHi: "दस्तावेज़ संग्रह",                 keywords: ["relieving letter", "payslip", "experience certificate", "offer letter copy"], route: "/advisors?category=m23" },
+      { id: "s23-3", nameEn: "Job Matching & Employer Shortlisting", nameHi: "job matching और employer",         keywords: ["job matching", "employer shortlist", "MNC jobs", "job description mapping"], route: "/advisors?category=m23" },
+      { id: "s23-4", nameEn: "Interview Scheduling & Feedback",      nameHi: "interview schedule और feedback",   keywords: ["interview rounds", "HR round", "technical interview", "feedback tracking"], route: "/advisors?category=m23" },
+      { id: "s23-5", nameEn: "Offer Management & Negotiation",       nameHi: "offer management और negotiation",  keywords: ["offer letter", "CTC negotiation", "joining date", "counter offer"], route: "/advisors?category=m23" },
+      { id: "s23-6", nameEn: "Post-Placement Follow-up",             nameHi: "placement के बाद follow-up",       keywords: ["joining confirmation", "replacement clause", "retention", "BGV background check"], route: "/advisors?category=m23" },
+    ]
+  },
+  {
+    id: "m24",
+    titleEn: "Visa & PR Immigration",
+    titleHi: "वीज़ा और PR — Immigration",
+    description: "Expert visa, work permit and PR guidance for Canada, Australia, UK, USA and other countries.",
+    descriptionHi: "Canada, Australia, UK, USA जैसे देशों के लिए visa, work permit और PR की विशेषज्ञ मार्गदर्शन।",
+    iconName: "FileCheck",
+    subModules: [
+      { id: "s24-1", nameEn: "Eligibility Assessment & Country Shortlisting", nameHi: "eligibility check और country selection", keywords: ["immigration eligibility", "CRS score", "PR points", "country selection", "visa type"], route: "/advisors?category=m24" },
+      { id: "s24-2", nameEn: "Document Collection (PCC/WES/Financial)",       nameHi: "PCC, WES और financial documents",       keywords: ["PCC", "police clearance", "WES evaluation", "ECA", "financial documents", "employment proof"], route: "/advisors?category=m24" },
+      { id: "s24-3", nameEn: "Visa Application & Biometrics",                 nameHi: "visa application और biometrics",         keywords: ["visa application", "biometric appointment", "visa fee", "online form"], route: "/advisors?category=m24" },
+      { id: "s24-4", nameEn: "Case Tracking & Embassy Correspondence",        nameHi: "case tracking और embassy",              keywords: ["visa status", "case tracking", "embassy appointment", "IRCC", "VFS global"], route: "/advisors?category=m24" },
+      { id: "s24-5", nameEn: "PR Pathway (EOI / ITA)",                        nameHi: "PR pathway — EOI और ITA",               keywords: ["express entry", "EOI", "invitation to apply", "ITA", "PR pathway", "provincial nominee"], route: "/advisors?category=m24" },
+      { id: "s24-6", nameEn: "Post-Approval & Landing Support",               nameHi: "approval के बाद landing support",       keywords: ["COPR", "landing formalities", "SIN number", "PR card", "settlement"], route: "/advisors?category=m24" },
     ]
   }
 ];
