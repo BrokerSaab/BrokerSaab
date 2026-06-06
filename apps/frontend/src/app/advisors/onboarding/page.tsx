@@ -472,7 +472,10 @@ export default function AdvisorOnboarding() {
 
       const signupData = await signupRes.json();
       if (!signupRes.ok || !signupData.success) {
-        setError(signupData.message || 'Registration failed. Please try again.');
+        // Show specific field error if Zod returned one
+        const fieldErr = signupData.errors?.[0];
+        const detail = fieldErr ? ` (${fieldErr.field}: ${fieldErr.message})` : '';
+        setError((signupData.message || 'Registration failed. Please try again.') + detail);
         setLoading(false);
         return;
       }

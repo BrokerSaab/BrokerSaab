@@ -318,11 +318,19 @@ export default function AdvisorProfilePage({ params }: { params: Promise<{ id: s
                 {advisor.specializations.length > 0 && (
                   <div>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Specialisations</p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="space-y-1.5">
                       {advisor.specializations.map(sp => (
-                        <span key={sp} className="text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200 px-3 py-1.5 rounded-full">
-                          {sp}
-                        </span>
+                        sp.length > 40
+                          ? (
+                            <p key={sp} className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 leading-relaxed">
+                              {sp}
+                            </p>
+                          )
+                          : (
+                            <span key={sp} className="inline-block text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200 px-3 py-1.5 rounded-full mr-2 mb-1">
+                              {sp}
+                            </span>
+                          )
                       ))}
                     </div>
                   </div>
