@@ -3,337 +3,522 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2, Loader2, KeyRound, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import {
+  Mail, Lock, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2,
+  Loader2, KeyRound, Eye, EyeOff, AlertCircle, Phone, LayoutDashboard,
+  User, Smartphone, AtSign,
+} from 'lucide-react';
 
-type LoginRole = 'admin' | 'advisor';
+type Screen =
+  | 'selection'        // Landing — choose Admin or Advisor
+  | 'admin_login'      // Admin email + password
+  | 'advisor_method'   // Advisor — choose OTP or password
+  | 'advisor_otp'      // Advisor OTP flow
+  | 'advisor_otp_sent' // OTP entry
+  | 'advisor_password' // Advisor email + password
+  | 'success';
+
+const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+
+const inputWrap = 'flex items-center border-2 border-gray-200 rounded-xl overflow-hidden transition-all focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/20';
+const inputBase = 'flex-1 px-4 py-3.5 text-gray-900 text-sm outline-none placeholder:text-gray-400 bg-white';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [role, setRole] = useState<LoginRole>('admin');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [screen, setScreen] = useState<Screen>('selection');
+
+  // Shared
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
   const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState<'admin' | 'advisor'>('advisor');
 
-  const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+  // Password flow (admin + advisor)
+  const [email,        setEmail]        = useState('');
+  const [password,     setPassword]     = useState('');
+  const [showPwd,      setShowPwd]      = useState(false);
 
-  const handleLogin = async () => {
-    if (!email.trim()) { setError('Please enter your email address'); return; }
-    if (!password.trim()) { setError('Please enter your password'); return; }
-    if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
+  // OTP flow (advisor)
+  const [phone,        setPhone]        = useState('');
+  const [otp,          setOtp]          = useState(['','','','','','']);
+  const [otpCooldown,  setOtpCooldown]  = useState(0);
+  const [devOtp,       setDevOtp]       = useState('');
 
-    setLoading(true);
-    setError('');
+  const go = (s: Screen) => { setScreen(s); setError(''); };
 
+  // ── Admin / Advisor password login ──────────────────────────────
+  const handlePasswordLogin = async (role: 'admin' | 'advisor') => {
+    if (!email.trim()) { setError('Please enter your email'); return; }
+    if (!password.trim() || password.length < 6) { setError('Password must be at least 6 characters'); return; }
+    setLoading(true); setError('');
     try {
-      const res = await fetch(`${API}/auth/login/password`, {
+      const res  = await fetch(`${API}/auth/login/password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-
       if (data.success) {
         localStorage.setItem('accessToken', data.tokens.accessToken);
         localStorage.setItem('refreshToken', data.tokens.refreshToken);
         localStorage.setItem('user', JSON.stringify(data.user));
         setUserName(data.user.fullName || data.user.email);
-        setSuccess(true);
-        // Full reload so AuthContext re-hydrates from localStorage (shows user name in navbar)
-        setTimeout(() => { window.location.href = data.user.role === 'ADVISOR' ? '/advisors/onboarding' : '/admin'; }, 1500);
+        setUserRole(role);
+        setScreen('success');
+        const dest = data.user.role === 'ADVISOR' ? '/advisor/dashboard' : '/admin';
+        setTimeout(() => { window.location.href = dest; }, 1500);
       } else {
         setError(data.message || 'Invalid credentials');
       }
     } catch {
-      // Demo fallback when backend is not running
-      if (email === 'admin@brokersaab.com' && password === 'BrokerAdmin123') {
-        localStorage.setItem('user', JSON.stringify({
-          fullName: 'Super Admin',
-          email: 'admin@brokersaab.com',
-          role: 'SUPER_ADMIN'
-        }));
-        setUserName('Super Admin');
-        setSuccess(true);
+      if (role === 'admin' && email === 'admin@brokersaab.com' && password === 'BrokerAdmin123') {
+        localStorage.setItem('user', JSON.stringify({ fullName: 'Super Admin', email, role: 'SUPER_ADMIN' }));
+        setUserName('Super Admin'); setUserRole('admin'); setScreen('success');
         setTimeout(() => { window.location.href = '/admin'; }, 1500);
-      } else if (role === 'advisor') {
-        localStorage.setItem('user', JSON.stringify({
-          fullName: 'Demo Advisor',
-          email,
-          role: 'ADVISOR'
-        }));
-        setUserName('Demo Advisor');
-        setSuccess(true);
-        setTimeout(() => { window.location.href = '/advisors/onboarding'; }, 1500);
       } else {
-        setError('Unable to connect to server. Credentials: admin@brokersaab.com / BrokerAdmin123');
+        setError('Unable to connect. Check credentials or network.');
       }
     }
     setLoading(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleLogin();
+  // ── Send OTP ──────────────────────────────────────────────────────
+  const handleSendOtp = async () => {
+    if (phone.length < 10) { setError('Enter a valid 10-digit mobile number'); return; }
+    setLoading(true); setError('');
+    try {
+      const res  = await fetch(`${API}/auth/otp/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: `+91${phone}` }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.devOtp) setDevOtp(data.devOtp);
+        go('advisor_otp_sent');
+        setOtpCooldown(30);
+        const t = setInterval(() => setOtpCooldown(c => { if (c <= 1) { clearInterval(t); return 0; } return c - 1; }), 1000);
+      } else { setError(data.message || 'Failed to send OTP'); }
+    } catch { setDevOtp('123456'); go('advisor_otp_sent'); }
+    setLoading(false);
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-navy-800 to-slate-900 flex items-center justify-center px-4 py-12 relative overflow-hidden">
+  // ── Verify OTP ───────────────────────────────────────────────────
+  const handleVerifyOtp = async () => {
+    const code = otp.join('');
+    if (code.length !== 6) { setError('Enter the 6-digit OTP'); return; }
+    setLoading(true); setError('');
+    try {
+      const res  = await fetch(`${API}/auth/otp/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: `+91${phone}`, otp: code }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.isNewUser) {
+          setError('No advisor account found for this number. Please register first.');
+        } else if (data.user?.role !== 'ADVISOR') {
+          setError('This number is not registered as an advisor account.');
+        } else {
+          localStorage.setItem('accessToken', data.tokens.accessToken);
+          localStorage.setItem('refreshToken', data.tokens.refreshToken);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          setUserName(data.user.fullName || `+91 ${phone}`);
+          setUserRole('advisor'); setScreen('success');
+          setTimeout(() => { window.location.href = '/advisor/dashboard'; }, 1500);
+        }
+      } else { setError(data.message || 'Invalid OTP'); }
+    } catch { setError('Network error. Please try again.'); }
+    setLoading(false);
+  };
 
-      {/* Background decoration */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D4AF37' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-        }}
-      />
+  const handleOtpChange = (i: number, val: string) => {
+    if (val.length > 1) return;
+    const n = [...otp]; n[i] = val; setOtp(n);
+    if (val && i < 5) document.getElementById(`adv-otp-${i+1}`)?.focus();
+  };
+
+  const handleOtpKey = (i: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[i] && i > 0) document.getElementById(`adv-otp-${i-1}`)?.focus();
+  };
+
+  // ── RENDER ────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4 py-10"
+      style={{ background: 'linear-gradient(135deg,#0B1F3A 0%,#1a1040 50%,#0B1F3A 100%)' }}>
+
+      {/* Ambient glows */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full opacity-[0.08]" style={{ background: 'radial-gradient(circle,#D4AF37,transparent 70%)' }} />
+        <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-[0.08]" style={{ background: 'radial-gradient(circle,#4F46E5,transparent 70%)' }} />
+      </div>
 
       <div className="w-full max-w-md relative z-10">
 
-        {/* Back button */}
-        <button
-          type="button"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => router.push('/auth')}
-          className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-6 text-sm font-medium"
-        >
-          <ArrowLeft size={16} /> Back to User Login
-        </button>
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex flex-col items-center gap-2">
-            <div className="bg-white rounded-2xl px-5 py-3 border border-gold-500/20 shadow-lg hover:scale-105 transition-transform">
-              <img src="/logo-icon.png" alt="BrokerSaab" className="h-14 w-auto object-contain" />
+        {/* ═══ Card — same structure as LoginModal ═══ */}
+        <div className="bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+          style={{ border: '1px solid rgba(212,175,55,0.25)', boxShadow: '0 25px 60px rgba(0,0,0,0.4)', maxHeight: '95dvh' }}>
+
+          {/* ── Header (mirrors LoginModal exactly) ── */}
+          <div className="px-6 py-5 relative shrink-0"
+            style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
+            {/* Horizontal logo */}
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 bg-white rounded-lg overflow-hidden p-0.5 shrink-0 shadow-sm">
+                <img src="/logo-icon.png" alt="BrokerSaab" className="w-full h-full object-contain" />
+              </div>
+              <span className="text-sm font-black tracking-tight text-white">
+                Broker<span style={{ color: '#D4AF37' }}>Saab</span>
+              </span>
             </div>
-            <span className="text-white font-black text-xl tracking-tight">
-              Broker<span className="text-gold-400">Saab</span>
-            </span>
-          </Link>
-          <div className="flex items-center justify-center gap-2 mt-1">
-            <KeyRound size={13} className="text-gold-500" />
-            <p className="text-gold-400/70 text-sm font-medium">Secure Portal Access</p>
-          </div>
-        </div>
-
-        {/* ═══ Card ═══ */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
-
-          {/* Role Toggle */}
-          <div className="bg-gray-50 px-6 pt-5 pb-0 border-b border-gray-100">
-            <div className="flex rounded-xl bg-gray-200/60 p-1 mb-4">
-              <button
-                onClick={() => { setRole('admin'); setError(''); }}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                  role === 'admin'
-                    ? 'bg-navy-800 text-white shadow-md'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                🛡️ Admin Login
-              </button>
-              <button
-                onClick={() => { setRole('advisor'); setError(''); }}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                  role === 'advisor'
-                    ? 'bg-navy-800 text-white shadow-md'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                👨‍💼 Advisor Login
-              </button>
-            </div>
-          </div>
-
-          {/* Header */}
-          <div className="px-6 pt-5 pb-2">
-            <h1 className="text-xl font-bold text-gray-900">
-              {success ? 'Welcome Back!' : role === 'admin' ? 'Admin Dashboard Access' : 'Advisor Portal Login'}
+            {/* Dynamic title + subtitle per screen */}
+            <h1 className="text-lg font-black text-white leading-tight">
+              {screen === 'selection'        && 'Portal Access'}
+              {screen === 'admin_login'      && 'Admin Login'}
+              {screen === 'advisor_method'   && 'Advisor Login'}
+              {screen === 'advisor_otp'      && 'Verify Your Number'}
+              {screen === 'advisor_otp_sent' && 'Enter OTP'}
+              {screen === 'advisor_password' && 'Advisor Sign In'}
+              {screen === 'success'          && "You're Signed In!"}
             </h1>
-            <p className="text-gray-500 text-xs mt-1">
-              {success
-                ? `Signed in as ${userName}`
-                : role === 'admin'
-                  ? 'Sign in with your admin credentials'
-                  : 'Sign in with your registered advisor email'
-              }
+            <p className="text-white/50 text-xs mt-0.5">
+              {screen === 'selection'        && 'Choose your access portal to continue'}
+              {screen === 'admin_login'      && 'Sign in with your admin credentials'}
+              {screen === 'advisor_method'   && 'Select how you want to sign in'}
+              {screen === 'advisor_otp'      && 'Enter your registered advisor phone number'}
+              {screen === 'advisor_otp_sent' && `OTP sent to +91 ${phone}`}
+              {screen === 'advisor_password' && 'Use the email & password from your registration'}
+              {screen === 'success'          && `Welcome back, ${userName}!`}
             </p>
+            {/* Back / close button */}
+            {screen === 'selection' ? (
+              <Link href="/" className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors p-1" title="Home">
+                <ArrowLeft size={18} />
+              </Link>
+            ) : screen !== 'success' ? (
+              <button onClick={() => {
+                if (screen === 'admin_login')        go('selection');
+                else if (screen === 'advisor_method')  go('selection');
+                else if (screen === 'advisor_otp')     go('advisor_method');
+                else if (screen === 'advisor_otp_sent') { go('advisor_otp'); setOtp(['','','','','','']); }
+                else if (screen === 'advisor_password') go('advisor_method');
+              }}
+                className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors p-1">
+                <ArrowLeft size={18} />
+              </button>
+            ) : null}
           </div>
 
-          {/* Body */}
-          <div className="p-6 sm:p-8 pt-4">
+          {/* ── Body ── */}
+          <div className="p-6 sm:p-7 overflow-y-auto flex-1 min-h-0">
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-5 flex items-start gap-2">
-                <AlertCircle size={16} className="text-red-400 mt-0.5 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            {!success ? (
-              <div className="space-y-4">
-
-                {/* Email Field */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                  <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-                    <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200">
-                      <Mail size={18} className="text-gray-400" />
-                    </span>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder={role === 'admin' ? 'admin@brokersaab.com' : 'advisor@email.com'}
-                      className="flex-1 px-4 py-3.5 text-gray-900 text-sm outline-none placeholder:text-gray-400"
-                      autoFocus
-                    />
-                  </div>
-                </div>
-
-                {/* Password Field */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
-                  <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-                    <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200">
-                      <Lock size={18} className="text-gray-400" />
-                    </span>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Enter your password"
-                      className="flex-1 px-4 py-3.5 text-gray-900 text-sm outline-none placeholder:text-gray-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="px-3 py-3.5 text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Remember & Forgot */}
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2 text-gray-600 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500" />
-                    <span className="text-xs">Remember me</span>
-                  </label>
-                  <button className="text-xs text-blue-500 hover:text-blue-600 hover:underline font-medium">
-                    Forgot password?
-                  </button>
-                </div>
-
-                {/* Login Button */}
-                <button
-                  onClick={handleLogin}
-                  disabled={loading}
-                  className="w-full bg-gold-500 text-navy-800 font-bold py-3.5 rounded-xl text-sm hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg shadow-gold-500/20 mt-2"
-                >
-                  {loading ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
-                  {loading ? 'Signing in...' : `Sign In as ${role === 'admin' ? 'Admin' : 'Advisor'}`}
-                </button>
-
-                {/* Credentials hint */}
-                {role === 'admin' && (
-                  <div className="bg-navy-800/5 border border-navy-800/20 rounded-xl px-4 py-3 mt-3">
-                    <p className="text-[11px] font-bold text-navy-800 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                      🛡️ Admin Credentials
-                    </p>
-                    <div className="text-xs text-gray-700 space-y-1 font-mono">
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-400 w-16">Email</span>
-                        <span className="font-bold text-navy-800 select-all">admin@brokersaab.com</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-400 w-16">Password</span>
-                        <span className="font-bold text-navy-800 select-all">BrokerAdmin123</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Separator */}
-                <div className="relative my-2">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
-                  <div className="relative flex justify-center text-xs"><span className="bg-white px-3 text-gray-400">or</span></div>
-                </div>
-
-                {/* User Login Link */}
-                <Link
-                  href="/auth"
-                  className="w-full flex items-center justify-center gap-2 border-2 border-gray-200 text-gray-700 font-semibold py-3 rounded-xl text-sm hover:border-gray-300 hover:bg-gray-50 transition-all"
-                >
-                  📱 Sign in with Phone (User Login)
-                </Link>
-
-                {/* Advisor Signup */}
-                {role === 'advisor' && (
-                  <div className="text-center text-sm text-gray-500 mt-2">
-                    Not registered yet?{' '}
-                    <Link href="/advisors/onboarding" className="text-blue-500 hover:underline font-medium">
-                      Register as Advisor
-                    </Link>
-                  </div>
-                )}
-
-              </div>
-            ) : (
-              /* ── Success State ── */
-              <div className="text-center space-y-5 py-4">
-                <div className="w-20 h-20 mx-auto rounded-full bg-emerald-50 flex items-center justify-center">
-                  <CheckCircle2 size={40} className="text-emerald-500" />
+            {/* ── SUCCESS ── */}
+            {screen === 'success' && (
+              <div className="text-center space-y-5 py-3">
+                <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto"
+                  style={{ background: 'rgba(212,175,55,0.1)', border: '2px solid rgba(212,175,55,0.35)' }}>
+                  <CheckCircle2 size={40} className="text-[#D4AF37]" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">Welcome, {userName}!</h3>
+                  <h3 className="text-lg font-black text-gray-900">Welcome, {userName}!</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    {role === 'admin' ? 'Redirecting to Admin Dashboard...' : 'Redirecting to Advisor Workspace...'}
+                    {userRole === 'admin' ? 'Redirecting to Admin Dashboard…' : 'Redirecting to Advisor Workspace…'}
                   </p>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => { window.location.href = role === 'admin' ? '/admin' : '/advisors/onboarding'; }}
-                    className="inline-flex items-center justify-center gap-2 bg-gold-500 text-navy-800 font-bold px-8 py-3 rounded-xl text-sm hover:bg-gold-400 shadow-lg shadow-gold-500/20 transition-all"
-                  >
-                    {role === 'admin' ? 'Go to Admin Dashboard' : 'Go to Advisor Workspace'}
-                    <ArrowRight size={16} />
-                  </button>
-                  <Link
-                    href="/"
-                    className="text-sm text-gray-500 hover:text-gray-700 transition-colors flex items-center justify-center gap-1"
-                  >
-                    <ArrowLeft size={14} /> Back to Home
-                  </Link>
+                <button onClick={() => { window.location.href = userRole === 'admin' ? '/admin' : '/advisor/dashboard'; }}
+                  className="w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110"
+                  style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}>
+                  {userRole === 'admin' ? <><LayoutDashboard size={16} /> Go to Admin Dashboard</> : <><User size={16} /> Go to Advisor Dashboard</>}
+                </button>
+              </div>
+            )}
+
+            {/* ── SELECTION ── */}
+            {screen === 'selection' && (
+              <div className="space-y-4">
+                <div className="text-center mb-6">
+                  <h1 className="text-xl font-black text-gray-900">Portal Access</h1>
+                  <p className="text-gray-500 text-sm mt-1">Choose your portal to continue</p>
+                </div>
+
+                {/* Admin button */}
+                <button onClick={() => go('admin_login')}
+                  className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 border-gray-200 hover:border-[#0B1F3A] text-left transition-all group hover:shadow-lg hover:-translate-y-0.5"
+                  style={{  }}>
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all group-hover:scale-105"
+                    style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
+                    <ShieldCheck size={22} className="text-[#D4AF37]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-black text-gray-900 text-base">Admin Login</p>
+                    <p className="text-xs text-gray-400 mt-0.5">For platform super-admins and sub-admins</p>
+                  </div>
+                  <ArrowRight size={18} className="text-gray-300 group-hover:text-[#0B1F3A] group-hover:translate-x-1 transition-all" />
+                </button>
+
+                {/* Advisor button */}
+                <button onClick={() => go('advisor_method')}
+                  className="w-full flex items-center gap-4 p-5 rounded-2xl border-2 text-left transition-all group hover:shadow-lg hover:-translate-y-0.5"
+                  style={{ borderColor: 'rgba(212,175,55,0.4)', background: 'linear-gradient(135deg,#fffbf0,#fef9e7)' }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor='#D4AF37'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor='rgba(212,175,55,0.4)'}>
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all group-hover:scale-105"
+                    style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)' }}>
+                    <User size={22} className="text-[#0B1F3A]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-black text-gray-900 text-base">Advisor Login</p>
+                    <p className="text-xs text-gray-400 mt-0.5">For registered and verified advisors</p>
+                  </div>
+                  <ArrowRight size={18} className="text-[#B48C22]/50 group-hover:text-[#B48C22] group-hover:translate-x-1 transition-all" />
+                </button>
+
+                <div className="pt-2 text-center">
+                  <p className="text-xs text-gray-400">
+                    Are you a user?{' '}
+                    <Link href="/auth" className="text-[#B48C22] font-semibold hover:underline">Sign in here</Link>
+                    {' · '}
+                    <Link href="/advisors/onboarding" className="text-[#B48C22] font-semibold hover:underline">Register as Advisor</Link>
+                  </p>
                 </div>
               </div>
             )}
+
+            {/* ── ADMIN LOGIN ── */}
+            {screen === 'admin_login' && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
+                    <ShieldCheck size={18} className="text-[#D4AF37]" />
+                  </div>
+                  <div>
+                    <h1 className="text-lg font-black text-gray-900">Admin Login</h1>
+                    <p className="text-xs text-gray-400">Sign in with your admin credentials</p>
+                  </div>
+                </div>
+
+                {error && <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl"><AlertCircle size={15} className="shrink-0 mt-0.5" /><span>{error}</span></div>}
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                  <div className={inputWrap}>
+                    <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><Mail size={17} className="text-gray-400" /></span>
+                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key==='Enter' && handlePasswordLogin('admin')}
+                      placeholder="admin@brokersaab.com" className={inputBase} autoFocus />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                  <div className={inputWrap}>
+                    <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><Lock size={17} className="text-gray-400" /></span>
+                    <input type={showPwd ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key==='Enter' && handlePasswordLogin('admin')}
+                      placeholder="Enter your password" className={inputBase} />
+                    <button type="button" onClick={() => setShowPwd(p => !p)} className="px-3 text-gray-400 hover:text-gray-600">{showPwd ? <EyeOff size={17}/> : <Eye size={17}/>}</button>
+                  </div>
+                </div>
+
+                <button onClick={() => handlePasswordLogin('admin')} disabled={loading}
+                  className="w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50 mt-2"
+                  style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', color: '#D4AF37', boxShadow: '0 6px 18px rgba(11,31,58,0.3)' }}>
+                  {loading ? <><Loader2 size={17} className="animate-spin" /> Signing in…</> : <><ShieldCheck size={17} /> Sign In as Admin</>}
+                </button>
+
+                {/* Dev hint */}
+                <div className="rounded-xl px-4 py-3 mt-1" style={{ background: 'rgba(11,31,58,0.05)', border: '1px solid rgba(11,31,58,0.1)' }}>
+                  <p className="text-[10px] font-black text-[#0B1F3A]/60 uppercase tracking-wider mb-1">Dev Credentials</p>
+                  <p className="text-xs font-mono text-gray-700">admin@brokersaab.com / BrokerAdmin123</p>
+                </div>
+              </div>
+            )}
+
+            {/* ── ADVISOR METHOD SELECT ── */}
+            {screen === 'advisor_method' && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)' }}>
+                    <User size={18} className="text-[#0B1F3A]" />
+                  </div>
+                  <div>
+                    <h1 className="text-lg font-black text-gray-900">Advisor Login</h1>
+                    <p className="text-xs text-gray-400">Choose how you want to sign in</p>
+                  </div>
+                </div>
+
+                {/* OTP option */}
+                <button onClick={() => go('advisor_otp')}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all group hover:shadow-md hover:-translate-y-0.5"
+                  style={{ borderColor: 'rgba(212,175,55,0.35)', background: 'linear-gradient(135deg,#fffbf0,#fef9e7)' }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor='#D4AF37'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor='rgba(212,175,55,0.35)'}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(212,175,55,0.15)' }}>
+                    <Smartphone size={18} className="text-[#B48C22]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-black text-gray-900 text-sm">Login with Mobile OTP</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Enter your registered phone number and receive a 6-digit OTP</p>
+                  </div>
+                  <ArrowRight size={16} className="text-[#B48C22]/50 group-hover:text-[#B48C22] group-hover:translate-x-1 transition-all shrink-0" />
+                </button>
+
+                {/* Password option */}
+                <button onClick={() => go('advisor_password')}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 text-left transition-all group hover:border-[#0B1F3A] hover:shadow-md hover:-translate-y-0.5">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(11,31,58,0.07)' }}>
+                    <AtSign size={18} className="text-[#0B1F3A]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-black text-gray-900 text-sm">Login with Email & Password</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Use the email and password from your advisor registration</p>
+                  </div>
+                  <ArrowRight size={16} className="text-gray-300 group-hover:text-[#0B1F3A] group-hover:translate-x-1 transition-all shrink-0" />
+                </button>
+
+                <p className="text-center text-xs text-gray-400 pt-1">
+                  Not registered?{' '}
+                  <Link href="/advisors/onboarding" className="text-[#B48C22] font-semibold hover:underline">Register as Advisor</Link>
+                </p>
+              </div>
+            )}
+
+            {/* ── ADVISOR OTP — PHONE ENTRY ── */}
+            {screen === 'advisor_otp' && (
+              <div className="space-y-4">
+                <div className="mb-4">
+                  <h2 className="text-lg font-black text-gray-900">Verify Your Mobile</h2>
+                  <p className="text-sm text-gray-500 mt-1">Enter your registered advisor phone number</p>
+                </div>
+
+                {error && <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl"><AlertCircle size={15} className="shrink-0 mt-0.5" /><span>{error}</span></div>}
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Mobile Number</label>
+                  <div className={inputWrap}>
+                    <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200 text-sm text-gray-600 font-medium">+91</span>
+                    <input type="tel" maxLength={10} value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g,''))}
+                      onKeyDown={e => e.key==='Enter' && handleSendOtp()}
+                      placeholder="10-digit number" className={inputBase} autoFocus />
+                    <Phone size={16} className="text-gray-400 mr-3" />
+                  </div>
+                </div>
+
+                <button onClick={handleSendOtp} disabled={loading || phone.length < 10}
+                  className="w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 6px 18px rgba(212,175,55,0.3)' }}>
+                  {loading ? <><Loader2 size={17} className="animate-spin" /> Sending…</> : <><Smartphone size={17} /> Send OTP</>}
+                </button>
+              </div>
+            )}
+
+            {/* ── ADVISOR OTP — CODE ENTRY ── */}
+            {screen === 'advisor_otp_sent' && (
+              <div className="space-y-5">
+                <div className="mb-2">
+                  <h2 className="text-lg font-black text-gray-900">Enter OTP</h2>
+                  <p className="text-sm text-gray-500 mt-1">6-digit code sent to +91 {phone}</p>
+                </div>
+
+                {devOtp && (
+                  <div className="text-xs px-4 py-2.5 rounded-xl text-center" style={{ background: 'linear-gradient(135deg,#fffbf0,#fef9e7)', border: '1px solid rgba(212,175,55,0.4)', color: '#92701a' }}>
+                    Dev OTP: <strong className="font-mono text-base text-[#B48C22]">{devOtp}</strong>
+                  </div>
+                )}
+
+                {error && <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl"><AlertCircle size={15} className="shrink-0 mt-0.5" /><span>{error}</span></div>}
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3 text-center">Enter 6-digit OTP</label>
+                  <div className="flex justify-center gap-2 sm:gap-3">
+                    {otp.map((d, i) => (
+                      <input key={i} id={`adv-otp-${i}`} type="text" inputMode="numeric" maxLength={1}
+                        value={d}
+                        onChange={e => handleOtpChange(i, e.target.value.replace(/\D/g,''))}
+                        onKeyDown={e => handleOtpKey(i, e)}
+                        className="w-11 h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-xl outline-none transition-all text-gray-900 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20"
+                        autoFocus={i === 0} />
+                    ))}
+                  </div>
+                </div>
+
+                <button onClick={handleVerifyOtp} disabled={loading}
+                  className="w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}>
+                  {loading ? <><Loader2 size={17} className="animate-spin" /> Verifying…</> : <><ShieldCheck size={17} /> Verify & Sign In</>}
+                </button>
+
+                {otpCooldown > 0
+                  ? <p className="text-center text-xs text-gray-400">Resend in {otpCooldown}s</p>
+                  : <button onClick={() => { setOtp(['','','','','','']); go('advisor_otp'); }} className="w-full text-xs text-[#B48C22]/70 hover:text-[#B48C22] transition-colors py-1">← Change number / Resend OTP</button>
+                }
+              </div>
+            )}
+
+            {/* ── ADVISOR EMAIL + PASSWORD ── */}
+            {screen === 'advisor_password' && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)' }}>
+                    <AtSign size={18} className="text-[#0B1F3A]" />
+                  </div>
+                  <div>
+                    <h1 className="text-lg font-black text-gray-900">Advisor Sign In</h1>
+                    <p className="text-xs text-gray-400">Email & password from your registration</p>
+                  </div>
+                </div>
+
+                {error && <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl"><AlertCircle size={15} className="shrink-0 mt-0.5" /><span>{error}</span></div>}
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                  <div className={inputWrap}>
+                    <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><Mail size={17} className="text-gray-400" /></span>
+                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key==='Enter' && handlePasswordLogin('advisor')}
+                      placeholder="advisor@email.com" className={inputBase} autoFocus />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                  <div className={inputWrap}>
+                    <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><Lock size={17} className="text-gray-400" /></span>
+                    <input type={showPwd ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key==='Enter' && handlePasswordLogin('advisor')}
+                      placeholder="Enter your password" className={inputBase} />
+                    <button type="button" onClick={() => setShowPwd(p => !p)} className="px-3 text-gray-400 hover:text-gray-600">{showPwd ? <EyeOff size={17}/> : <Eye size={17}/>}</button>
+                  </div>
+                </div>
+
+                <button onClick={() => handlePasswordLogin('advisor')} disabled={loading}
+                  className="w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50 mt-1"
+                  style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 6px 18px rgba(212,175,55,0.3)' }}>
+                  {loading ? <><Loader2 size={17} className="animate-spin" /> Signing in…</> : <><ArrowRight size={17} /> Sign In as Advisor</>}
+                </button>
+
+                <p className="text-center text-xs text-gray-400 pt-1">
+                  Prefer OTP?{' '}
+                  <button onClick={() => go('advisor_otp')} className="text-[#B48C22] font-semibold hover:underline">Login with mobile OTP</button>
+                </p>
+              </div>
+            )}
+
           </div>
 
           {/* Footer */}
-          {!success && (
-            <div className="bg-gray-50 px-6 py-4 text-center border-t border-gray-100">
-              <p className="text-[11px] text-gray-400">
-                This is a secure portal. Unauthorized access is prohibited.
-              </p>
+          {screen !== 'success' && (
+            <div className="px-6 py-3.5 text-center border-t shrink-0" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', borderColor: 'rgba(212,175,55,0.1)' }}>
+              <p className="text-[10px] text-white/30">Secure portal · Unauthorized access is prohibited · BrokerSaab © 2026</p>
             </div>
           )}
         </div>
 
         {/* Trust indicators */}
-        <div className="flex items-center justify-center gap-4 mt-6 text-[11px] text-slate-400">
-          <div className="flex items-center gap-1">
-            <ShieldCheck size={12} className="text-emerald-400" />
-            <span>SSL Encrypted</span>
-          </div>
-          <span className="text-slate-600">•</span>
-          <div className="flex items-center gap-1">
-            <KeyRound size={12} className="text-gold-400" />
-            <span>Role-Based Access</span>
-          </div>
+        <div className="flex items-center justify-center gap-4 mt-5 text-[11px] text-white/30">
+          <span className="flex items-center gap-1"><ShieldCheck size={11} className="text-[#D4AF37]/50" /> SSL Encrypted</span>
+          <span className="text-white/15">•</span>
+          <span className="flex items-center gap-1"><KeyRound size={11} className="text-[#D4AF37]/50" /> Role-Based Access</span>
         </div>
       </div>
     </div>

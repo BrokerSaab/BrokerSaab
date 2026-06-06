@@ -102,6 +102,7 @@ export default function BookingsPage() {
   }
   const [contactedAdvisors, setContactedAdvisors] = useState<ContactedAdvisor[]>([]);
   const [contactedLoading, setContactedLoading]   = useState(false);
+  const [contactedError, setContactedError]       = useState('');
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -125,13 +126,21 @@ export default function BookingsPage() {
 
   const fetchContactedAdvisors = async () => {
     setContactedLoading(true);
+    setContactedError('');
     try {
       const token = localStorage.getItem('accessToken');
       const res = await fetch(`${API}/contacts/my-unlocks`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (data.success) setContactedAdvisors(data.data);
-    } catch { /* ignore */ }
-    finally { setContactedLoading(false); }
+      if (data.success) {
+        setContactedAdvisors(data.data);
+      } else {
+        setContactedError(data.message || 'Failed to load contacted advisors.');
+      }
+    } catch {
+      setContactedError('Cannot reach the server. Please check your connection and retry.');
+    } finally {
+      setContactedLoading(false);
+    }
   };
 
   const fetchBookings = async () => {
@@ -359,6 +368,14 @@ export default function BookingsPage() {
           {contactedLoading ? (
             <div className="flex items-center justify-center py-10 text-slate-400">
               <Loader2 size={20} className="animate-spin mr-2" /> Loading…
+            </div>
+          ) : contactedError ? (
+            <div className="border border-red-500/20 rounded-2xl px-5 py-6 text-center bg-red-500/5">
+              <AlertCircle size={24} className="text-red-400 mx-auto mb-2" />
+              <p className="text-red-400 text-sm font-medium">{contactedError}</p>
+              <button onClick={fetchContactedAdvisors} className="mt-3 text-xs text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+                Try again
+              </button>
             </div>
           ) : contactedAdvisors.length === 0 ? (
             <div className="border border-white/5 rounded-2xl px-5 py-7 text-center bg-white/[0.02]">

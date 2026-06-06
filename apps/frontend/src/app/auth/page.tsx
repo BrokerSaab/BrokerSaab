@@ -3,9 +3,9 @@
 import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Phone, ArrowRight, ShieldCheck, KeyRound, User, Mail, CheckCircle2, Loader2, LayoutDashboard, BookOpen, Scale, AlertOctagon, FileText, Gavel } from 'lucide-react';
+import { Phone, ArrowRight, ArrowLeft, ShieldCheck, KeyRound, User, Mail, CheckCircle2, Loader2, LayoutDashboard, BookOpen, Scale, AlertOctagon, FileText, Gavel, Lock, Eye, EyeOff } from 'lucide-react';
 
-type AuthStep = 'terms' | 'phone' | 'otp' | 'register' | 'success';
+type AuthStep = 'terms' | 'phone' | 'otp' | 'register' | 'set_password' | 'success';
 
 const USER_TC_CLAUSES = [
   { color: '#ef4444', icon: AlertOctagon, title: 'No Liability for Fraud or Misconduct', body: 'BrokerSaab is a third-party technology marketplace. We are NOT responsible or liable for any fraudulent activity, misrepresentation, negligence, professional misconduct, or financial harm caused by any advisor, agent, or dealer listed on this platform. Users engage professionals entirely at their own risk.' },
@@ -29,6 +29,10 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [devOtp, setDevOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
 
   const handleTcScroll = () => {
     const el = tcScrollRef.current;
@@ -92,10 +96,16 @@ export default function AuthPage() {
           localStorage.setItem('user', JSON.stringify(data.user));
           const role = data.user?.role ?? 'CLIENT';
           setUserRole(role);
-          setStep('success');
-          // Auto-redirect advisors to their dashboard after 2s
-          if (role === 'ADVISOR') {
+          // If CLIENT has never set a password, offer them to set one now
+          if (role === 'CLIENT' && !data.hasPassword) {
+            setStep('set_password');
+            setTimeout(() => router.push('/services'), 3000);
+          } else if (role === 'ADVISOR') {
+            setStep('success');
             setTimeout(() => router.push('/advisor/dashboard'), 2000);
+          } else {
+            setStep('success');
+            setTimeout(() => router.push('/services'), 1500);
           }
         }
       } else {
@@ -128,14 +138,55 @@ export default function AuthPage() {
         localStorage.setItem('accessToken', data.tokens.accessToken);
         localStorage.setItem('refreshToken', data.tokens.refreshToken);
         localStorage.setItem('user', JSON.stringify(data.user));
-        setStep('success');
+        setUserRole(data.user?.role ?? 'CLIENT');
+        setStep('set_password');
+        setTimeout(() => router.push('/services'), 3000);
       } else {
         setError(data.message || 'Registration failed');
       }
     } catch {
       // Demo mode
       localStorage.setItem('user', JSON.stringify({ fullName, phoneNumber, role: 'CLIENT' }));
+      setStep('set_password');
+      setTimeout(() => router.push('/services'), 3000);
+    }
+    setLoading(false);
+  };
+
+  // ── Step 4: Set Password (optional) ──
+  const handleSetPassword = async () => {
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
+      setError('Password must include an uppercase letter, lowercase letter, and a number');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('accessToken') || '';
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/auth/password/set`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ newPassword }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStep('success');
+        setTimeout(() => router.push('/services'), 1500);
+      } else {
+        setError(data.message || 'Failed to set password');
+      }
+    } catch {
+      // Demo mode — proceed anyway
       setStep('success');
+      setTimeout(() => router.push('/services'), 1500);
     }
     setLoading(false);
   };
@@ -160,52 +211,70 @@ export default function AuthPage() {
     }
   };
 
+  const stepTitle: Record<AuthStep, string> = {
+    terms:        'Terms & Conditions',
+    phone:        'Sign In to Continue',
+    otp:          'Verify Your Number',
+    register:     'Complete Your Profile',
+    set_password: 'Secure Your Account',
+    success:      "You're All Set!",
+  };
+  const stepSub: Record<AuthStep, string> = {
+    terms:        'Please read and accept before continuing',
+    phone:        'Enter your mobile number to get started',
+    otp:          `OTP sent to +91 ${phoneNumber}`,
+    register:     'Tell us your name to personalise your experience',
+    set_password: 'Set a password for faster login next time',
+    success:      'Welcome to BrokerSaab!',
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-4 py-6"
+      style={{ background: 'linear-gradient(135deg,#0B1F3A 0%,#1a1040 50%,#0B1F3A 100%)' }}>
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex flex-col items-center gap-2">
-            <div className="bg-white rounded-2xl px-5 py-3 border border-gray-200 shadow-lg hover:scale-105 transition-transform">
-              <img src="/logo-icon.png" alt="BrokerSaab" className="h-14 w-auto object-contain" />
-            </div>
-            <span className="text-navy-800 font-black text-xl tracking-tight">
-              Broker<span className="text-gold-500">Saab</span>
-            </span>
-          </Link>
-          <p className="text-gray-500 text-sm mt-1">Trusted Advisory Platform</p>
-        </div>
+      {/* Ambient glows */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full opacity-[0.08]" style={{ background: 'radial-gradient(circle,#D4AF37,transparent 70%)' }} />
+        <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full opacity-[0.08]" style={{ background: 'radial-gradient(circle,#4F46E5,transparent 70%)' }} />
+      </div>
 
-        {/* ═══════════════════════════════════════
-            Card Container
-            ═══════════════════════════════════════ */}
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+      <div className="w-full max-w-md relative z-10">
 
-          {/* Header */}
-          <div className={`px-6 py-5 text-center relative ${step === 'terms' ? 'bg-gradient-to-r from-[#0a0505] to-[#0d0818]' : 'bg-gradient-to-r from-navy-800 to-navy-700'}`}>
+        {/* Card — same structure as LoginModal */}
+        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+          style={{ border: '1px solid rgba(212,175,55,0.25)', boxShadow: '0 25px 60px rgba(0,0,0,0.4)', maxHeight: '95dvh' }}>
+
+          {/* ── Header (mirrors LoginModal exactly) ── */}
+          <div className="px-6 py-5 relative shrink-0"
+            style={{ background: step === 'terms' ? 'linear-gradient(135deg,#0a0505,#0d0818)' : 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
             {step === 'terms' && (
               <div className="absolute top-0 left-0 right-0 h-[3px]"
-                style={{ background: 'linear-gradient(90deg, #ef4444, #f59e0b, #8b5cf6)' }} />
+                style={{ background: 'linear-gradient(90deg,#ef4444,#f59e0b,#8b5cf6)' }} />
             )}
-            <h1 className="text-xl font-bold text-white">
-              {step === 'terms' && 'Terms & Conditions'}
-              {step === 'phone' && 'Sign In / Register'}
-              {step === 'otp' && 'Verify OTP'}
-              {step === 'register' && 'Complete Your Profile'}
-              {step === 'success' && 'Welcome to BrokerSaab!'}
-            </h1>
-            <p className="text-blue-200/70 text-xs mt-1">
-              {step === 'terms' && 'Read and accept before continuing'}
-              {step === 'phone' && 'Enter your mobile number to get started'}
-              {step === 'otp' && `We sent a 6-digit code to +91 ${phoneNumber}`}
-              {step === 'register' && 'Tell us a bit about yourself'}
-              {step === 'success' && 'You are now signed in'}
-            </p>
+            {step === 'set_password' && (
+              <div className="absolute top-0 left-0 right-0 h-[3px]"
+                style={{ background: 'linear-gradient(90deg,#6366f1,#8b5cf6,#3b82f6)' }} />
+            )}
+            {/* Horizontal logo */}
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 bg-white rounded-lg overflow-hidden p-0.5 shrink-0 shadow-sm">
+                <img src="/logo-icon.png" alt="BrokerSaab" className="w-full h-full object-contain" />
+              </div>
+              <span className="text-sm font-black tracking-tight text-white">
+                Broker<span style={{ color: '#D4AF37' }}>Saab</span>
+              </span>
+            </div>
+            {/* Title + subtitle */}
+            <h1 className="text-lg font-black text-white leading-tight">{stepTitle[step]}</h1>
+            <p className="text-white/50 text-xs mt-0.5">{stepSub[step]}</p>
+            {/* Back to home (top-right) */}
+            <Link href="/" className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors p-1" title="Back to Home">
+              <ArrowLeft size={18} />
+            </Link>
           </div>
 
-          {/* Body */}
-          <div className="p-6 sm:p-8">
+          {/* Body — scrollable flex-1 so card never exceeds viewport */}
+          <div className="p-6 sm:p-7 overflow-y-auto flex-1 min-h-0">
 
             {/* ── STEP: Terms & Conditions ── */}
             {step === 'terms' && (
@@ -271,7 +340,7 @@ export default function AuthPage() {
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Mobile Number</label>
-                  <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                  <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/20 transition-all">
                     <span className="bg-gray-50 px-4 py-3.5 text-gray-500 font-medium border-r border-gray-200 text-sm">+91</span>
                     <input
                       type="tel"
@@ -302,9 +371,12 @@ export default function AuthPage() {
 
                 <Link
                   href="/auth/admin"
-                  className="w-full flex items-center justify-center gap-2 border-2 border-gray-200 text-gray-700 font-semibold py-3 rounded-xl text-sm hover:border-gray-300 hover:bg-gray-50 transition-all"
+                  className="w-full flex items-center justify-center gap-2 border-2 font-semibold py-3 rounded-xl text-sm transition-all"
+                  style={{ borderColor: 'rgba(212,175,55,0.4)', color: '#0B1F3A', background: 'linear-gradient(135deg,#fffbf0,#fef9e7)' }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = '#D4AF37')}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(212,175,55,0.4)')}
                 >
-                  <KeyRound size={16} />
+                  <KeyRound size={16} className="text-[#B48C22]" />
                   Admin / Advisor Login
                 </Link>
               </div>
@@ -314,8 +386,8 @@ export default function AuthPage() {
             {step === 'otp' && (
               <div className="space-y-5">
                 {devOtp && (
-                  <div className="bg-blue-50 border border-blue-200 text-blue-700 text-xs px-4 py-2.5 rounded-xl text-center">
-                    <strong>Dev Mode:</strong> Your OTP is <span className="font-mono font-bold text-lg">{devOtp}</span>
+                  <div className="text-xs px-4 py-2.5 rounded-xl text-center" style={{ background: 'linear-gradient(135deg,#fffbf0,#fef9e7)', border: '1px solid rgba(212,175,55,0.4)', color: '#92701a' }}>
+                    <strong>Dev Mode:</strong> Your OTP is <span className="font-mono font-bold text-lg text-[#B48C22]">{devOtp}</span>
                   </div>
                 )}
 
@@ -332,7 +404,7 @@ export default function AuthPage() {
                         value={digit}
                         onChange={(e) => handleOtpChange(i, e.target.value.replace(/\D/g, ''))}
                         onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                        className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-xl outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-gray-900"
+                        className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-xl outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition-all text-gray-900"
                         autoFocus={i === 0}
                       />
                     ))}
@@ -352,7 +424,7 @@ export default function AuthPage() {
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => { setStep('phone'); setOtp(['', '', '', '', '', '']); setError(''); }}
-                  className="w-full text-gray-500 text-sm hover:text-gray-700 transition-colors py-2"
+                  className="w-full text-[#B48C22]/70 text-sm hover:text-[#B48C22] transition-colors py-2"
                 >
                   ← Change phone number
                 </button>
@@ -364,7 +436,7 @@ export default function AuthPage() {
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name *</label>
-                  <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                  <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/20 transition-all">
                     <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><User size={18} className="text-gray-400" /></span>
                     <input
                       type="text"
@@ -379,7 +451,7 @@ export default function AuthPage() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Email (Optional)</label>
-                  <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                  <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/20 transition-all">
                     <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><Mail size={18} className="text-gray-400" /></span>
                     <input
                       type="email"
@@ -398,6 +470,90 @@ export default function AuthPage() {
                 >
                   {loading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
                   {loading ? 'Creating Account...' : 'Complete Registration'}
+                </button>
+              </div>
+            )}
+
+            {/* ── STEP: Set Password ── */}
+            {step === 'set_password' && (
+              <div className="space-y-5">
+                <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                  <Lock size={16} className="text-blue-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-blue-700 leading-relaxed">
+                    <strong>Set a password</strong> so you can log in faster next time — no OTP needed. You can always use OTP login too.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
+                  <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/20 transition-all">
+                    <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><Lock size={17} className="text-gray-400" /></span>
+                    <input
+                      type={showPwd ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Min. 8 chars, A-Z, a-z, 0-9"
+                      className="flex-1 px-4 py-3.5 text-gray-900 text-sm outline-none placeholder:text-gray-400"
+                      autoFocus
+                    />
+                    <button type="button" onClick={() => setShowPwd(p => !p)} className="px-3 text-gray-400 hover:text-gray-600">
+                      {showPwd ? <EyeOff size={17} /> : <Eye size={17} />}
+                    </button>
+                  </div>
+                  {newPassword.length > 0 && (
+                    <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                      {[
+                        { label: '8+ chars', ok: newPassword.length >= 8 },
+                        { label: 'Uppercase', ok: /[A-Z]/.test(newPassword) },
+                        { label: 'Lowercase', ok: /[a-z]/.test(newPassword) },
+                        { label: 'Number', ok: /\d/.test(newPassword) },
+                      ].map(r => (
+                        <span key={r.label} className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${r.ok ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'}`}>
+                          {r.ok ? '✓' : '·'} {r.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
+                  <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/20 transition-all">
+                    <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><Lock size={17} className="text-gray-400" /></span>
+                    <input
+                      type={showConfirmPwd ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Repeat your password"
+                      className="flex-1 px-4 py-3.5 text-gray-900 text-sm outline-none placeholder:text-gray-400"
+                    />
+                    <button type="button" onClick={() => setShowConfirmPwd(p => !p)} className="px-3 text-gray-400 hover:text-gray-600">
+                      {showConfirmPwd ? <EyeOff size={17} /> : <Eye size={17} />}
+                    </button>
+                  </div>
+                  {confirmPassword.length > 0 && (
+                    <p className={`text-xs mt-1 font-medium ${newPassword === confirmPassword ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {newPassword === confirmPassword ? '✓ Passwords match' : '✗ Passwords do not match'}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleSetPassword}
+                  disabled={loading || newPassword.length < 8}
+                  className="w-full font-bold py-3.5 rounded-xl text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg hover:brightness-110"
+                  style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', color: '#D4AF37', boxShadow: '0 8px 20px rgba(11,31,58,0.4)' }}
+                >
+                  {loading ? <Loader2 size={18} className="animate-spin" /> : <KeyRound size={18} />}
+                  {loading ? 'Saving Password…' : 'Set Password & Continue'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setStep('success'); setTimeout(() => router.push('/services'), 1500); }}
+                  className="w-full text-gray-400 text-sm hover:text-gray-600 transition-colors py-1.5"
+                >
+                  Skip for now — I'll use OTP login
                 </button>
               </div>
             )}
@@ -421,7 +577,7 @@ export default function AuthPage() {
                     </p>
                   ) : (
                     <p className="text-sm text-gray-500 mt-1">
-                      Welcome to BrokerSaab. Start exploring our services.
+                      Welcome to BrokerSaab! Taking you to services…
                     </p>
                   )}
                 </div>
@@ -429,7 +585,8 @@ export default function AuthPage() {
                 {userRole === 'ADVISOR' ? (
                   <Link
                     href="/advisor/dashboard"
-                    className="inline-flex items-center gap-2 bg-blue-600 text-white font-bold px-8 py-3 rounded-xl text-sm hover:bg-blue-500 shadow-lg transition-all"
+                    className="inline-flex items-center gap-2 font-bold px-8 py-3 rounded-xl text-sm shadow-lg transition-all hover:brightness-110"
+                    style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}
                   >
                     <LayoutDashboard size={16} /> Go to My Dashboard
                   </Link>
@@ -454,28 +611,23 @@ export default function AuthPage() {
           </div>
 
           {/* Footer */}
-          {step !== 'success' && step !== 'terms' && (
-            <div className="bg-gray-50 px-6 py-4 text-center border-t border-gray-100">
-              <p className="text-[11px] text-gray-400">
+          {step !== 'success' && step !== 'terms' && step !== 'set_password' && (
+            <div className="px-6 py-3 text-center border-t shrink-0"
+              style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', borderColor: 'rgba(212,175,55,0.12)' }}>
+              <p className="text-[10px] text-white/30">
                 You accepted our{' '}
-                <button onClick={() => setStep('terms')} className="text-blue-500 hover:underline">Terms & Conditions</button>
+                <button onClick={() => setStep('terms')} className="text-[#D4AF37]/60 hover:text-[#D4AF37] underline">Terms & Conditions</button>
                 {' '}· BrokerSaab is not liable for advisor fraud
               </p>
             </div>
           )}
         </div>
 
-        {/* Trust indicators */}
-        <div className="flex items-center justify-center gap-4 mt-6 text-[11px] text-gray-400">
-          <div className="flex items-center gap-1">
-            <ShieldCheck size={12} className="text-emerald-400" />
-            <span>256-bit encrypted</span>
-          </div>
-          <span>•</span>
-          <div className="flex items-center gap-1">
-            <CheckCircle2 size={12} className="text-blue-400" />
-            <span>Escrow protected</span>
-          </div>
+        {/* Trust row below card */}
+        <div className="flex items-center justify-center gap-4 mt-4 text-[11px] text-white/30">
+          <span className="flex items-center gap-1"><ShieldCheck size={11} className="text-[#D4AF37]/50" /> 256-bit encrypted</span>
+          <span className="text-white/15">•</span>
+          <span className="flex items-center gap-1"><CheckCircle2 size={11} className="text-[#D4AF37]/50" /> Escrow protected</span>
         </div>
       </div>
     </div>

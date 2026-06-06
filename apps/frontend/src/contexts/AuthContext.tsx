@@ -65,6 +65,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('user');
     localStorage.removeItem('tempToken');
     setUser(null);
+    setIsModalOpen(false);
+    afterLoginCallbackRef.current = null;
+    if (typeof document !== 'undefined') document.body.style.overflow = '';
   };
 
   // Private — passed directly to LoginModal, not exposed through context

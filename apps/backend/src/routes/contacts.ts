@@ -52,6 +52,60 @@ router.get('/status', authenticateJWT, requireRole([Role.CLIENT]), async (req: A
   }
 });
 
+// ── GET /contacts/my-unlocks ──────────────────────────────────────
+router.get('/my-unlocks', authenticateJWT, requireRole([Role.CLIENT]), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const unlocks = await prisma.contactUnlock.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        advisor: {
+          select: {
+            id: true,
+            fullName: true,
+            businessName: true,
+            avatarUrl: true,
+            location: true,
+            state: true,
+            consultationFee: true,
+            phoneNumber: true,
+            email: true,
+            experienceYears: true,
+            categories: { include: { category: { select: { name: true } } } },
+          },
+        },
+      },
+    });
+
+    return res.json({
+      success: true,
+      data: unlocks.map((u) => ({
+        id: u.id,
+        unlockedAt: u.createdAt,
+        isFree: u.isFree,
+        advisor: {
+          id: u.advisor.id,
+          fullName: u.advisor.fullName,
+          businessName: u.advisor.businessName,
+          avatarUrl: u.advisor.avatarUrl,
+          location: u.advisor.location,
+          state: u.advisor.state,
+          consultationFee: u.advisor.consultationFee,
+          phoneNumber: u.advisor.phoneNumber,
+          email: u.advisor.email,
+          experienceYears: u.advisor.experienceYears,
+          categories: u.advisor.categories.map((c) => c.category.name),
+        },
+      })),
+    });
+  } catch (err) {
+    console.error('[contacts/my-unlocks]', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch contacted advisors' });
+  }
+});
+
 // ── POST /contacts/unlock/:advisorId ─────────────────────────────
 router.post('/unlock/:advisorId', authenticateJWT, requireRole([Role.CLIENT]), async (req: AuthenticatedRequest, res: Response) => {
   const userId    = req.user!.id;
@@ -207,6 +261,39 @@ router.post('/verify-payment', authenticateJWT, requireRole([Role.CLIENT]), asyn
   } catch (err) {
     console.error('[contacts/verify-payment]', err);
     return res.status(500).json({ success: false, message: 'Payment verification failed' });
+  }
+});
+
+// ── POST /contacts/dev-activate (development only) ───────────────
+// Bypasses Razorpay and directly activates a pack for testing
+router.post('/dev-activate', authenticateJWT, requireRole([Role.CLIENT]), async (req: AuthenticatedRequest, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ success: false, message: 'Not found' });
+  }
+  try {
+    const userId = req.user!.id;
+    const now = new Date();
+    const expiresAt = new Date(now);
+    expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+
+    await prisma.userContactSubscription.create({
+      data: {
+        userId,
+        razorpayOrderId:   `dev_order_${Date.now()}`,
+        razorpayPaymentId: `dev_pay_${Date.now()}`,
+        amount:            TOTAL_AMOUNT,
+        status:            TransactionStatus.SUCCESS,
+        subscribedAt:      now,
+        expiresAt,
+        creditsTotal:      CREDITS_PER_PACK,
+        creditsUsed:       0,
+      },
+    });
+
+    return res.json({ success: true, creditsTotal: CREDITS_PER_PACK, expiresAt });
+  } catch (err) {
+    console.error('[contacts/dev-activate]', err);
+    return res.status(500).json({ success: false, message: 'Dev activation failed' });
   }
 });
 

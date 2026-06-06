@@ -64,6 +64,13 @@
            transition-all duration-200 ease-out;
   }
 
+  /* Indigo buttons (used in advisor onboarding) */
+  .btn-indigo {
+    @apply bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-semibold px-6 py-2.5 rounded-lg
+           shadow-lg shadow-indigo-600/20 hover:shadow-indigo-500/30 hover:scale-[1.02] active:scale-[0.98]
+           transition-all duration-200 ease-out;
+  }
+
   .btn-outline {
     @apply border border-gold-500/40 text-gold-400 hover:bg-gold-500/10 active:scale-[0.98]
            px-6 py-2.5 rounded-lg transition-all duration-200 ease-out;

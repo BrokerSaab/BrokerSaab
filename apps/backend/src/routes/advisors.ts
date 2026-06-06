@@ -360,6 +360,7 @@ router.get('/:id', optionalAuth, async (req: AuthenticatedRequest, res: Response
         fullName: advisor.fullName,
         businessName: advisor.businessName,
         avatarUrl: advisor.avatarUrl,
+        coverImageUrl: (advisor as any).coverImageUrl ?? null,
         bio: advisor.bio,
         experienceYears: advisor.experienceYears,
         licenseNumber: advisor.licenseNumber,
@@ -502,6 +503,85 @@ router.post(
     } catch (error) {
       console.error('[documents upload]', error);
       res.status(500).json({ success: false, message: 'Error uploading document' });
+    }
+  }
+);
+
+/**
+ * 5a. POST /advisors/upload/avatar
+ * Upload / replace profile photo. Updates advisor.avatarUrl.
+ */
+router.post(
+  '/upload/avatar',
+  authenticateJWT,
+  requireRole([Role.ADVISOR]),
+  kycUpload.single('file'),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const advisorId = (req.user as any).advisorId;
+      if (!advisorId) { res.status(400).json({ success: false, message: 'Advisor profile not found' }); return; }
+      if (!req.file) { res.status(400).json({ success: false, message: 'No file uploaded' }); return; }
+
+      const avatarUrl = `/uploads/kyc/${req.file.filename}`;
+      await (prisma.advisor as any).update({
+        where: { id: advisorId },
+        data: { avatarUrl },
+      });
+      res.json({ success: true, avatarUrl });
+    } catch (err) {
+      console.error('[advisors/upload/avatar]', err);
+      res.status(500).json({ success: false, message: 'Avatar upload failed' });
+    }
+  }
+);
+
+/**
+ * 5b. POST /advisors/upload/cover
+ * Upload / replace cover/banner image. Updates advisor.coverImageUrl.
+ */
+router.post(
+  '/upload/cover',
+  authenticateJWT,
+  requireRole([Role.ADVISOR]),
+  kycUpload.single('file'),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const advisorId = (req.user as any).advisorId;
+      if (!advisorId) { res.status(400).json({ success: false, message: 'Advisor profile not found' }); return; }
+      if (!req.file) { res.status(400).json({ success: false, message: 'No file uploaded' }); return; }
+
+      const coverImageUrl = `/uploads/kyc/${req.file.filename}`;
+      await (prisma.advisor as any).update({
+        where: { id: advisorId },
+        data: { coverImageUrl },
+      });
+      res.json({ success: true, coverImageUrl });
+    } catch (err) {
+      console.error('[advisors/upload/cover]', err);
+      res.status(500).json({ success: false, message: 'Cover upload failed' });
+    }
+  }
+);
+
+/**
+ * 5c. GET /advisors/me/images
+ * Returns current avatarUrl and coverImageUrl for the logged-in advisor.
+ */
+router.get(
+  '/me/images',
+  authenticateJWT,
+  requireRole([Role.ADVISOR]),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const advisorId = (req.user as any).advisorId;
+      if (!advisorId) { res.status(400).json({ success: false, message: 'Advisor profile not found' }); return; }
+      const advisor = await (prisma.advisor as any).findUnique({
+        where: { id: advisorId },
+        select: { avatarUrl: true, coverImageUrl: true, fullName: true },
+      });
+      res.json({ success: true, ...advisor });
+    } catch (err) {
+      res.status(500).json({ success: false, message: 'Failed to fetch images' });
     }
   }
 );

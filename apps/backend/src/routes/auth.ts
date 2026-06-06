@@ -5,7 +5,7 @@ import * as bcrypt from 'bcryptjs';
 import { Role } from '@prisma/client';
 import prisma from '../config/db';
 import { validateRequest } from '../middlewares/validate';
-import { logAuditEvent } from '../middlewares/auth';
+import { authenticateJWT, AuthenticatedRequest, logAuditEvent } from '../middlewares/auth';
 
 const router = Router();
 
@@ -41,6 +41,22 @@ const passwordLoginSchema = z.object({
   body: z.object({
     email: z.string().email('Invalid email address'),
     password: z.string().min(6, 'Password must be at least 6 characters')
+  })
+});
+
+const phonePasswordLoginSchema = z.object({
+  body: z.object({
+    phoneNumber: z.string().min(10, 'Phone number must be at least 10 digits').max(15, 'Phone number max length 15'),
+    password: z.string().min(6, 'Password must be at least 6 characters').max(128, 'Password too long'),
+  })
+});
+
+const setPasswordSchema = z.object({
+  body: z.object({
+    newPassword: z.string()
+      .min(8, 'Password must be at least 8 characters')
+      .max(128, 'Password too long')
+      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Must contain uppercase, lowercase, and a number'),
   })
 });
 
@@ -151,6 +167,7 @@ router.post('/otp/verify', validateRequest(verifyOtpSchema), async (req: Request
   res.status(200).json({
     success: true,
     isNewUser: false,
+    hasPassword: !!user.passwordHash,
     tokens,
     user: {
       id: user.id,
@@ -229,6 +246,74 @@ router.post('/register/complete', validateRequest(completeRegistrationSchema), a
   } catch (error) {
     res.status(400).json({ success: false, message: 'Invalid or expired onboarding session' });
   }
+});
+
+/**
+ * 4a. POST /auth/login/phone-password
+ * Phone + password login for CLIENT users who have previously set a password.
+ */
+router.post('/login/phone-password', validateRequest(phonePasswordLoginSchema), async (req: Request, res: Response): Promise<void> => {
+  const { phoneNumber, password } = req.body;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { phoneNumber },
+      include: { wallet: true }
+    });
+
+    if (!user || user.role !== Role.CLIENT) {
+      res.status(404).json({ success: false, message: 'No account found with this phone number.' });
+      return;
+    }
+
+    if (!user.passwordHash) {
+      res.status(400).json({ success: false, message: 'No password set for this account. Please use OTP login.' });
+      return;
+    }
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      res.status(401).json({ success: false, message: 'Incorrect password. Please try again.' });
+      return;
+    }
+
+    await logAuditEvent('LOGIN', user.id, { method: 'PASSWORD' }, undefined, req);
+
+    const tokens = generateTokens(user);
+    res.status(200).json({
+      success: true,
+      tokens,
+      user: {
+        id: user.id,
+        phoneNumber: user.phoneNumber,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        walletBalance: user.wallet?.balance || '0.00'
+      }
+    });
+  } catch (err: any) {
+    console.error('[phone-password login error]', err);
+    res.status(500).json({ success: false, message: 'Server error during login. Please try again.' });
+  }
+});
+
+/**
+ * 4b. POST /auth/password/set
+ * Allows an authenticated CLIENT to set or update their login password.
+ */
+router.post('/password/set', authenticateJWT, validateRequest(setPasswordSchema), async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { newPassword } = req.body;
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { passwordHash }
+  });
+
+  await logAuditEvent('PASSWORD_SET', req.user!.id, { method: 'self_set' }, undefined, req);
+
+  res.status(200).json({ success: true, message: 'Password set successfully.' });
 });
 
 /**

@@ -78,6 +78,7 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const [hoveredModule, setHoveredModule] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const langDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -147,31 +148,57 @@ export default function Navbar() {
     const Icon = mod.icon;
     const colorIdx = NAV_MODULES.findIndex(m => m.id === mod.id);
     const colors = MODULE_COLORS[colorIdx % MODULE_COLORS.length];
+    const acc = colors.accent;           // hex e.g. "#F43F5E"
+    const isHovered = hoveredModule === mod.id;
 
     return (
       <Link
         key={mod.id}
         href={`/?module=${mod.id}`}
         onClick={(e) => handleModuleClick(mod.id, e)}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-white/70 border-2 transition-all duration-200 group/item ${colors.border} hover:${colors.bg} hover:shadow-[0_8px_20px_rgba(0,0,0,0.03)] hover:-translate-y-0.5`}
+        onMouseEnter={() => setHoveredModule(mod.id)}
+        onMouseLeave={() => setHoveredModule(null)}
+        className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all duration-200"
+        style={{
+          background:   isHovered ? `${acc}12` : 'rgba(255,255,255,0.85)',
+          borderColor:  isHovered ? `${acc}60` : `${acc}30`,
+          transform:    isHovered ? 'translateY(-1px)' : 'none',
+          boxShadow:    isHovered ? `0 6px 18px ${acc}18` : 'none',
+        }}
       >
-        <div className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl text-white shadow-sm group-hover/item:scale-105 group-hover/item:shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-all ${colors.iconBg}`}>
-          <Icon size={16} />
+        <div
+          className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg text-white shadow-sm transition-transform"
+          style={{
+            background: `linear-gradient(135deg,${acc},${acc}cc)`,
+            transform:  isHovered ? 'scale(1.08)' : 'scale(1)',
+          }}
+        >
+          <Icon size={14} />
         </div>
         <div className="min-w-0 flex-1">
-          <span className={`text-[12px] font-bold text-slate-800 group-hover/item:${colors.text} transition-colors block truncate leading-tight`}>
+          <span
+            className="text-[11.5px] font-bold block truncate leading-tight transition-colors"
+            style={{ color: isHovered ? acc : '#1e293b' }}
+          >
             {language === 'EN' ? mod.titleEn : mod.titleHi}
           </span>
-          <span className="text-[9.5px] text-slate-500 font-semibold leading-tight block truncate mt-0.5">
+          <span className="text-[9px] font-medium leading-tight block truncate mt-0.5" style={{ color: isHovered ? `${acc}90` : '#94a3b8' }}>
             {language === 'EN' ? mod.titleHi : mod.titleEn}
           </span>
         </div>
-        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 border transition-colors ${colors.text} ${colors.border} bg-white group-hover/item:bg-white`}>
+        <span
+          className="text-[9px] font-black px-1.5 py-0.5 rounded-md shrink-0 border"
+          style={{
+            color:       isHovered ? acc : '#64748b',
+            borderColor: isHovered ? `${acc}50` : '#e2e8f0',
+            background:  'white',
+          }}
+        >
           {mod.count}
         </span>
       </Link>
     );
-  }, [language, handleModuleClick]);
+  }, [language, handleModuleClick, hoveredModule]);
 
   return (
     <nav className="bg-[#050e1b]/95 backdrop-blur-md py-3.5 sticky top-0 border-b border-gold-500/10 shadow-xl shadow-black/40 z-[9999]">
@@ -367,7 +394,7 @@ export default function Navbar() {
                   )}
                   <div className="border-t border-white/5 my-1" />
                   <button
-                    onClick={() => { logout(); setUserMenuOpen(false); }}
+                    onClick={() => { logout(); setUserMenuOpen(false); window.location.href = '/'; }}
                     className="w-full flex items-center gap-2 text-left px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
                   >
                     <LogOut size={14} className="text-red-400" /> Sign Out
@@ -434,7 +461,7 @@ export default function Navbar() {
           {/* Always-visible Sign In / user chip on mobile */}
           {loggedIn ? (
             <button
-              onClick={logout}
+              onClick={() => { logout(); window.location.href = '/'; }}
               className="flex items-center gap-1.5 bg-white/10 text-white border border-white/20 font-semibold px-3 py-2 rounded-md text-sm hover:bg-white/20 transition-colors max-w-[100px]"
             >
               <User size={14} className="text-gold-400 shrink-0" />

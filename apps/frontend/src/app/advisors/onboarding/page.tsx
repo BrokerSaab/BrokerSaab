@@ -269,6 +269,13 @@ export default function AdvisorOnboarding() {
     }
   };
 
+  // ── Resume session state ─────────────────────────────────────────────────────
+  const [resumeSession, setResumeSession] = useState<{
+    currentStep: number;
+    stepLabel: string;
+    formSnapshot: any;
+  } | null>(null);
+
   // ── OTP sub-state ────────────────────────────────────────────────────────────
   const [otpSubStep, setOtpSubStep] = useState<'phone' | 'sent' | 'verified'>('phone');
   const [otpValue, setOtpValue] = useState('');
@@ -311,9 +318,41 @@ export default function AdvisorOnboarding() {
         phoneNumber: phone,
         currentStep: idx,
         stepLabel: currentStep,
-        formSnapshot: { advisorType: formData.advisorType, fullName: formData.fullName, email: formData.email, state: formData.state },
+        formSnapshot: {
+          advisorType: formData.advisorType,
+          fullName: formData.fullName,
+          email: formData.email,
+          state: formData.state,
+          city: formData.city,
+          businessName: formData.businessName,
+          location: formData.location,
+          experienceYears: formData.experienceYears,
+          consultationFee: formData.consultationFee,
+          languages: formData.languages,
+          bio: formData.bio,
+          selectedSlugs: formData.selectedSlugs,
+          selectedSubSlugs: formData.selectedSubSlugs,
+          licenseNumber: formData.licenseNumber,
+          gstNumber: formData.gstNumber,
+        },
       }),
     }).catch(() => {});
+  };
+
+  // ── Resume check after OTP verification ─────────────────────────────────────
+  const checkResumeSession = async (phone: string) => {
+    try {
+      const encoded = encodeURIComponent(`+91${phone}`);
+      const r = await fetch(`${API}/advisors/onboarding-progress/${encoded}`);
+      const d = await r.json();
+      if (d.success && d.session && !d.session.advisorId && d.session.currentStep > 2) {
+        setResumeSession({
+          currentStep: d.session.currentStep,
+          stepLabel: d.session.stepLabel,
+          formSnapshot: d.session.formSnapshot || {},
+        });
+      }
+    } catch { /* best-effort — ignore network errors */ }
   };
 
   // ── Navigation ───────────────────────────────────────────────────────────────
@@ -429,12 +468,18 @@ export default function AdvisorOnboarding() {
         fd.append('documentType', docType);
         if (extra) Object.entries(extra).forEach(([k, v]) => fd.append(k, v));
         try {
-          await fetch(`${API}/advisors/documents`, {
+          const r = await fetch(`${API}/advisors/documents`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${accessToken}` },
             body: fd,
           });
-        } catch { /* non-fatal */ }
+          if (!r.ok) {
+            const d = await r.json().catch(() => ({}));
+            console.error(`[KYC upload ${docType}] failed:`, d.message);
+          }
+        } catch (err) {
+          console.error(`[KYC upload ${docType}] network error:`, err);
+        }
       };
 
       if (formData.aadhaarFile) await uploadDoc(formData.aadhaarFile, 'AADHAAR_CARD', { aadhaarNumber: formData.aadhaarNumber.replace(/\D/g, '') });
@@ -757,42 +802,41 @@ ${availLines ? `<div class="section">
   };
 
   // ── Shared input style ───────────────────────────────────────────────────────
-  const inputWrap = 'flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-gold-500 focus-within:ring-2 focus-within:ring-gold-500/20 transition-all bg-white';
+  const inputWrap = 'flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all bg-white';
   const inputIcon = 'px-3 text-slate-400';
   const inputBase = 'flex-1 px-3 py-2.5 text-sm outline-none bg-transparent text-gray-800 placeholder-gray-400';
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-navy-800 to-slate-900 flex flex-col items-center justify-center p-3">
-
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 mb-3">
-        <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-lg shrink-0 overflow-hidden p-1">
-          <img src="/logo-icon.png" alt="BrokerSaab" className="w-full h-full object-contain" />
-        </div>
-        <div>
-          <span className="text-white font-bold text-base tracking-tight leading-none block">Broker<span className="text-gold-400">Saab</span></span>
-          <span className="text-slate-400 text-[10px]">Trusted Advisory Platform</span>
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-center p-3" style={{ background: 'linear-gradient(135deg,#0B1F3A 0%,#1a1040 50%,#0B1F3A 100%)' }}>
+      {/* Subtle radial glows */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full opacity-[0.07]" style={{ background: 'radial-gradient(circle,#D4AF37,transparent 70%)' }} />
+        <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full opacity-[0.07]" style={{ background: 'radial-gradient(circle,#4F46E5,transparent 70%)' }} />
       </div>
 
       {/* Card */}
-      <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col" style={{ maxHeight: 'calc(100vh - 5.5rem)' }}>
+      <div className="w-full max-w-2xl bg-white rounded-3xl overflow-hidden flex flex-col relative z-10" style={{ maxHeight: '95dvh', boxShadow: '0 25px 60px rgba(0,0,0,0.45), 0 0 0 1px rgba(212,175,55,0.2)' }}>
 
-        {/* Card Header */}
+        {/* Card Header — mirrors auth pages */}
         {step !== 'success' && (
-          <div className="bg-gradient-to-r from-navy-800 to-navy-700 px-4 py-3 text-white flex items-center justify-between shrink-0">
-            <div>
-              <div className="flex items-center gap-2">
-                <UserPlus size={15} className="text-gold-400" />
-                <span className="font-semibold text-sm">Advisor Registration</span>
+          <div className="px-6 py-5 relative shrink-0" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
+            <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg,transparent,#D4AF37 30%,#D4AF37 70%,transparent)' }} />
+            {/* Horizontal logo */}
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 bg-white rounded-lg overflow-hidden p-0.5 shrink-0 shadow-sm">
+                <img src="/logo-icon.png" alt="BrokerSaab" className="w-full h-full object-contain" />
               </div>
-              <p className="text-slate-300 text-[10px] mt-0.5">Join thousands of verified advisors on BrokerSaab</p>
+              <span className="text-sm font-black tracking-tight text-white">
+                Broker<span style={{ color: '#D4AF37' }}>Saab</span>
+              </span>
             </div>
+            <h1 className="text-lg font-black text-white leading-tight">Advisor Registration</h1>
+            <p className="text-white/50 text-xs mt-0.5">Join thousands of verified advisors on BrokerSaab</p>
             <button
               type="button"
               onClick={handleClose}
-              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-all focus:outline-none focus:ring-2 focus:ring-white/20"
+              className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors p-1"
               aria-label="Close onboarding"
               title="Cancel Onboarding"
             >
@@ -812,18 +856,18 @@ ${availLines ? `<div class="section">
                 <React.Fragment key={label}>
                   <div className="flex flex-col items-center">
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
-                      done ? 'bg-navy-800 text-white' :
-                      active ? 'bg-gold-500 text-navy-800' :
+                      done ? 'bg-[#0B1F3A] text-white' :
+                      active ? 'bg-[#D4AF37] text-[#0B1F3A]' :
                       'border-2 border-gray-200 text-gray-400 bg-white'
                     }`}>
                       {done ? <Check size={11} /> : num}
                     </div>
-                    <span className={`text-[9px] mt-0.5 font-medium hidden sm:block ${done ? 'text-gold-600' : active ? 'text-gray-900' : 'text-gray-400'}`}>
+                    <span className={`text-[9px] mt-0.5 font-medium hidden sm:block ${done ? 'text-[#B48C22]' : active ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
                       {label}
                     </span>
                   </div>
                   {i < PROGRESS_STEPS.length - 1 && (
-                    <div className={`flex-1 h-0.5 mx-1 mb-4 ${done ? 'bg-gold-500' : 'bg-gray-200'}`} />
+                    <div className={`flex-1 h-0.5 mx-1 mb-4 ${done ? 'bg-[#D4AF37]' : 'bg-gray-200'}`} />
                   )}
                 </React.Fragment>
               );
@@ -832,7 +876,7 @@ ${availLines ? `<div class="section">
         )}
 
         {/* Scrollable step content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
 
         {/* Error Badge */}
         {error && (
@@ -846,11 +890,11 @@ ${availLines ? `<div class="section">
         {step === 'welcome' && (
           <div className="p-4 sm:p-5">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-full bg-gold-500/10 border-2 border-gold-500/30 flex items-center justify-center mx-auto mb-4">
-                <UserPlus size={30} className="text-gold-500" />
+              <div className="w-16 h-16 rounded-full bg-indigo-500/10 border-2 border-indigo-500/30 flex items-center justify-center mx-auto mb-4">
+                <UserPlus size={30} className="text-indigo-500" />
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                Become a <span className="gold-gradient-text">Verified Advisor</span>
+                Become a <span className="text-indigo-600 font-bold">Verified Advisor</span>
               </h1>
               <p className="text-sm text-gray-500">Join BrokerSaab and start earning from your expertise — completely free to register.</p>
             </div>
@@ -866,7 +910,7 @@ ${availLines ? `<div class="section">
                   { n: '4', title: 'Submit for admin review', desc: 'Our team verifies credentials and goes live within 24–48 hours.' },
                 ].map(item => (
                   <div key={item.n} className="flex gap-3 items-start">
-                    <div className="w-7 h-7 rounded-full bg-navy-800 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{item.n}</div>
+                    <div className="w-7 h-7 rounded-full bg-indigo-700 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{item.n}</div>
                     <div>
                       <p className="text-sm font-semibold text-gray-800">{item.title}</p>
                       <p className="text-xs text-gray-500">{item.desc}</p>
@@ -896,7 +940,7 @@ ${availLines ? `<div class="section">
               </div>
 
               {/* Benefits */}
-              <div className="bg-gold-500/5 rounded-2xl p-4 border border-gold-500/20">
+              <div className="bg-indigo-500/5 rounded-2xl p-4 border border-indigo-500/20">
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Benefits</h2>
                 <ul className="space-y-2">
                   {[
@@ -906,7 +950,7 @@ ${availLines ? `<div class="section">
                     'Escrow-protected payments',
                   ].map(b => (
                     <li key={b} className="flex gap-2 items-start text-sm text-gray-700">
-                      <Star size={15} className="text-gold-500 shrink-0 mt-0.5" />
+                      <Star size={15} className="text-indigo-500 shrink-0 mt-0.5" />
                       {b}
                     </li>
                   ))}
@@ -916,10 +960,10 @@ ${availLines ? `<div class="section">
 
             {/* ── Advisor-specific Terms & Conditions ── */}
             <div className="mb-5 rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-[#0a0505] to-[#0d0818]">
-                <Scale size={15} className="text-amber-400 shrink-0" />
-                <span className="text-amber-400 text-[11px] font-black uppercase tracking-wider">Advisor Terms & Conditions</span>
-                <span className="ml-auto text-amber-400/60 text-[10px]">Must accept to proceed</span>
+              <div className="flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-indigo-700 to-indigo-800">
+                <Scale size={15} className="text-indigo-200 shrink-0" />
+                <span className="text-indigo-100 text-[11px] font-black uppercase tracking-wider">Advisor Terms & Conditions</span>
+                <span className="ml-auto text-indigo-300/80 text-[10px]">Must accept to proceed</span>
               </div>
 
               {/* Scrollable T&C */}
@@ -974,7 +1018,7 @@ ${availLines ? `<div class="section">
               disabled={!tcAccepted}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all"
               style={{
-                background: tcAccepted ? 'linear-gradient(135deg, #D4AF37, #B48C22)' : '#e5e7eb',
+                background: tcAccepted ? 'linear-gradient(135deg,#D4AF37,#B48C22)' : '#e5e7eb',
                 color: tcAccepted ? '#0B1F3A' : '#9ca3af',
                 cursor: tcAccepted ? 'pointer' : 'not-allowed',
               }}>
@@ -1056,6 +1100,7 @@ ${availLines ? `<div class="section">
                       update('otpVerified', true);
                       if (d.tempToken) update('tempPhoneToken', d.tempToken);
                       setOtpSubStep('verified');
+                      checkResumeSession(formData.phoneNumber);
                     } catch { setError('Network error. Please try again.'); }
                     finally { setOtpLoading(false); }
                   }}
@@ -1064,7 +1109,7 @@ ${availLines ? `<div class="section">
                   {otpLoading ? <span className="flex items-center justify-center gap-2"><Loader2 size={16} className="animate-spin" /> Verifying…</span> : 'Verify OTP'}
                 </button>
                 {otpCooldown === 0 ? (
-                  <button onClick={() => setOtpSubStep('phone')} className="w-full text-xs text-gold-600 hover:text-gold-800 underline py-1">Resend OTP</button>
+                  <button onClick={() => setOtpSubStep('phone')} className="w-full text-xs text-indigo-600 hover:text-indigo-800 underline py-1">Resend OTP</button>
                 ) : (
                   <p className="text-center text-xs text-gray-400">Resend in {otpCooldown}s</p>
                 )}
@@ -1078,6 +1123,57 @@ ${availLines ? `<div class="section">
                 <div>
                   <p className="font-bold text-green-700 text-sm">+91 {formData.phoneNumber} Verified!</p>
                   <p className="text-green-600 text-xs">Your mobile number is confirmed.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Resume banner — shown when returning advisor has a saved session */}
+            {otpSubStep === 'verified' && resumeSession && (
+              <div className="rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <Clock size={15} className="text-indigo-600 mt-0.5 shrink-0" />
+                  <p className="text-sm text-indigo-800">
+                    <strong>Welcome back!</strong> You previously stopped at <strong>{resumeSession.stepLabel.replace(/_/g, ' ')}</strong> (step {resumeSession.currentStep}/8). Would you like to continue where you left off?
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const s = resumeSession.formSnapshot;
+                      setFormData(prev => ({
+                        ...prev,
+                        advisorType: s.advisorType || prev.advisorType,
+                        fullName: s.fullName || prev.fullName,
+                        email: s.email || prev.email,
+                        state: s.state || prev.state,
+                        city: s.city || prev.city,
+                        businessName: s.businessName || prev.businessName,
+                        location: s.location || prev.location,
+                        experienceYears: s.experienceYears || prev.experienceYears,
+                        consultationFee: s.consultationFee || prev.consultationFee,
+                        languages: s.languages?.length ? s.languages : prev.languages,
+                        bio: s.bio || prev.bio,
+                        selectedSlugs: s.selectedSlugs?.length ? s.selectedSlugs : prev.selectedSlugs,
+                        selectedSubSlugs: s.selectedSubSlugs?.length ? s.selectedSubSlugs : prev.selectedSubSlugs,
+                        licenseNumber: s.licenseNumber || prev.licenseNumber,
+                        gstNumber: s.gstNumber || prev.gstNumber,
+                      }));
+                      setResumeSession(null);
+                      setStep(resumeSession.stepLabel as Step);
+                    }}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white transition-all"
+                    style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}
+                  >
+                    Continue from {resumeSession.stepLabel.replace(/_/g, ' ')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResumeSession(null)}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-indigo-700 border-2 border-indigo-300 bg-white hover:bg-indigo-50 transition-all"
+                  >
+                    Start Fresh
+                  </button>
                 </div>
               </div>
             )}
@@ -1104,10 +1200,10 @@ ${availLines ? `<div class="section">
               <button
                 onClick={() => { update('advisorType', 'REGULAR'); setError(''); }}
                 className="text-left p-5 rounded-2xl border-2 transition-all"
-                style={{ borderColor: formData.advisorType === 'REGULAR' ? '#D4AF37' : '#e5e7eb', background: formData.advisorType === 'REGULAR' ? 'linear-gradient(135deg,#fffbf0,#fff9e6)' : '#fafafa', boxShadow: formData.advisorType === 'REGULAR' ? '0 0 0 3px rgba(212,175,55,0.15)' : 'none' }}>
+                style={{ borderColor: formData.advisorType === 'REGULAR' ? '#D4AF37' : '#e5e7eb', background: formData.advisorType === 'REGULAR' ? 'linear-gradient(135deg,#fffbf0,#fef9e7)' : '#fafafa', boxShadow: formData.advisorType === 'REGULAR' ? '0 0 0 3px rgba(212,175,55,0.15)' : 'none' }}>
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-black text-gray-800 text-base">Regular Advisor</span>
-                  {formData.advisorType === 'REGULAR' && <CheckCircle2 size={20} className="text-gold-500" />}
+                  {formData.advisorType === 'REGULAR' && <CheckCircle2 size={20} className="text-[#D4AF37]" />}
                 </div>
                 <p className="text-xs text-gray-500 font-semibold mb-3">Free to join</p>
                 <ul className="space-y-1.5">
@@ -1121,22 +1217,22 @@ ${availLines ? `<div class="section">
               <button
                 onClick={() => { update('advisorType', 'AUTHORIZED'); setError(''); }}
                 className="text-left p-5 rounded-2xl border-2 transition-all relative"
-                style={{ borderColor: formData.advisorType === 'AUTHORIZED' ? '#D4AF37' : '#e5e7eb', background: formData.advisorType === 'AUTHORIZED' ? 'linear-gradient(135deg,#0B1F3A,#1a3a5c)' : '#0B1F3A', boxShadow: formData.advisorType === 'AUTHORIZED' ? '0 0 0 3px rgba(212,175,55,0.25)' : 'none' }}>
-                <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[9px] font-black text-navy-800" style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)' }}>
+                style={{ borderColor: formData.advisorType === 'AUTHORIZED' ? '#D4AF37' : '#e5e7eb', background: formData.advisorType === 'AUTHORIZED' ? 'linear-gradient(135deg,#0B1F3A,#1a1040)' : '#0B1F3A', boxShadow: formData.advisorType === 'AUTHORIZED' ? '0 0 0 3px rgba(212,175,55,0.25)' : 'none' }}>
+                <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[9px] font-black" style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}>
                   90% OFF
                 </div>
                 <div className="flex items-center justify-between mb-3 pr-14">
                   <span className="font-black text-white text-base">Authorized Advisor</span>
-                  {formData.advisorType === 'AUTHORIZED' && <CheckCircle2 size={20} className="text-gold-400" />}
+                  {formData.advisorType === 'AUTHORIZED' && <CheckCircle2 size={20} className="text-[#D4AF37]" />}
                 </div>
                 <div className="mb-3">
                   <span className="text-xs text-white/50 line-through">₹19,999/year</span>
-                  <span className="text-lg font-black text-gold-400 ml-2">₹1,999</span>
+                  <span className="text-lg font-black text-[#D4AF37] ml-2">₹1,999</span>
                   <span className="text-xs text-white/60">/year</span>
                 </div>
                 <ul className="space-y-1.5">
-                  {['All Regular Advisor benefits','Gold "Authorized" badge on profile','Priority placement in search results','License verification (mandatory)','GST number support (optional)','Preferred by clients — builds trust'].map(f => (
-                    <li key={f} className="flex items-center gap-2 text-xs text-white/80"><Check size={13} className="text-gold-400 shrink-0" />{f}</li>
+                  {['All Regular Advisor benefits','Blue "Authorized" badge on profile','Priority placement in search results','License verification (mandatory)','GST number support (optional)','Preferred by clients — builds trust'].map(f => (
+                    <li key={f} className="flex items-center gap-2 text-xs text-white/80"><Check size={13} className="text-[#D4AF37] shrink-0" />{f}</li>
                   ))}
                 </ul>
               </button>
@@ -1327,7 +1423,7 @@ ${availLines ? `<div class="section">
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Languages Spoken *</label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {formData.languages.map(lang => (
-                  <span key={lang} className="flex items-center gap-1 bg-navy-800/10 text-navy-800 text-xs font-medium px-3 py-1 rounded-full">
+                  <span key={lang} className="flex items-center gap-1 bg-indigo-100 text-indigo-800 text-xs font-medium px-3 py-1 rounded-full">
                     {lang}
                     <button type="button" onClick={() => removeLanguage(lang)} className="hover:text-red-500 ml-0.5">
                       <X size={12} />
@@ -1338,7 +1434,7 @@ ${availLines ? `<div class="section">
               <div className={inputWrap}>
                 <input ref={langInputRef} type="text" placeholder="Type language + Enter (e.g. Hindi, English)" value={langInput}
                   onChange={e => setLangInput(e.target.value)} onKeyDown={handleLangKey} className={inputBase} />
-                <button type="button" onClick={addLanguage} className="pr-3 text-gold-500 hover:text-gold-600">
+                <button type="button" onClick={addLanguage} className="pr-3 text-indigo-500 hover:text-indigo-600">
                   <Plus size={18} />
                 </button>
               </div>
@@ -1350,7 +1446,7 @@ ${availLines ? `<div class="section">
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Professional Bio *</label>
               <textarea rows={3} placeholder="Describe your expertise, approach, and what clients can expect when working with you. (minimum 50 characters)"
                 value={formData.bio} onChange={e => update('bio', e.target.value)}
-                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 resize-none transition-all" />
+                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none transition-all" />
               <div className="flex justify-between mt-1">
                 <p className="text-xs text-gray-400">Minimum 50 characters</p>
                 <p className={`text-xs font-medium ${formData.bio.trim().length < 50 ? 'text-red-400' : 'text-emerald-600'}`}>
@@ -1407,7 +1503,7 @@ ${availLines ? `<div class="section">
                   onChange={e => update('aadhaarNumber', e.target.value.replace(/\D/g, ''))}
                   className={inputBase} />
               </div>
-              <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-gold-400 transition-all bg-gray-50">
+              <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-indigo-400 transition-all bg-gray-50">
                 <FileText size={16} className="text-gray-400 shrink-0" />
                 <span className="text-sm text-gray-500 flex-1">{formData.aadhaarFile ? formData.aadhaarFile.name : 'Upload Aadhaar card (JPG, PNG or PDF, max 5 MB)'}</span>
                 {formData.aadhaarFile && <CheckCircle2 size={16} className="text-green-500 shrink-0" />}
@@ -1419,7 +1515,7 @@ ${availLines ? `<div class="section">
             {/* Passport photo upload */}
             <div className="space-y-2">
               <label className="block text-xs font-semibold text-gray-600">Passport-size Photo <span className="text-red-500">*</span></label>
-              <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-gold-400 transition-all bg-gray-50">
+              <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-indigo-400 transition-all bg-gray-50">
                 <User size={16} className="text-gray-400 shrink-0" />
                 <span className="text-sm text-gray-500 flex-1">{formData.passportPhotoFile ? formData.passportPhotoFile.name : 'Upload your photo (JPG or PNG, max 5 MB)'}</span>
                 {formData.passportPhotoFile && <CheckCircle2 size={16} className="text-green-500 shrink-0" />}
@@ -1442,7 +1538,7 @@ ${availLines ? `<div class="section">
                 </div>
                 <div className="space-y-2">
                   <label className="block text-xs font-semibold text-gray-600">License Copy <span className="text-red-500">*</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-gold-400 transition-all bg-gray-50">
+                  <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-indigo-400 transition-all bg-gray-50">
                     <FileCheck size={16} className="text-gray-400 shrink-0" />
                     <span className="text-sm text-gray-500 flex-1">{formData.licenseFile ? formData.licenseFile.name : 'Upload license document (JPG, PNG or PDF, max 5 MB)'}</span>
                     {formData.licenseFile && <CheckCircle2 size={16} className="text-green-500 shrink-0" />}
@@ -1462,7 +1558,7 @@ ${availLines ? `<div class="section">
                 </div>
                 <div className="space-y-2">
                   <label className="block text-xs font-semibold text-gray-600">GST Certificate <span className="text-gray-400 font-normal">(optional)</span></label>
-                  <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-gold-400 transition-all bg-gray-50">
+                  <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-indigo-400 transition-all bg-gray-50">
                     <FileText size={16} className="text-gray-400 shrink-0" />
                     <span className="text-sm text-gray-500 flex-1">{formData.gstCertFile ? formData.gstCertFile.name : 'Upload GST certificate (JPG, PNG or PDF, max 5 MB) — optional'}</span>
                     {formData.gstCertFile && <CheckCircle2 size={16} className="text-green-500 shrink-0" />}
@@ -1487,7 +1583,7 @@ ${availLines ? `<div class="section">
           <div className="p-4 sm:p-5">
             <div className="mb-5">
               <div className="flex items-center gap-2 mb-1">
-                <Sparkles size={18} className="text-gold-500" />
+                <Sparkles size={18} className="text-indigo-500" />
                 <h2 className="text-lg font-bold text-gray-900">Select Your Service Areas</h2>
               </div>
               <p className="text-sm text-gray-500">Choose your domains, then pick specific specialisations within each. Click a module tile to expand its sub-services.</p>
@@ -1517,7 +1613,7 @@ ${availLines ? `<div class="section">
                       selected
                         ? isExpanded
                           ? `border-transparent ring-2 shadow-md`
-                          : 'border-gold-500 ring-2 ring-gold-500/20 bg-gold-500/5'
+                          : 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-500/5'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                     style={selected && isExpanded ? {
@@ -1535,7 +1631,7 @@ ${availLines ? `<div class="section">
                             {selectedSubCount}
                           </span>
                         )}
-                        <CheckCircle2 size={14} className="text-gold-500" />
+                        <CheckCircle2 size={14} className="text-indigo-500" />
                       </div>
                     )}
 
@@ -1858,7 +1954,7 @@ ${availLines ? `<div class="section">
                 return (
                   <button key={day} type="button" onClick={() => toggleDay(i)}
                     className={`px-4 py-2 rounded-full text-sm font-semibold border-2 transition-all ${
-                      active ? 'bg-navy-800 text-white border-navy-800' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      active ? 'bg-indigo-700 text-white border-indigo-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'
                     }`}>
                     {day}
                   </button>
@@ -1880,7 +1976,7 @@ ${availLines ? `<div class="section">
                   <div key={day} className="bg-gray-50 rounded-2xl p-4">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-bold text-gray-800">{DAYS[day]}</span>
-                      <button type="button" onClick={() => addSlot(day)} className="flex items-center gap-1 text-xs font-semibold text-gold-600 hover:text-gold-700">
+                      <button type="button" onClick={() => addSlot(day)} className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
                         <Plus size={13} /> Add slot
                       </button>
                     </div>
@@ -1889,11 +1985,11 @@ ${availLines ? `<div class="section">
                         <div key={slot.id} className="flex items-center gap-2">
                           <input type="time" value={slot.startTime}
                             onChange={e => updateSlot(slot.id, 'startTime', e.target.value)}
-                            className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-gold-500 w-32" />
+                            className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-indigo-500 w-32" />
                           <span className="text-gray-400 font-medium">→</span>
                           <input type="time" value={slot.endTime}
                             onChange={e => updateSlot(slot.id, 'endTime', e.target.value)}
-                            className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-gold-500 w-32" />
+                            className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-indigo-500 w-32" />
                           <button type="button" onClick={() => removeSlot(slot.id)} className="text-gray-400 hover:text-red-500 transition-colors ml-1">
                             <Trash2 size={15} />
                           </button>
@@ -1929,7 +2025,7 @@ ${availLines ? `<div class="section">
               </div>
               {formData.advisorType && (
                 <span className="shrink-0 px-3 py-1 rounded-full text-xs font-black"
-                  style={{ background: formData.advisorType === 'AUTHORIZED' ? 'linear-gradient(135deg,#D4AF37,#B48C22)' : '#e0f2fe', color: formData.advisorType === 'AUTHORIZED' ? '#071527' : '#0369a1' }}>
+                  style={{ background: formData.advisorType === 'AUTHORIZED' ? 'linear-gradient(135deg,#D4AF37,#B48C22)' : '#fffbf0', color: formData.advisorType === 'AUTHORIZED' ? '#0B1F3A' : '#92701a' }}>
                   {formData.advisorType === 'AUTHORIZED' ? '★ Authorized' : 'Regular'}
                 </span>
               )}
@@ -2110,10 +2206,10 @@ ${availLines ? `<div class="section">
             )}
 
             {/* ── Confirm checkbox ── */}
-            <label className="flex items-start gap-3 cursor-pointer rounded-2xl p-4 border-2 border-navy-200 bg-gradient-to-br from-navy-50 to-blue-50"
-              style={{ borderColor: confirmed ? '#0B1F3A' : '#e5e7eb', background: confirmed ? 'linear-gradient(135deg,#eff6ff,#f0f9ff)' : '#f9fafb' }}>
+            <label className="flex items-start gap-3 cursor-pointer rounded-2xl p-4 border-2"
+              style={{ borderColor: confirmed ? '#D4AF37' : '#e5e7eb', background: confirmed ? 'linear-gradient(135deg,#fffbf0,#fef9e7)' : '#f9fafb' }}>
               <div className="mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all"
-                style={{ borderColor: confirmed ? '#0B1F3A' : '#d1d5db', background: confirmed ? '#0B1F3A' : 'white' }}
+                style={{ borderColor: confirmed ? '#D4AF37' : '#d1d5db', background: confirmed ? '#D4AF37' : 'white' }}
                 onClick={() => setConfirmed(p => !p)}>
                 {confirmed && <Check size={12} className="text-white" />}
               </div>
@@ -2172,19 +2268,19 @@ ${availLines ? `<div class="section">
             {/* Invoice Preview */}
             <div className="rounded-2xl border-2 border-gray-200 overflow-hidden">
               {/* Invoice header */}
-              <div className="flex items-center justify-between px-5 py-4" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a3a5c)' }}>
+              <div className="flex items-center justify-between px-5 py-4" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
                     <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center overflow-hidden p-0.5">
                       <img src="/logo-icon.png" alt="BrokerSaab" className="w-full h-full object-contain" />
                     </div>
-                    <span className="text-white font-black text-base tracking-tight">Broker<span className="text-gold-400">Saab</span></span>
+                    <span className="text-white font-black text-base tracking-tight">Broker<span className="text-[#D4AF37]">Saab</span></span>
                   </div>
                   <p className="text-white/50 text-[10px]">BrokerSaab Technology Pvt. Ltd.</p>
                   <p className="text-white/40 text-[10px]">GSTIN: 27AABCB1234A1Z5 · SAC: 9983</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-gold-400 font-black text-sm">PROFORMA INVOICE</p>
+                  <p className="text-[#D4AF37] font-black text-sm">PROFORMA INVOICE</p>
                   <p className="text-white/60 text-[10px] mt-0.5">INV-BS-{Date.now().toString().slice(-8)}</p>
                   <p className="text-white/60 text-[10px]">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                 </div>
@@ -2243,7 +2339,7 @@ ${availLines ? `<div class="section">
                   </div>
                   <div className="flex justify-between text-base font-black text-gray-900 border-t-2 border-gray-800 pt-3 mt-2">
                     <span>Total Payable (Incl. GST)</span>
-                    <span style={{ color: '#0B1F3A' }}>₹{TOTAL_PAYABLE.toFixed(2)}</span>
+                    <span style={{ color: '#4F46E5' }}>₹{TOTAL_PAYABLE.toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -2283,7 +2379,7 @@ ${availLines ? `<div class="section">
                       name: 'BrokerSaab',
                       description: 'Authorized Advisor Subscription — 1 Year',
                       order_id: orderData.orderId,
-                      theme: { color: '#D4AF37' },
+                      theme: { color: '#4F46E5' },
                       prefill: { name: formData.fullName, email: formData.email, contact: `+91${formData.phoneNumber}` },
                       notes: { purpose: 'AUTHORIZED_ADVISOR_SUBSCRIPTION', advisorName: formData.fullName },
                       handler: async (response: any) => {
@@ -2321,7 +2417,7 @@ ${availLines ? `<div class="section">
                   finally { setPaymentLoading(false); }
                 }}
                 className="w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-3 transition-all hover:scale-[1.01] active:scale-[0.99]"
-                style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527', boxShadow: '0 8px 24px rgba(212,175,55,0.35)', cursor: paymentLoading ? 'wait' : 'pointer' }}>
+                style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 8px 24px rgba(212,175,55,0.35)', cursor: paymentLoading ? 'wait' : 'pointer' }}>
                 {paymentLoading
                   ? <><Loader2 size={18} className="animate-spin" /> Processing Payment…</>
                   : <><CreditCard size={18} /> Pay ₹{TOTAL_PAYABLE.toFixed(2)} — Secure Checkout <ShieldCheck size={16} /></>}
@@ -2369,8 +2465,8 @@ ${availLines ? `<div class="section">
         {/* ── Step: Success ── */}
         {step === 'success' && (
           <div className="p-6 sm:p-10 text-center">
-            <div className="w-24 h-24 rounded-full bg-gold-500/10 border-2 border-gold-500/30 flex items-center justify-center mx-auto mb-5">
-              <ShieldCheck size={48} className="text-gold-500" />
+            <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: 'rgba(212,175,55,0.1)', border: '2px solid rgba(212,175,55,0.35)' }}>
+              <ShieldCheck size={48} className="text-[#D4AF37]" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile Submitted!</h2>
             <p className="text-gray-500 text-sm mb-8">Our team will review your credentials and get back to you within 24–48 hours.</p>
@@ -2385,7 +2481,7 @@ ${availLines ? `<div class="section">
                 const Icon = item.icon;
                 return (
                   <div key={i} className="flex gap-3 items-start bg-gray-50 rounded-2xl p-4">
-                    <div className="w-8 h-8 rounded-full bg-navy-800 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', border: '1px solid rgba(212,175,55,0.3)' }}>
                       <Icon size={14} className="text-white" />
                     </div>
                     <div>
@@ -2403,14 +2499,14 @@ ${availLines ? `<div class="section">
               <div className="flex gap-3">
                 <button
                   onClick={printApplication}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-navy-200 text-sm font-semibold text-navy-700 hover:bg-navy-50 transition-all"
-                  style={{ borderColor: '#0B1F3A', color: '#0B1F3A' }}>
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all hover:bg-indigo-50"
+                  style={{ borderColor: '#4F46E5', color: '#4F46E5' }}>
                   <Printer size={15} /> Print Application
                 </button>
                 <button
                   onClick={printApplication}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                  style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a3a5c)', color: '#D4AF37' }}>
+                  style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: 'white' }}>
                   <Download size={15} /> Download PDF
                 </button>
               </div>
@@ -2419,16 +2515,16 @@ ${availLines ? `<div class="section">
 
             {/* Invoice download for AUTHORIZED advisors who paid */}
             {isAuthorized && invoiceData && (
-              <div className="rounded-2xl border-2 border-gold-300 p-4" style={{ background: 'linear-gradient(135deg,#fffbf0,#fef9e7)' }}>
+              <div className="rounded-2xl border-2 border-indigo-300 p-4" style={{ background: 'linear-gradient(135deg,#eef2ff,#f0f4ff)' }}>
                 <div className="flex items-center gap-2 mb-3">
-                  <Award size={16} className="text-gold-600 shrink-0" />
+                  <Award size={16} className="text-indigo-600 shrink-0" />
                   <span className="font-black text-gray-800 text-sm">Payment Confirmed · Authorized Badge Pending Approval</span>
                 </div>
                 <p className="text-xs text-gray-600 mb-3">Invoice No: <strong>{invoiceData.invoiceNo}</strong> · Payment ID: <span className="font-mono text-[10px]">{invoiceData.paymentId}</span></p>
                 <button
                   onClick={downloadInvoice}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all"
-                  style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a3a5c)', color: '#D4AF37' }}>
+                  style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: 'white' }}>
                   <Download size={15} /> Download GST Invoice (PDF)
                 </button>
               </div>
@@ -2450,7 +2546,7 @@ ${availLines ? `<div class="section">
           <div className="px-4 pb-3 text-center">
             <p className="text-xs text-gray-400">
               Already have an account?{' '}
-              <Link href="/auth/admin" className="text-gold-600 font-semibold hover:underline">Sign in here</Link>
+              <Link href="/auth/admin" className="text-indigo-600 font-semibold hover:underline">Sign in here</Link>
             </p>
           </div>
         )}

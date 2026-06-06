@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
-import { X, Phone, ShieldCheck, CheckCircle2, Loader2, AlertCircle, User, Mail, ArrowRight, Scale, AlertOctagon, FileText, Gavel } from 'lucide-react';
+import {
+  X, Phone, ShieldCheck, CheckCircle2, Loader2, AlertCircle, User, Mail,
+  ArrowRight, Scale, AlertOctagon, FileText, Gavel, Lock, Eye, EyeOff
+} from 'lucide-react';
 import { AuthUser } from '@/contexts/AuthContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
-type ModalStep = 'terms' | 'phone' | 'otp' | 'register' | 'success';
+type ModalStep = 'terms' | 'phone' | 'otp' | 'register' | 'set_password' | 'success';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -48,18 +51,34 @@ const USER_TC_CLAUSES = [
 ];
 
 export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps) {
-  const [step, setStep] = useState<ModalStep>('terms');
-  const [tcAccepted, setTcAccepted] = useState(false);
-  const [tcScrolled, setTcScrolled] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [devOtp, setDevOtp] = useState('');
+  const [step, setStep]                 = useState<ModalStep>('terms');
+  const [tcAccepted, setTcAccepted]     = useState(false);
+  const [tcScrolled, setTcScrolled]     = useState(false);
+  const [phoneNumber, setPhoneNumber]   = useState('');
+  const [otp, setOtp]                   = useState(['', '', '', '', '', '']);
+  const [fullName, setFullName]         = useState('');
+  const [email, setEmail]               = useState('');
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState('');
+  const [devOtp, setDevOtp]             = useState('');
+
+  // login method toggle
+  const [loginMethod, setLoginMethod]   = useState<'otp' | 'password'>('otp');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPwd, setShowLoginPwd] = useState(false);
+  const [pwdRetryCount, setPwdRetryCount] = useState(0);
+
+  // set_password step
+  const [newPassword, setNewPassword]       = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPwd, setShowNewPwd]         = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+
+  // deferred login success — holds user until modal is done
+  const [pendingUser, setPendingUser]   = useState<AuthUser | null>(null);
+
   const firstInputRef = useRef<HTMLInputElement>(null);
-  const tcScrollRef = useRef<HTMLDivElement>(null);
+  const tcScrollRef   = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -73,6 +92,15 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
       setLoading(false);
       setError('');
       setDevOtp('');
+      setLoginMethod('otp');
+      setLoginPassword('');
+      setShowLoginPwd(false);
+      setPwdRetryCount(0);
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowNewPwd(false);
+      setShowConfirmPwd(false);
+      setPendingUser(null);
     }
   }, [isOpen]);
 
@@ -94,6 +122,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
     }
   };
 
+  // ── OTP LOGIN ──────────────────────────────────────────────────
   const handleSendOtp = async () => {
     if (!/^\d{10}$/.test(phoneNumber)) { setError('Enter a valid 10-digit phone number.'); return; }
     setLoading(true); setError('');
@@ -131,6 +160,39 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
     setLoading(false);
   };
 
+  // ── PASSWORD LOGIN ─────────────────────────────────────────────
+  const handlePhonePasswordLogin = async () => {
+    if (!/^\d{10}$/.test(phoneNumber)) { setError('Enter a valid 10-digit phone number.'); return; }
+    if (!loginPassword) { setError('Please enter your password.'); return; }
+    setLoading(true); setError('');
+    let res: Response | null = null;
+    try {
+      res = await fetch(`${API}/auth/login/phone-password`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: `+91${phoneNumber}`, password: loginPassword }),
+      });
+    } catch {
+      setPwdRetryCount(c => c + 1);
+      setError(pwdRetryCount === 0
+        ? 'Server may be starting up. Please wait a moment and try again.'
+        : 'Cannot reach the server. Please check your connection and try again.');
+      setLoading(false);
+      return;
+    }
+    let data: any = {};
+    try { data = await res.json(); } catch { /* non-JSON response — treat as server error */ }
+    if (data.success) {
+      setPwdRetryCount(0);
+      localStorage.setItem('accessToken', data.tokens.accessToken);
+      localStorage.setItem('refreshToken', data.tokens.refreshToken);
+      onLoginSuccess(data.user); setStep('success');
+    } else {
+      setError(data.message || (res.ok ? 'Login failed. Please try again.' : `Server error (${res.status}). Please try again.`));
+    }
+    setLoading(false);
+  };
+
+  // ── REGISTER ───────────────────────────────────────────────────
   const handleRegister = async () => {
     if (!fullName.trim()) { setError('Full name is required to create your account.'); return; }
     setLoading(true); setError('');
@@ -144,15 +206,38 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
       if (data.success) {
         localStorage.setItem('accessToken', data.tokens.accessToken);
         localStorage.setItem('refreshToken', data.tokens.refreshToken);
-        onLoginSuccess(data.user); setStep('success');
+        setPendingUser(data.user);
+        setStep('set_password');
       } else setError(data.message || 'Registration failed. Please try again.');
     } catch {
       const demoUser: AuthUser = { fullName: fullName.trim(), phoneNumber: `+91${phoneNumber}`, role: 'CLIENT' };
-      onLoginSuccess(demoUser); setStep('success');
+      setPendingUser(demoUser);
+      setStep('set_password');
     }
     setLoading(false);
   };
 
+  // ── SET PASSWORD ───────────────────────────────────────────────
+  const handleSetPassword = async () => {
+    if (newPassword.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
+    setLoading(true); setError('');
+    try {
+      const token = localStorage.getItem('accessToken') || '';
+      const res = await fetch(`${API}/auth/password/set`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ newPassword }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.message || 'Failed to set password.'); setLoading(false); return; }
+    } catch { /* non-critical — still proceed to home */ }
+    if (pendingUser) onLoginSuccess(pendingUser);
+    setStep('success');
+    setLoading(false);
+  };
+
+  // ── OTP INPUT ──────────────────────────────────────────────────
   const otpRef = useRef(otp);
   otpRef.current = otp;
 
@@ -171,15 +256,16 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
 
   if (!isOpen) return null;
 
-  const inputWrap = 'flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-gold-500 focus-within:ring-2 focus-within:ring-gold-500/20 transition-all bg-white';
+  const inputWrap = 'flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/20 transition-all bg-white';
   const inputBase = 'flex-1 px-3 py-3.5 text-sm outline-none bg-transparent text-gray-800 placeholder-gray-400';
 
   const stepTitles: Record<ModalStep, string> = {
-    terms: 'Terms & Conditions',
-    phone: 'Sign In to Continue',
-    otp: 'Verify Your Number',
-    register: 'Complete Your Profile',
-    success: "You're All Set!",
+    terms:        'Terms & Conditions',
+    phone:        'Sign In to Continue',
+    otp:          'Verify Your Number',
+    register:     'Complete Your Profile',
+    set_password: 'Secure Your Account',
+    success:      "You're All Set!",
   };
 
   return (
@@ -195,6 +281,10 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             <div className="absolute top-0 left-0 right-0 h-[3px]"
               style={{ background: 'linear-gradient(90deg, #ef4444, #f59e0b, #8b5cf6)' }} />
           )}
+          {step === 'set_password' && (
+            <div className="absolute top-0 left-0 right-0 h-[3px]"
+              style={{ background: 'linear-gradient(90deg, #6366f1, #8b5cf6, #3b82f6)' }} />
+          )}
           <div className="flex items-center gap-2 mb-1">
             <div className="w-6 h-6 bg-white rounded-lg overflow-hidden p-0.5 shrink-0">
               <img src="/logo-icon.png" alt="BrokerSaab" className="w-full h-full object-contain" />
@@ -205,10 +295,12 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
           </div>
           <h2 className="text-lg font-black text-white">{stepTitles[step]}</h2>
           <p className="text-white/50 text-xs mt-0.5">
-            {step === 'terms' ? 'Please read and accept before continuing' :
-             step === 'otp' ? `OTP sent to +91 ${phoneNumber}` :
-             step === 'phone' ? 'Enter your mobile number to get started' :
-             step === 'register' ? 'Tell us your name to personalise your experience' : 'Welcome to BrokerSaab!'}
+            {step === 'terms'        ? 'Please read and accept before continuing' :
+             step === 'otp'          ? `OTP sent to +91 ${phoneNumber}` :
+             step === 'phone'        ? 'Enter your mobile number to get started' :
+             step === 'register'     ? 'Tell us your name to personalise your experience' :
+             step === 'set_password' ? 'Set a password for faster logins next time' :
+             'Welcome to BrokerSaab!'}
           </p>
           {step !== 'success' && (
             <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors p-1" aria-label="Close">
@@ -220,7 +312,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
         {/* ── TERMS STEP ── */}
         {step === 'terms' && (
           <div className="flex flex-col flex-1 overflow-hidden" style={{ background: '#f8f7f0' }}>
-            {/* Scrollable T&C content */}
             <div
               ref={tcScrollRef}
               onScroll={handleTcScroll}
@@ -245,7 +336,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                 </div>
               ))}
 
-              {/* Jurisdiction clause */}
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
                 <p className="text-[11px] text-red-700 leading-relaxed font-medium">
                   <strong>Governing Law:</strong> These terms are governed by the laws of the Republic of India. Any legal disputes shall be exclusively subject to the jurisdiction of the courts of India. BrokerSaab shall not be a party to any dispute between users and advisors.
@@ -255,7 +345,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
               <p className="text-[10px] text-gray-400 text-center pb-2">Effective Date: June 2026 · BrokerSaab Technology Pvt. Ltd.</p>
             </div>
 
-            {/* Accept section */}
             <div className="shrink-0 px-5 py-4 border-t border-gray-200 bg-white space-y-3">
               {!tcScrolled && (
                 <p className="text-[10px] text-amber-600 text-center flex items-center justify-center gap-1">
@@ -300,30 +389,84 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
               </div>
             )}
 
-            {/* PHONE */}
+            {/* ── PHONE STEP ── */}
             {step === 'phone' && (
               <div className="space-y-4">
+
+                {/* Login method toggle */}
+                <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+                  {(['otp', 'password'] as const).map(method => (
+                    <button key={method}
+                      onClick={() => { setLoginMethod(method); setLoginPassword(''); setError(''); }}
+                      className={`flex-1 py-2.5 text-xs font-semibold transition-all ${
+                        loginMethod === method
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-white text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}>
+                      {method === 'otp' ? '📲 OTP Login' : '🔒 Password Login'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Phone number */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">Mobile Number</label>
                   <div className={inputWrap}>
                     <span className="px-3 py-3.5 bg-gray-50 border-r border-gray-200 text-sm text-gray-600 font-medium">+91</span>
                     <input ref={firstInputRef} type="tel" maxLength={10} placeholder="10-digit mobile number"
                       value={phoneNumber} onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                      onKeyDown={e => e.key === 'Enter' && handleSendOtp()} className={inputBase} />
+                      onKeyDown={e => e.key === 'Enter' && (loginMethod === 'otp' ? handleSendOtp() : handlePhonePasswordLogin())}
+                      className={inputBase} />
                     <Phone size={15} className="mr-3 text-slate-400" />
                   </div>
                 </div>
-                <button onClick={handleSendOtp} disabled={loading}
-                  className="btn-gold w-full py-3.5 flex items-center justify-center gap-2 disabled:opacity-60">
-                  {loading ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : <>Get OTP <ArrowRight size={15} /></>}
+
+                {/* Password field — password tab only */}
+                {loginMethod === 'password' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Password</label>
+                    <div className={inputWrap}>
+                      <Lock size={15} className="ml-3 text-slate-400 shrink-0" />
+                      <input
+                        type={showLoginPwd ? 'text' : 'password'}
+                        placeholder="Your password"
+                        value={loginPassword}
+                        onChange={e => setLoginPassword(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handlePhonePasswordLogin()}
+                        className={inputBase}
+                      />
+                      <button type="button" onClick={() => setShowLoginPwd(p => !p)}
+                        className="mr-3 text-slate-400 hover:text-slate-600 transition-colors">
+                        {showLoginPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* CTA */}
+                <button
+                  onClick={loginMethod === 'otp' ? handleSendOtp : handlePhonePasswordLogin}
+                  disabled={loading}
+                  className={`w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60 ${
+                    loginMethod === 'otp' ? 'btn-gold' : 'text-white'
+                  }`}
+                  style={loginMethod === 'password' ? { background: 'linear-gradient(135deg, #4f46e5, #3730a3)' } : undefined}>
+                  {loading
+                    ? <><Loader2 size={16} className="animate-spin" /> {loginMethod === 'otp' ? 'Sending…' : 'Logging in…'}</>
+                    : loginMethod === 'otp'
+                      ? <>Get OTP <ArrowRight size={15} /></>
+                      : <>Login <ArrowRight size={15} /></>
+                  }
                 </button>
-                <button onClick={() => setStep('terms')} className="w-full text-xs text-center text-gray-400 hover:text-gray-600 transition-colors">
+
+                <button onClick={() => setStep('terms')}
+                  className="w-full text-xs text-center text-gray-400 hover:text-gray-600 transition-colors">
                   ← Back to Terms
                 </button>
               </div>
             )}
 
-            {/* OTP */}
+            {/* ── OTP STEP ── */}
             {step === 'otp' && (
               <div className="space-y-5">
                 {devOtp && (
@@ -337,7 +480,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                     {otp.map((digit, i) => (
                       <input key={i} id={`modal-otp-${i}`} type="tel" maxLength={1} value={digit}
                         onChange={e => handleOtpChange(i, e.target.value)} onKeyDown={e => handleOtpKeyDown(i, e)}
-                        className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-200 rounded-xl outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20 transition-all text-navy-800" />
+                        className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-navy-800" />
                     ))}
                   </div>
                 </div>
@@ -352,7 +495,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
               </div>
             )}
 
-            {/* REGISTER */}
+            {/* ── REGISTER STEP ── */}
             {step === 'register' && (
               <div className="space-y-4">
                 <div>
@@ -380,7 +523,86 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
               </div>
             )}
 
-            {/* SUCCESS */}
+            {/* ── SET PASSWORD STEP ── */}
+            {step === 'set_password' && (
+              <div className="space-y-4">
+
+                {/* Info banner */}
+                <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-start gap-2">
+                  <ShieldCheck size={15} className="text-indigo-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-indigo-700 leading-relaxed">
+                    A password lets you skip OTP next time and log in instantly. You can always switch back to OTP login.
+                  </p>
+                </div>
+
+                {/* New password */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                    New Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className={inputWrap}>
+                    <Lock size={15} className="ml-3 text-slate-400 shrink-0" />
+                    <input
+                      type={showNewPwd ? 'text' : 'password'}
+                      placeholder="Min 8 chars, upper + lower + number"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && document.getElementById('confirm-pwd')?.focus()}
+                      className={inputBase}
+                    />
+                    <button type="button" onClick={() => setShowNewPwd(p => !p)}
+                      className="mr-3 text-slate-400 hover:text-slate-600 transition-colors">
+                      {showNewPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Confirm password */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Confirm Password</label>
+                  <div className={inputWrap}>
+                    <Lock size={15} className="ml-3 text-slate-400 shrink-0" />
+                    <input
+                      id="confirm-pwd"
+                      type={showConfirmPwd ? 'text' : 'password'}
+                      placeholder="Repeat your password"
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleSetPassword()}
+                      className={inputBase}
+                    />
+                    <button type="button" onClick={() => setShowConfirmPwd(p => !p)}
+                      className="mr-3 text-slate-400 hover:text-slate-600 transition-colors">
+                      {showConfirmPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                  {confirmPassword && newPassword !== confirmPassword && (
+                    <p className="text-xs text-red-500 mt-1 ml-1">Passwords do not match</p>
+                  )}
+                </div>
+
+                {/* Set Password CTA */}
+                <button
+                  onClick={handleSetPassword}
+                  disabled={loading || (!!confirmPassword && newPassword !== confirmPassword)}
+                  className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60 text-white"
+                  style={{ background: 'linear-gradient(135deg, #4f46e5, #3730a3)', boxShadow: '0 4px 14px rgba(79,70,229,0.35)' }}>
+                  {loading
+                    ? <><Loader2 size={16} className="animate-spin" /> Setting password…</>
+                    : <>Set Password <ArrowRight size={15} /></>
+                  }
+                </button>
+
+                {/* Skip */}
+                <button
+                  onClick={() => { if (pendingUser) onLoginSuccess(pendingUser); setStep('success'); }}
+                  className="w-full text-xs text-center text-gray-400 hover:text-indigo-600 transition-colors py-1">
+                  Skip for now — I'll use OTP next time →
+                </button>
+              </div>
+            )}
+
+            {/* ── SUCCESS STEP ── */}
             {step === 'success' && (
               <div className="text-center py-4">
                 <div className="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mx-auto mb-4">
@@ -394,7 +616,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
         )}
 
         {/* ── Footer: Admin/Advisor Login ── */}
-        {step !== 'success' && step !== 'terms' && (
+        {step !== 'success' && step !== 'terms' && step !== 'set_password' && (
           <div className="px-6 pb-5 shrink-0 space-y-3">
             <div className="relative">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>

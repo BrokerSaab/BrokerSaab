@@ -13,7 +13,7 @@ import ContactUnlockModal from '@/components/ContactUnlockModal';
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 interface AdvisorDetail {
-  id: string; fullName: string; businessName?: string; avatarUrl?: string;
+  id: string; fullName: string; businessName?: string; avatarUrl?: string; coverImageUrl?: string;
   bio?: string; experienceYears: number; licenseNumber?: string;
   verificationStatus: string; isAuthorizedDealer: boolean; dealerAuthorizedAt?: string;
   state?: string; consultationFee: string; languages: string[]; location: string;
@@ -158,8 +158,21 @@ export default function AdvisorProfilePage({ params }: { params: Promise<{ id: s
     <div className="min-h-screen bg-gray-50">
 
       {/* ── DARK HERO HEADER ── */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-10">
+      <div className="relative text-white overflow-hidden">
+        {/* Cover image or gradient */}
+        {advisor.coverImageUrl ? (
+          <>
+            <img
+              src={advisor.coverImageUrl.startsWith('http') ? advisor.coverImageUrl : `/uploads${advisor.coverImageUrl.replace('/uploads','')}`}
+              alt="Cover"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/80" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
+        )}
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-10">
 
           {/* Back link */}
           <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 transition-colors mb-8 group">
