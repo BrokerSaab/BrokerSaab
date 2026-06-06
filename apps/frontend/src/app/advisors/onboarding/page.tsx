@@ -590,6 +590,18 @@ export default function AdvisorOnboarding() {
       return '';
     }).filter(Boolean);
 
+    const OPEN_SLUGS_PDF = ['m21', 'm22', 'm23', 'm24', 'm25'];
+    const openSpecs: { catName: string; text: string; accent: string }[] = formData.selectedSlugs
+      .filter(slug => OPEN_SLUGS_PDF.includes(slug) && formData.customSpecializations?.[slug]?.trim())
+      .map(slug => {
+        const catIdx = ADVISOR_CATEGORIES.findIndex(a => a.slug === slug);
+        return {
+          catName: ADVISOR_CATEGORIES[catIdx]?.name ?? slug,
+          text: formData.customSpecializations![slug].trim(),
+          accent: MODULE_COLORS[catIdx % MODULE_COLORS.length].accent,
+        };
+      });
+
     const availLines = DAYS.map((day, i) => {
       const slots = formData.slots.filter(s => s.dayOfWeek === i);
       if (!slots.length) return '';
@@ -660,6 +672,16 @@ ${selectedCats.length > 0 ? `<div class="section">
 ${subNames.length > 0 ? `<div class="section">
   <div class="section-header" style="background:linear-gradient(90deg,#3b0764,#5b21b6);color:#ddd6fe;">Specialisations (${subNames.length})</div>
   <div class="section-body">${subNames.map(name => `<span class="spec-chip" style="border-color:#7c3aed50;color:#5b21b6;background:#f5f3ff;">${name}</span>`).join('')}</div>
+</div>` : ''}
+
+${openSpecs.length > 0 ? `<div class="section">
+  <div class="section-header" style="background:linear-gradient(90deg,#1e3a2f,#14532d);color:#bbf7d0;">Open-Module Specialisations (${openSpecs.length})</div>
+  <div class="section-body">${openSpecs.map(sp => `
+    <div style="margin-bottom:10px;padding:10px 12px;border-radius:8px;border-left:3px solid ${sp.accent};background:${sp.accent}08;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:${sp.accent};margin-bottom:4px;">${sp.catName}</div>
+      <div style="font-size:12px;color:#374151;line-height:1.5;">${sp.text}</div>
+    </div>`).join('')}
+  </div>
 </div>` : ''}
 
 ${availLines ? `<div class="section">
@@ -2219,7 +2241,7 @@ ${availLines ? `<div class="section">
               </div>
             )}
 
-            {/* ── Specialisations ── */}
+            {/* ── Specialisations (standard sub-services) ── */}
             {formData.selectedSubSlugs.length > 0 && (
               <div className="rounded-2xl border border-violet-200 overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'linear-gradient(90deg,#3b0764,#5b21b6)' }}>
@@ -2229,7 +2251,6 @@ ${availLines ? `<div class="section">
                   </span>
                 </div>
                 <div className="p-4 bg-violet-50/30">
-                  {/* Group by parent category */}
                   {(() => {
                     const grouped: Record<number, { parentName: string; accent: string; subs: string[] }> = {};
                     formData.selectedSubSlugs.forEach(subId => {
@@ -2265,6 +2286,47 @@ ${availLines ? `<div class="section">
                 </div>
               </div>
             )}
+
+            {/* ── Open-module custom specialisations ── */}
+            {(() => {
+              const OPEN_SLUGS_REVIEW = ['m21', 'm22', 'm23', 'm24', 'm25'];
+              const openEntries = formData.selectedSlugs
+                .filter(slug => OPEN_SLUGS_REVIEW.includes(slug) && formData.customSpecializations?.[slug]?.trim());
+              if (openEntries.length === 0) return null;
+              return (
+                <div className="rounded-2xl border border-emerald-200 overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'linear-gradient(90deg,#064e3b,#065f46)' }}>
+                    <Award size={13} className="text-emerald-200" />
+                    <span className="text-xs font-black uppercase tracking-wider text-emerald-100">
+                      Your Specialisation Descriptions ({openEntries.length})
+                    </span>
+                  </div>
+                  <div className="p-4 bg-emerald-50/30 space-y-3">
+                    {openEntries.map(slug => {
+                      const catIdx = ADVISOR_CATEGORIES.findIndex(a => a.slug === slug);
+                      const cat = ADVISOR_CATEGORIES[catIdx];
+                      const colorSet = MODULE_COLORS[catIdx % MODULE_COLORS.length];
+                      const Icon = cat?.icon ?? Award;
+                      const text = formData.customSpecializations![slug];
+                      return (
+                        <div key={slug} className="rounded-xl bg-white border-2 p-3"
+                          style={{ borderColor: `${colorSet.accent}40` }}>
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
+                              style={{ background: `${colorSet.accent}18` }}>
+                              <Icon size={11} style={{ color: colorSet.accent }} />
+                            </div>
+                            <p className="text-[10px] font-black uppercase tracking-wider"
+                              style={{ color: colorSet.accent }}>{cat?.name}</p>
+                          </div>
+                          <p className="text-xs text-gray-700 leading-relaxed pl-7">{text}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ── Availability ── */}
             {formData.slots.length > 0 && (
