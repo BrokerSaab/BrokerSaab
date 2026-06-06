@@ -114,6 +114,8 @@ model Advisor {
   isAuthorizedDealer Boolean            @default(false)
   dealerAuthorizedAt DateTime?
   state              String?
+  circle             String?            // Administrative circle / block (for hyper-local search)
+  subdivision        String?            // Revenue subdivision
   advisorType        AdvisorType        @default(REGULAR)
   aadhaarLast4       String?
   aadhaarHash        String?

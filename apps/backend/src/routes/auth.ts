@@ -73,6 +73,8 @@ const advisorSignupSchema = z.object({
     advisorType: z.enum(['REGULAR', 'AUTHORIZED']).default('REGULAR'),
     location: z.string(),
     state: z.string().optional(),
+    circle: z.string().optional(),
+    subdivision: z.string().optional(),
     consultationFee: z.number().min(0).optional(),
     languages: z.array(z.string()),
     bio: z.string().optional()
@@ -412,6 +414,8 @@ router.post('/advisor/signup', validateRequest(advisorSignupSchema), async (req:
     advisorType,
     location,
     state,
+    circle,
+    subdivision,
     consultationFee,
     languages,
     bio
@@ -471,6 +475,8 @@ router.post('/advisor/signup', validateRequest(advisorSignupSchema), async (req:
         advisorType: advisorType ?? 'REGULAR',
         location,
         state: state ?? (location.includes(',') ? location.split(',').pop()?.trim() ?? null : null),
+        circle: circle ?? null,
+        subdivision: subdivision ?? null,
         consultationFee: consultationFee ?? 0,
         languages,
         bio: bio || null,

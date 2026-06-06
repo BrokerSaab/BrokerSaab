@@ -41,6 +41,8 @@ interface FormData {
   location: string;
   state: string;
   city: string;
+  circle: string;
+  subdivision: string;
   consultationFee: string;
   languages: string[];
   bio: string;
@@ -106,7 +108,7 @@ const ADVISOR_CATEGORIES = [
 const INITIAL_FORM: FormData = {
   phoneNumber: '', email: '', password: '', confirmPassword: '',
   fullName: '', businessName: '', licenseNumber: '', experienceYears: '',
-  location: '', state: '', city: '', consultationFee: '', languages: [], bio: '',
+  location: '', state: '', city: '', circle: '', subdivision: '', consultationFee: '', languages: [], bio: '',
   selectedSlugs: [], selectedSubSlugs: [], customSpecializations: {}, slots: [],
   advisorType: '', otpVerified: false, tempPhoneToken: '',
   aadhaarNumber: '', aadhaarConsentGiven: false,
@@ -340,6 +342,8 @@ export default function AdvisorOnboarding() {
           email: formData.email,
           state: formData.state,
           city: formData.city,
+          circle: formData.circle,
+          subdivision: formData.subdivision,
           businessName: formData.businessName,
           location: formData.location,
           experienceYears: formData.experienceYears,
@@ -458,6 +462,8 @@ export default function AdvisorOnboarding() {
           advisorType: formData.advisorType || 'REGULAR',
           location: formData.location || `${formData.city}, ${formData.state}`,
           state: formData.state,
+          circle: formData.circle || undefined,
+          subdivision: formData.subdivision || undefined,
           consultationFee: formData.consultationFee ? parseFloat(formData.consultationFee) : undefined,
           languages: formData.languages,
           bio: finalBio,
@@ -1167,6 +1173,8 @@ ${availLines ? `<div class="section">
                         email: s.email || prev.email,
                         state: s.state || prev.state,
                         city: s.city || prev.city,
+                        circle: s.circle || prev.circle,
+                        subdivision: s.subdivision || prev.subdivision,
                         businessName: s.businessName || prev.businessName,
                         location: s.location || prev.location,
                         experienceYears: s.experienceYears || prev.experienceYears,
@@ -1435,6 +1443,30 @@ ${availLines ? `<div class="section">
                   <input type="number" min="0" placeholder="e.g. 1500" value={formData.consultationFee}
                     onChange={e => update('consultationFee', e.target.value)} className={inputBase} />
                 </div>
+              </div>
+
+              {/* Circle */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Circle / Block <span className="text-gray-400 font-normal">(optional)</span></label>
+                <div className={inputWrap}>
+                  <MapPin size={16} className={inputIcon} />
+                  <input type="text" placeholder="e.g. Raxaul Circle, Motihari Block"
+                    value={formData.circle}
+                    onChange={e => update('circle', e.target.value)} className={inputBase} />
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">Clients can find you by searching your circle or block name</p>
+              </div>
+
+              {/* Subdivision */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Subdivision <span className="text-gray-400 font-normal">(optional)</span></label>
+                <div className={inputWrap}>
+                  <MapPin size={16} className={inputIcon} />
+                  <input type="text" placeholder="e.g. East Champaran, Gopalganj"
+                    value={formData.subdivision}
+                    onChange={e => update('subdivision', e.target.value)} className={inputBase} />
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">Revenue subdivision or district — used as a search keyword</p>
               </div>
             </div>
 
@@ -1755,7 +1787,7 @@ ${availLines ? `<div class="section">
                         value={customText}
                         onChange={e => update('customSpecializations', { ...formData.customSpecializations, [expandedModule]: e.target.value })}
                         placeholder={OPEN_PLACEHOLDERS[expandedModule] ?? 'Describe what you specifically offer in this service area…'}
-                        className="w-full text-sm border-2 border-gray-200 focus:border-indigo-400 rounded-xl px-3 py-2.5 resize-none outline-none transition-colors"
+                        className="w-full text-sm text-gray-900 border-2 border-gray-200 focus:border-indigo-400 rounded-xl px-3 py-2.5 resize-none outline-none transition-colors"
                       />
                       <p className="text-[11px] text-gray-400 mt-1 text-right">{customText.length}/300 characters</p>
                     </div>

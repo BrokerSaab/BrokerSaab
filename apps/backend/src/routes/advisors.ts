@@ -111,7 +111,12 @@ router.get('/', validateRequest(searchAdvisorsQuerySchema), async (req: Request,
   }
 
   if (location) {
-    whereConditions.location = { contains: location as string, mode: 'insensitive' };
+    const locOR = [
+      { location: { contains: location as string, mode: 'insensitive' } },
+      { circle: { contains: location as string, mode: 'insensitive' } },
+      { subdivision: { contains: location as string, mode: 'insensitive' } },
+    ];
+    whereConditions.OR = whereConditions.OR ? [...whereConditions.OR, ...locOR] : locOR;
   }
 
   if (minFee || maxFee) {
@@ -154,7 +159,10 @@ router.get('/', validateRequest(searchAdvisorsQuerySchema), async (req: Request,
     whereConditions.OR = [
       { fullName: { contains: search as string, mode: 'insensitive' } },
       { bio: { contains: search as string, mode: 'insensitive' } },
-      { businessName: { contains: search as string, mode: 'insensitive' } }
+      { businessName: { contains: search as string, mode: 'insensitive' } },
+      { location: { contains: search as string, mode: 'insensitive' } },
+      { circle: { contains: search as string, mode: 'insensitive' } },
+      { subdivision: { contains: search as string, mode: 'insensitive' } },
     ];
   }
 
@@ -427,6 +435,8 @@ router.get('/:id', optionalAuth, async (req: AuthenticatedRequest, res: Response
         isAuthorizedDealer: advisor.isAuthorizedDealer,
         dealerAuthorizedAt: advisor.dealerAuthorizedAt,
         state: advisor.state,
+        circle: (advisor as any).circle,
+        subdivision: (advisor as any).subdivision,
         consultationFee: advisor.consultationFee,
         languages: advisor.languages,
         location: advisor.location,
