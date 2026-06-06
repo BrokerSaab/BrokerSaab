@@ -130,11 +130,14 @@ export default function BookingsPage() {
     try {
       const token = localStorage.getItem('accessToken');
       const res = await fetch(`${API}/contacts/my-unlocks`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      if (data.success) {
+      let data: any = null;
+      try { data = await res.json(); } catch { /* non-JSON body */ }
+      if (data?.success) {
         setContactedAdvisors(data.data);
+      } else if (!res.ok) {
+        setContactedError(`Service temporarily unavailable (${res.status}). Please try again shortly.`);
       } else {
-        setContactedError(data.message || 'Failed to load contacted advisors.');
+        setContactedError(data?.message || 'Failed to load contacted advisors.');
       }
     } catch {
       setContactedError('Cannot reach the server. Please check your connection and retry.');
