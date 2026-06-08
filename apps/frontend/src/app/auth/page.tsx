@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Phone, ArrowRight, ArrowLeft, ShieldCheck, KeyRound, User, Mail, CheckCircle2, Loader2, LayoutDashboard, BookOpen, Scale, AlertOctagon, FileText, Gavel, Lock, Eye, EyeOff } from 'lucide-react';
@@ -18,6 +18,19 @@ const USER_TC_CLAUSES = [
 export default function AuthPage() {
   const router = useRouter();
   const [step, setStep] = useState<AuthStep>('terms');
+
+  // Redirect already-authenticated users to their destination
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      const token  = localStorage.getItem('accessToken');
+      if (!stored || !token) return;
+      const u = JSON.parse(stored);
+      if (u?.role === 'CLIENT')                                    { window.location.replace('/bookings'); return; }
+      if (u?.role === 'ADVISOR')                                   { window.location.replace('/advisor/dashboard'); return; }
+      if (u?.role === 'SUPER_ADMIN' || u?.role === 'SUB_ADMIN')   { window.location.replace('/admin'); return; }
+    } catch { /* ignore parse errors */ }
+  }, []);
   const [tcAccepted, setTcAccepted] = useState(false);
   const [tcScrolled, setTcScrolled] = useState(false);
   const tcScrollRef = useRef<HTMLDivElement>(null);

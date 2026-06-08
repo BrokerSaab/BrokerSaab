@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -26,6 +26,18 @@ const inputBase = 'flex-1 px-4 py-3.5 text-gray-900 text-sm outline-none placeho
 export default function AdminLoginPage() {
   const router = useRouter();
   const [screen, setScreen] = useState<Screen>('selection');
+
+  // Redirect already-authenticated users straight to their destination
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      const token  = localStorage.getItem('accessToken');
+      if (!stored || !token) return;
+      const u = JSON.parse(stored);
+      if (u?.role === 'ADVISOR')    { window.location.replace('/advisor/dashboard'); return; }
+      if (u?.role === 'SUPER_ADMIN' || u?.role === 'SUB_ADMIN') { window.location.replace('/admin'); return; }
+    } catch { /* ignore parse errors */ }
+  }, []);
 
   // Shared
   const [loading, setLoading]   = useState(false);
