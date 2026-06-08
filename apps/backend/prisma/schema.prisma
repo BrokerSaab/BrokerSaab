@@ -55,6 +55,15 @@ enum AdvisorType {
   AUTHORIZED
 }
 
+enum QuoteStatus {
+  REQUESTED   // client sent request, awaiting advisor
+  QUOTED      // advisor submitted fee breakdown
+  VIEWED      // client opened the quote
+  ACCEPTED    // client accepted (proceeds to booking)
+  CANCELLED   // either party withdrew
+  EXPIRED     // validUntil passed without action
+}
+
 enum DocumentType {
   AADHAAR_CARD
   PASSPORT_PHOTO
@@ -74,6 +83,7 @@ model User {
   passwordHash      String?            // Nullable for pure OTP-based clients
   avatarUrl         String?
   state             String?            // Selected Indian state for location-based matching
+  pushToken         String?            @db.Text
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   
@@ -89,6 +99,8 @@ model User {
   transactions           Transaction[]
   contactSubscriptions   UserContactSubscription[]
   contactUnlocks         ContactUnlock[]
+  feeQuotes              FeeQuote[]               @relation("ClientFeeQuotes")
+  notifications          Notification[]
 
   @@index([phoneNumber])
 }
@@ -121,6 +133,7 @@ model Advisor {
   aadhaarHash        String?
   gstNumber          String?
   onboardingStep     Int                @default(0)
+  pushToken          String?            @db.Text
   assignedSubAdminId String?
   rejectionComment   String?            @db.Text
   subAdminNote       String?            @db.Text
@@ -139,6 +152,7 @@ model Advisor {
   auditLogs          AuditLog[]         @relation("AdvisorAuditLogs")
   subscriptions      AdvisorSubscription[]
   contactUnlocks     ContactUnlock[]
+  feeQuotes          FeeQuote[]         @relation("AdvisorFeeQuotes")
 
   @@index([verificationStatus])
   @@index([location])
@@ -402,10 +416,49 @@ model Message {
 model Notification {
   id         String   @id @default(uuid())
   userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String   @default("GENERAL")  // QUOTE_REQUESTED | QUOTE_SUBMITTED | GENERAL
+  refId      String?  // FK to FeeQuote.id for deep-link navigation
   title      String
   body       String
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+model FeeQuote {
+  id            String      @id @default(uuid())
+  clientId      String
+  client        User        @relation("ClientFeeQuotes", fields: [clientId], references: [id])
+  advisorId     String
+  advisor       Advisor     @relation("AdvisorFeeQuotes", fields: [advisorId], references: [id])
+  categorySlug  String?
+  clientMessage String?     @db.Text
+  status        QuoteStatus @default(REQUESTED)
+  advisorNote   String?     @db.Text
+  validUntil    DateTime?
+  totalAmount   Decimal?    @db.Decimal(10, 2)
+  viewedAt      DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  lineItems     FeeQuoteLineItem[]
+
+  @@index([clientId])
+  @@index([advisorId])
+  @@index([status])
+}
+
+model FeeQuoteLineItem {
+  id          String   @id @default(uuid())
+  quoteId     String
+  quote       FeeQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  description String
+  amount      Decimal  @db.Decimal(10, 2)
+  sortOrder   Int      @default(0)
+
+  @@index([quoteId])
 }
 
 model SupportTickets {

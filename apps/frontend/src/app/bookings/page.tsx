@@ -6,13 +6,25 @@ import { useRouter } from 'next/navigation';
 import {
   Calendar, Clock, MapPin, ShieldCheck, AlertCircle, Loader2,
   ArrowLeft, XCircle, CheckCircle2, RefreshCw, BookOpen, Phone, Eye,
-  UserCheck, MessageSquare
+  UserCheck, MessageSquare, FileText, Bell
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import FeeQuoteViewModal from '@/components/FeeQuoteViewModal';
+import { io as ioClient } from 'socket.io-client';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'https://brokersaab-backend.onrender.com');
 
 type BookingStatus = 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
+
+interface FeeQuote {
+  id: string; status: string; categorySlug?: string;
+  clientMessage?: string; advisorNote?: string;
+  totalAmount?: string; validUntil?: string; viewedAt?: string;
+  createdAt: string;
+  lineItems: { id: string; description: string; amount: string; sortOrder: number }[];
+  advisor: { id: string; fullName: string; avatarUrl?: string };
+}
 
 interface Booking {
   id: string;
@@ -104,6 +116,23 @@ export default function BookingsPage() {
   const [contactedLoading, setContactedLoading]   = useState(false);
   const [contactedError, setContactedError]       = useState('');
 
+  // Fee Quotes
+  const [quotes,          setQuotes]          = useState<FeeQuote[]>([]);
+  const [quotesLoading,   setQuotesLoading]   = useState(false);
+  const [selectedQuote,   setSelectedQuote]   = useState<FeeQuote | null>(null);
+  const [showQuoteModal,  setShowQuoteModal]  = useState(false);
+
+  const fetchQuotes = async () => {
+    setQuotesLoading(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(`${API}/quotes`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setQuotes(data.data);
+    } catch { /* ignore */ }
+    finally { setQuotesLoading(false); }
+  };
+
   useEffect(() => {
     if (!isLoggedIn) {
       openLoginModal(() => router.push('/bookings'));
@@ -112,8 +141,19 @@ export default function BookingsPage() {
     fetchBookings();
     fetchContactCredits();
     fetchContactedAdvisors();
+    fetchQuotes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn]);
+
+  // Socket: join user room + listen for quote_submitted
+  useEffect(() => {
+    if (!isLoggedIn || !user?.id) return;
+    const socket = ioClient(WS_URL, { transports: ['websocket'], autoConnect: true });
+    socket.on('connect', () => socket.emit('join_user_room', user.id));
+    socket.on('quote_submitted', () => fetchQuotes());
+    return () => { socket.disconnect(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, user?.id]);
 
   const fetchContactCredits = async () => {
     try {
@@ -191,6 +231,7 @@ export default function BookingsPage() {
   };
 
   return (
+    <>
     <div className="min-h-screen bg-slate-950">
       {/* Header */}
       <div className="bg-navy-800 border-b border-gold-500/10">
@@ -350,6 +391,89 @@ export default function BookingsPage() {
             })}
           </div>
         )}
+        {/* ── FEE QUOTES ── */}
+        {(() => {
+          const newQuotes = quotes.filter(q => q.status === 'QUOTED' && !q.viewedAt);
+          return (
+            <div className="mt-8">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <FileText size={15} className="text-indigo-400" />
+                  <h2 className="text-sm font-bold text-white">Fee Quotes</h2>
+                  {quotes.length > 0 && (
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                      {quotes.length}
+                    </span>
+                  )}
+                </div>
+                <button onClick={fetchQuotes} className="text-slate-500 hover:text-indigo-400 transition-colors p-1" title="Refresh">
+                  <RefreshCw size={13} />
+                </button>
+              </div>
+
+              {/* Blinking "New Quotes" CTA */}
+              {newQuotes.length > 0 && (
+                <button
+                  onClick={() => { setSelectedQuote(newQuotes[0]); setShowQuoteModal(true); }}
+                  className="w-full mb-3 flex items-center justify-center gap-2 py-3 rounded-2xl font-black text-sm animate-pulse transition-all"
+                  style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: 'white', boxShadow: '0 6px 24px rgba(79,70,229,0.45)' }}
+                >
+                  <Bell size={15} />
+                  {newQuotes.length === 1 ? '1 New Fee Quote Ready — View Now' : `${newQuotes.length} New Fee Quotes Ready — View Now`}
+                </button>
+              )}
+
+              {quotesLoading ? (
+                <div className="flex items-center justify-center py-8 text-slate-400">
+                  <Loader2 size={18} className="animate-spin mr-2" /> Loading quotes…
+                </div>
+              ) : quotes.length === 0 ? (
+                <div className="border border-white/5 rounded-2xl px-5 py-7 text-center bg-white/[0.02]">
+                  <FileText size={28} className="text-slate-600 mx-auto mb-2" />
+                  <p className="text-slate-400 text-sm font-medium">No fee quotes yet</p>
+                  <p className="text-slate-500 text-xs mt-1">Ask an advisor for a fee breakdown before booking.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {quotes.map(q => {
+                    const isNew = q.status === 'QUOTED' && !q.viewedAt;
+                    const statusColor =
+                      q.status === 'QUOTED'    ? 'text-indigo-300 bg-indigo-500/15 border-indigo-500/30' :
+                      q.status === 'VIEWED'    ? 'text-blue-300 bg-blue-500/15 border-blue-500/30' :
+                      q.status === 'ACCEPTED'  ? 'text-emerald-300 bg-emerald-500/15 border-emerald-500/30' :
+                      q.status === 'CANCELLED' ? 'text-red-300 bg-red-500/10 border-red-500/20' :
+                      q.status === 'EXPIRED'   ? 'text-gray-400 bg-gray-500/10 border-gray-500/20' :
+                                                 'text-amber-300 bg-amber-500/15 border-amber-500/30';
+                    return (
+                      <button key={q.id}
+                        onClick={() => { setSelectedQuote(q); setShowQuoteModal(true); }}
+                        className={`w-full text-left flex items-center gap-4 px-4 py-3.5 rounded-2xl border transition-all hover:brightness-110 ${isNew ? 'border-indigo-500/40 bg-indigo-500/10' : 'border-white/8 bg-white/[0.03]'}`}>
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                          style={{ background: 'rgba(79,70,229,0.15)', border: '1px solid rgba(79,70,229,0.25)' }}>
+                          <FileText size={15} className="text-indigo-300" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{q.advisor.fullName}</p>
+                          <p className="text-[11px] text-slate-400 truncate">
+                            {q.totalAmount ? `₹${parseFloat(q.totalAmount).toLocaleString('en-IN')} · ` : ''}
+                            {q.categorySlug ?? 'General query'}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${statusColor}`}>
+                            {q.status}
+                          </span>
+                          {isNew && <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {/* ── CONTACTED ADVISORS ── */}
         <div className="mt-10">
           {/* Section header */}
@@ -449,5 +573,16 @@ export default function BookingsPage() {
 
       </div>
     </div>
+
+    <FeeQuoteViewModal
+      quote={selectedQuote}
+      isOpen={showQuoteModal}
+      onClose={() => setShowQuoteModal(false)}
+      onDeclined={(id) => {
+        setQuotes(prev => prev.map(q => q.id === id ? { ...q, status: 'CANCELLED' } : q));
+        setShowQuoteModal(false);
+      }}
+    />
+    </>
   );
 }

@@ -19,6 +19,8 @@ import adminRoutes from './routes/admin';
 import subscriptionRoutes, { webhookHandler } from './routes/subscriptions';
 import contactRoutes, { contactWebhookHandler } from './routes/contacts';
 import supportRoutes from './routes/support';
+import quoteRoutes from './routes/quotes';
+import userRoutes from './routes/users';
 import prisma from './config/db';
 
 const app = express();
@@ -66,6 +68,8 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
 app.use('/api/v1/contacts', contactRoutes);
 app.use('/api/v1/support', supportRoutes);
+app.use('/api/v1/quotes', quoteRoutes);
+app.use('/api/v1/users', userRoutes);
 
 // Health Check Endpoint
 app.get('/health', (req: Request, res: Response) => {
@@ -80,11 +84,15 @@ app.get('/health', (req: Request, res: Response) => {
 io.on('connection', (socket) => {
   console.log(`Socket Client Connected: ${socket.id}`);
 
-  // Room coordinator joining
+  // Room coordinator joining (chat rooms)
   socket.on('join_room', (roomId: string) => {
     socket.join(roomId);
     console.log(`Socket client joined room: ${roomId}`);
   });
+
+  // Personal notification rooms for quote events
+  socket.on('join_user_room',    (userId: string)    => socket.join(`user:${userId}`));
+  socket.on('join_advisor_room', (advisorId: string) => socket.join(`advisor:${advisorId}`));
 
   // Message dispatcher
   socket.on('send_msg', (data: { roomId: string; senderId: string; content: string }) => {

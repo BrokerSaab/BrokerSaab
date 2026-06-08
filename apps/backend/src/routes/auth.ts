@@ -556,4 +556,40 @@ router.post('/setup-admin', async (req: Request, res: Response): Promise<void> =
   }
 });
 
+/**
+ * POST /auth/token/refresh
+ * Mobile-only: exchange a refresh token for a new access token
+ */
+router.post(
+  '/token/refresh',
+  validateRequest(z.object({ body: z.object({ refreshToken: z.string().min(1) }) })),
+  async (req: Request, res: Response): Promise<void> => {
+    const { refreshToken } = req.body;
+    try {
+      const payload = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as {
+        id: string;
+        phoneNumber: string;
+        role: Role;
+        advisorId?: string;
+      };
+
+      const user = await prisma.user.findUnique({ where: { id: payload.id } });
+      if (!user) {
+        res.status(401).json({ success: false, message: 'User not found' });
+        return;
+      }
+
+      const newAccessToken = jwt.sign(
+        { id: user.id, phoneNumber: user.phoneNumber, role: user.role, advisorId: payload.advisorId },
+        JWT_ACCESS_SECRET,
+        { expiresIn: '24h' },
+      );
+
+      res.json({ success: true, accessToken: newAccessToken });
+    } catch {
+      res.status(401).json({ success: false, message: 'Invalid or expired refresh token' });
+    }
+  },
+);
+
 export default router;

@@ -6,11 +6,20 @@ import { useRouter } from 'next/navigation';
 import {
   Calendar, Clock, User, AlertCircle, Loader2, ArrowLeft,
   CheckCircle2, XCircle, ShieldCheck, RefreshCw, LayoutDashboard,
-  Phone, MessageSquare, BadgeCheck, Camera, Layers
+  Phone, MessageSquare, BadgeCheck, Camera, Layers, FileText, Bell
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import AdvisorFillQuotePanel from '@/components/AdvisorFillQuotePanel';
+import { io as ioClient } from 'socket.io-client';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'https://brokersaab-backend.onrender.com');
+
+interface QuoteRequest {
+  id: string; status: string; categorySlug?: string;
+  clientMessage?: string; createdAt: string;
+  client: { id: string; fullName: string; phoneNumber: string };
+}
 
 type BookingStatus = 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
 
@@ -71,13 +80,50 @@ export default function AdvisorDashboard() {
   const [filter, setFilter] = useState<BookingStatus | 'ALL'>('ALL');
   const [subValidity, setSubValidity] = useState<{ isActive: boolean; expiresAt: string | null; daysLeft: number } | null>(null);
 
+  // Quote requests
+  const [quoteRequests,    setQuoteRequests]    = useState<QuoteRequest[]>([]);
+  const [unreadQuoteCount, setUnreadQuoteCount] = useState(0);
+  const [selectedRequest,  setSelectedRequest]  = useState<QuoteRequest | null>(null);
+  const [showQuotePanel,   setShowQuotePanel]   = useState(false);
+  const [showQuoteList,    setShowQuoteList]    = useState(false);
+
+  const fetchQuoteRequests = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(`${API}/quotes`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setQuoteRequests(data.data);
+    } catch { /* ignore */ }
+  };
+
+  const fetchUnreadCount = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(`${API}/quotes/unread-count`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setUnreadQuoteCount(data.count);
+    } catch { /* ignore */ }
+  };
+
   useEffect(() => {
     if (!isLoggedIn) { router.push('/auth/admin'); return; }
     if (user?.role !== 'ADVISOR') { router.push('/'); return; }
     fetchBookings();
     fetchSubscriptionValidity();
+    fetchQuoteRequests();
+    fetchUnreadCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn, user]);
+
+  // Socket: join advisor room + listen for quote_requested
+  useEffect(() => {
+    if (!isLoggedIn || !user?.id) return;
+    const socket = ioClient(WS_URL, { transports: ['websocket'], autoConnect: true });
+    socket.on('connect', () => socket.emit('join_advisor_room', user.id));
+    socket.on('quote_requested', () => { fetchQuoteRequests(); fetchUnreadCount(); });
+    return () => { socket.disconnect(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, user?.id]);
 
   const fetchSubscriptionValidity = async () => {
     try {
@@ -128,6 +174,7 @@ export default function AdvisorDashboard() {
   const counts = bookings.reduce((acc, b) => { acc[b.status] = (acc[b.status] ?? 0) + 1; return acc; }, {} as Record<string, number>);
 
   return (
+    <>
     <div className="min-h-screen bg-[#F4F6FB]">
       {/* Header */}
       <div className="bg-white border-b border-slate-100 shadow-sm">
@@ -151,6 +198,17 @@ export default function AdvisorDashboard() {
             </p>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            {/* Quote requests badge */}
+            <button onClick={() => { setShowQuoteList(v => !v); fetchQuoteRequests(); fetchUnreadCount(); }}
+              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/10 transition-all">
+              <FileText size={13} /> Quotes
+              {unreadQuoteCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black text-white animate-pulse"
+                  style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)' }}>
+                  {unreadQuoteCount > 9 ? '9+' : unreadQuoteCount}
+                </span>
+              )}
+            </button>
             <Link href="/advisor/profile"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105"
               style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}
@@ -205,6 +263,66 @@ export default function AdvisorDashboard() {
               </Link>
             </div>
           )
+        )}
+
+        {/* ── Quote Requests panel ── */}
+        {showQuoteList && (
+          <div className="mb-6 bg-white border border-indigo-100 rounded-2xl overflow-hidden shadow-sm">
+            <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100"
+              style={{ background: 'linear-gradient(135deg,#f0f0ff,#fafaff)' }}>
+              <div className="flex items-center gap-2">
+                <FileText size={15} className="text-indigo-500" />
+                <h3 className="text-sm font-black text-slate-800">Quote Requests</h3>
+                {unreadQuoteCount > 0 && (
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-500 text-white animate-pulse">
+                    {unreadQuoteCount} new
+                  </span>
+                )}
+              </div>
+              <button onClick={() => setShowQuoteList(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                <XCircle size={16} />
+              </button>
+            </div>
+            {quoteRequests.length === 0 ? (
+              <div className="px-5 py-8 text-center">
+                <Bell size={28} className="text-slate-300 mx-auto mb-2" />
+                <p className="text-slate-400 text-sm">No quote requests yet</p>
+                <p className="text-slate-400 text-xs mt-1">Clients can request fee breakdowns from your profile.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-50">
+                {quoteRequests.map(q => (
+                  <div key={q.id} className="px-5 py-4 flex items-center gap-4 hover:bg-indigo-50/30 transition-all">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center shrink-0">
+                      <User size={15} className="text-indigo-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-800">{q.client.fullName}</p>
+                      <p className="text-[11px] text-slate-500 truncate">
+                        {q.categorySlug ? q.categorySlug.toUpperCase() : 'General'} ·{' '}
+                        {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                        q.status === 'REQUESTED' ? 'text-amber-700 bg-amber-50 border-amber-200' :
+                        q.status === 'QUOTED'    ? 'text-blue-700 bg-blue-50 border-blue-200' :
+                                                   'text-slate-500 bg-slate-50 border-slate-200'
+                      }`}>{q.status}</span>
+                      {q.status === 'REQUESTED' && (
+                        <button
+                          onClick={() => { setSelectedRequest(q); setShowQuotePanel(true); }}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all hover:scale-105"
+                          style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)' }}>
+                          Respond
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Stats row */}
@@ -343,5 +461,17 @@ export default function AdvisorDashboard() {
         )}
       </div>
     </div>
+
+    <AdvisorFillQuotePanel
+      request={selectedRequest}
+      isOpen={showQuotePanel}
+      onClose={() => setShowQuotePanel(false)}
+      onSubmitted={(quoteId) => {
+        setQuoteRequests(prev => prev.map(q => q.id === quoteId ? { ...q, status: 'QUOTED' } : q));
+        setUnreadQuoteCount(prev => Math.max(0, prev - 1));
+        setShowQuotePanel(false);
+      }}
+    />
+    </>
   );
 }

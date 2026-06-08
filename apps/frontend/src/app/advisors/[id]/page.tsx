@@ -4,11 +4,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Star, ShieldCheck, MapPin, Award, Languages, Calendar, Clock,
   ArrowLeft, User, BadgeCheck, Phone, Mail, Eye, Loader2, Copy,
-  Check, DollarSign, MessageSquare, Briefcase, ChevronRight
+  Check, DollarSign, MessageSquare, Briefcase, ChevronRight, FileText
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import ContactUnlockModal from '@/components/ContactUnlockModal';
+import FeeQuoteRequestModal from '@/components/FeeQuoteRequestModal';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
@@ -64,6 +65,8 @@ export default function AdvisorProfilePage({ params }: { params: Promise<{ id: s
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [isBooked, setIsBooked]         = useState(false);
   const [paymentGateway, setPaymentGateway] = useState<'RAZORPAY' | 'STRIPE' | 'WALLET'>('RAZORPAY');
+  const [showQuoteModal,  setShowQuoteModal]  = useState(false);
+  const [quoteRequested,  setQuoteRequested]  = useState(false);
 
   const token = () => typeof localStorage !== 'undefined' ? localStorage.getItem('accessToken') || '' : '';
 
@@ -449,6 +452,25 @@ export default function AdvisorProfilePage({ params }: { params: Promise<{ id: s
                 {/* Divider */}
                 <div className="border-t border-gray-200" />
 
+                {/* Fee Quote Request */}
+                {user?.role === 'CLIENT' && (
+                  quoteRequested ? (
+                    <div className="flex items-center gap-2 px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl">
+                      <Check size={14} className="text-indigo-600 shrink-0" />
+                      <span className="text-xs font-semibold text-indigo-700">Quote Requested — awaiting advisor response</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { if (!isLoggedIn) { openLoginModal(); return; } setShowQuoteModal(true); }}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-indigo-300 text-indigo-700 bg-indigo-50 font-semibold text-sm hover:bg-indigo-100 transition-all">
+                      <FileText size={14} /> Ask for Fee Quote
+                    </button>
+                  )
+                )}
+
+                {/* Divider */}
+                <div className="border-t border-gray-200" />
+
                 {/* Booking */}
                 {isBooked ? (
                   <div className="text-center space-y-3 py-2">
@@ -557,6 +579,14 @@ export default function AdvisorProfilePage({ params }: { params: Promise<{ id: s
           setContactStatus(prev => prev ? { ...prev, creditsRemaining, unlockedAdvisorIds: [...(prev.unlockedAdvisorIds || []), advisorId] } : prev);
           setShowModal(false);
         }}
+      />
+
+      <FeeQuoteRequestModal
+        advisorId={advisorId}
+        advisorName={advisor.fullName}
+        isOpen={showQuoteModal}
+        onClose={() => setShowQuoteModal(false)}
+        onSuccess={() => { setQuoteRequested(true); setShowQuoteModal(false); }}
       />
     </div>
   );
