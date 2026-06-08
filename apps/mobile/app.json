@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "BrokerSaab",
+    "slug": "brokersaab",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#050E1B"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.brokersaab.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera is used to capture KYC documents.",
+        "NSPhotoLibraryUsageDescription": "Photo library is used to upload KYC documents and profile photos.",
+        "NSMicrophoneUsageDescription": "Microphone is used for audio consultations."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#050E1B"
+      },
+      "package": "com.brokersaab.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "brokersaab-mobile"
+      }
+    }
+  }
+}

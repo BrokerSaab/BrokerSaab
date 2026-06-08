@@ -93,10 +93,10 @@ const s = StyleSheet.create({
   cardNew: { borderColor: Palette.primary, backgroundColor: Palette.primary + '0A' },
   cardRow: { flexDirection: 'row', alignItems: 'flex-start' },
   flex1: { flex: 1, marginRight: Spacing.sm },
-  advisorName: { ...Typography.body1, color: Palette.text, fontWeight: '700' },
+  advisorName: { ...Typography.body, color: Palette.text, fontWeight: '700' },
   meta: { ...Typography.caption, color: Palette.textSecondary, marginTop: 2 },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 1, alignSelf: 'flex-start' },
   badgeText: { fontSize: 10, fontWeight: '700' },
-  amount: { ...Typography.h3, color: '#D4AF37', marginTop: Spacing.xs, fontWeight: '900' },
+  amount: { ...Typography.subheading, color: '#D4AF37', marginTop: Spacing.xs, fontWeight: '900' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Palette.primary, position: 'absolute', top: 12, right: 12 },
 });

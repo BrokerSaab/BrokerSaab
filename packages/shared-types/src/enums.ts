@@ -1,0 +1,79 @@
+export enum Role {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  SUB_ADMIN = 'SUB_ADMIN',
+  ADVISOR = 'ADVISOR',
+  CLIENT = 'CLIENT',
+}
+
+export enum VerificationStatus {
+  PENDING = 'PENDING',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  SUBMITTED_FOR_APPROVAL = 'SUBMITTED_FOR_APPROVAL',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  SUSPENDED = 'SUSPENDED',
+}
+
+export enum ConsultationMode {
+  PHONE = 'PHONE',
+  VIDEO = 'VIDEO',
+  CHAT = 'CHAT',
+  PHYSICAL = 'PHYSICAL',
+}
+
+export enum BookingStatus {
+  PENDING = 'PENDING',
+  ACCEPTED = 'ACCEPTED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+  DISPUTED = 'DISPUTED',
+}
+
+export enum TransactionType {
+  CREDIT = 'CREDIT',
+  DEBIT = 'DEBIT',
+}
+
+export enum TransactionStatus {
+  PENDING = 'PENDING',
+  SUCCESS = 'SUCCESS',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED',
+}
+
+export enum AdvisorType {
+  REGULAR = 'REGULAR',
+  AUTHORIZED = 'AUTHORIZED',
+}
+
+export enum DocumentType {
+  AADHAAR_CARD = 'AADHAAR_CARD',
+  PASSPORT_PHOTO = 'PASSPORT_PHOTO',
+  LICENSE_COPY = 'LICENSE_COPY',
+  GST_CERTIFICATE = 'GST_CERTIFICATE',
+  DEGREE_CERTIFICATE = 'DEGREE_CERTIFICATE',
+  OTHER = 'OTHER',
+}
+
+export enum TicketCategory {
+  GENERAL = 'GENERAL',
+  BILLING = 'BILLING',
+  TECHNICAL = 'TECHNICAL',
+  BOOKING_ISSUE = 'BOOKING_ISSUE',
+  ADVISOR_ISSUE = 'ADVISOR_ISSUE',
+  OTHER = 'OTHER',
+}
+
+export enum TicketPriority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  URGENT = 'URGENT',
+}
+
+export enum TicketStatus {
+  OPEN = 'OPEN',
+  IN_PROGRESS = 'IN_PROGRESS',
+  RESOLVED = 'RESOLVED',
+  CLOSED = 'CLOSED',
+}

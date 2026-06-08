@@ -26,6 +26,8 @@ export type BookingsStackParamList = {
   MyQuotes: undefined;
   QuoteRequest: { advisorId: string; advisorName: string };
   QuoteView: { quoteId: string };
+  MyTickets: undefined;
+  TicketDetail: { ticketId: string };
 };
 
 export type ProfileStackParamList = {
@@ -48,7 +50,15 @@ export type AdvisorDashboardStackParamList = {
   BookingDetail: { bookingId: string };
   Chat: { bookingId: string; otherName?: string };
   QuoteRequests: undefined;
-  SubmitQuote: { quoteId: string; clientName: string };
+  SubmitQuote: {
+    quoteId: string;
+    clientName: string;
+    isEdit?: boolean;
+    existingLineItems?: { description: string; amount: string }[];
+    existingNote?: string;
+  };
+  MyTickets: undefined;
+  TicketDetail: { ticketId: string };
 };
 
 export type AdvisorProfileStackParamList = {

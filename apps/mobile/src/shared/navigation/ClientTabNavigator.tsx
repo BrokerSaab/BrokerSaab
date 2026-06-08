@@ -21,6 +21,8 @@ import { ChatScreen } from '../../features/bookings/screens/ChatScreen';
 import { MyQuotesScreen } from '../../features/quotes/screens/MyQuotesScreen';
 import { QuoteRequestScreen } from '../../features/quotes/screens/QuoteRequestScreen';
 import { QuoteViewScreen } from '../../features/quotes/screens/QuoteViewScreen';
+import { MyTicketsScreen } from '../../features/tickets/screens/MyTicketsScreen';
+import { TicketDetailScreen } from '../../features/tickets/screens/TicketDetailScreen';
 import { ClientProfileScreen } from '../../features/profile/screens/ClientProfileScreen';
 import { WalletScreen } from '../../features/wallet/screens/WalletScreen';
 import { ContactsUnlockedScreen } from '../../features/contacts/screens/ContactsUnlockedScreen';
@@ -60,6 +62,8 @@ const BookingsNavigator = () => (
     <BookingsStack.Screen name="MyQuotes" component={MyQuotesScreen} options={{ title: 'Fee Quotes' }} />
     <BookingsStack.Screen name="QuoteRequest" component={QuoteRequestScreen} options={{ title: 'Request Fee Quote' }} />
     <BookingsStack.Screen name="QuoteView" component={QuoteViewScreen} options={{ title: 'Fee Quote' }} />
+    <BookingsStack.Screen name="MyTickets" component={MyTicketsScreen} options={{ title: 'My Work Tickets' }} />
+    <BookingsStack.Screen name="TicketDetail" component={TicketDetailScreen} options={{ title: 'Work Ticket' }} />
   </BookingsStack.Navigator>
 );
 

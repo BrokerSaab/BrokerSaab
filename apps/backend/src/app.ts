@@ -20,6 +20,7 @@ import subscriptionRoutes, { webhookHandler } from './routes/subscriptions';
 import contactRoutes, { contactWebhookHandler } from './routes/contacts';
 import supportRoutes from './routes/support';
 import quoteRoutes from './routes/quotes';
+import ticketRoutes from './routes/tickets';
 import userRoutes from './routes/users';
 import prisma from './config/db';
 
@@ -69,6 +70,7 @@ app.use('/api/v1/subscriptions', subscriptionRoutes);
 app.use('/api/v1/contacts', contactRoutes);
 app.use('/api/v1/support', supportRoutes);
 app.use('/api/v1/quotes', quoteRoutes);
+app.use('/api/v1/tickets', ticketRoutes);
 app.use('/api/v1/users', userRoutes);
 
 // Health Check Endpoint

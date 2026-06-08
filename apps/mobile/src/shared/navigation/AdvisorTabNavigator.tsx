@@ -17,6 +17,8 @@ import { AdvisorProfileEditScreen } from '../../features/advisor-dashboard/scree
 import { AdvisorAccountScreen } from '../../features/advisor-dashboard/screens/AdvisorAccountScreen';
 import { QuoteRequestsScreen } from '../../features/quotes/screens/QuoteRequestsScreen';
 import { SubmitQuoteScreen } from '../../features/quotes/screens/SubmitQuoteScreen';
+import { MyTicketsScreen } from '../../features/tickets/screens/MyTicketsScreen';
+import { TicketDetailScreen } from '../../features/tickets/screens/TicketDetailScreen';
 
 const Tab = createBottomTabNavigator<AdvisorTabParamList>();
 
@@ -36,6 +38,8 @@ const DashNavigator = () => (
     <DashStack.Screen name="Chat" component={ChatScreen} options={({ route }) => ({ title: route.params.otherName ?? 'Chat' })} />
     <DashStack.Screen name="QuoteRequests" component={QuoteRequestsScreen} options={{ title: 'Quote Requests' }} />
     <DashStack.Screen name="SubmitQuote" component={SubmitQuoteScreen} options={({ route }) => ({ title: `Quote for ${route.params.clientName}` })} />
+    <DashStack.Screen name="MyTickets" component={MyTicketsScreen} options={{ title: 'Work Tickets' }} />
+    <DashStack.Screen name="TicketDetail" component={TicketDetailScreen} options={{ title: 'Work Ticket' }} />
   </DashStack.Navigator>
 );
 

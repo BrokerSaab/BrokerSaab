@@ -11,3 +11,5 @@ export { adminRepository } from './repositories/adminRepository';
 export { notificationRepository } from './repositories/notificationRepository';
 export { quoteRepository } from './repositories/quoteRepository';
 export type { FeeQuote, FeeQuoteLineItem } from './repositories/quoteRepository';
+export { ticketRepository } from './repositories/ticketRepository';
+export type { ServiceTicket, TicketStage, TicketComment } from './repositories/ticketRepository';

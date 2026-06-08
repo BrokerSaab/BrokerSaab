@@ -26,7 +26,20 @@ const submitQuoteSchema = z.object({
       amount:      z.number().positive('Amount must be positive'),
     })).min(1, 'At least one line item required'),
     advisorNote:   z.string().max(1000).optional(),
-    validityHours: z.number().int().min(1).max(168).optional(), // 1h–7d
+    validityHours: z.number().int().min(1).max(168).optional(),
+  }),
+});
+
+const proactiveQuoteSchema = z.object({
+  body: z.object({
+    clientId:      z.string().uuid('Invalid client ID'),
+    categorySlug:  z.string().optional(),
+    advisorNote:   z.string().max(1000).optional(),
+    lineItems: z.array(z.object({
+      description: z.string().min(1, 'Description required'),
+      amount:      z.number().positive('Amount must be positive'),
+    })).min(1, 'At least one line item required'),
+    validityHours: z.number().int().min(1).max(168).optional(),
   }),
 });
 
@@ -58,18 +71,17 @@ router.post(
     const { advisorId, categorySlug, clientMessage } = req.body;
 
     try {
-      // Guard: only one open request per (client, advisor) pair
       const existing = await prisma.feeQuote.findFirst({
         where: {
           clientId,
           advisorId,
-          status: { in: [QuoteStatus.REQUESTED, QuoteStatus.QUOTED] },
+          status: { in: [QuoteStatus.REQUESTED, QuoteStatus.QUOTED, QuoteStatus.VIEWED] },
         },
       });
       if (existing) {
         res.status(400).json({
           success: false,
-          message: existing.status === QuoteStatus.QUOTED
+          message: existing.status === QuoteStatus.QUOTED || existing.status === QuoteStatus.VIEWED
             ? 'You already have a quote from this advisor. Please view it first.'
             : 'You already have a pending quote request with this advisor.',
         });
@@ -88,7 +100,6 @@ router.post(
         data: { clientId, advisorId, categorySlug, clientMessage, status: QuoteStatus.REQUESTED },
       });
 
-      // Create in-app notification for advisor
       await prisma.notification.create({
         data: {
           userId: advisor.phoneNumber
@@ -99,9 +110,8 @@ router.post(
           title: 'New Fee Quote Request',
           body:  `${clientUser?.fullName ?? 'A client'} has requested a fee quote${categorySlug ? ` for ${categorySlug}` : ''}.`,
         },
-      }).catch(() => { /* notification failure is non-fatal */ });
+      }).catch(() => {});
 
-      // Real-time socket event to advisor's room
       io.to(`advisor:${advisorId}`).emit('quote_requested', {
         quoteId:     quote.id,
         clientName:  clientUser?.fullName ?? 'A client',
@@ -109,7 +119,6 @@ router.post(
         message: clientMessage,
       });
 
-      // Push notification to advisor
       if (advisor.pushToken) {
         sendPushNotification(
           advisor.pushToken,
@@ -128,9 +137,166 @@ router.post(
 );
 
 /**
+ * POST /quotes/proactive
+ * ADVISOR proactively sends a fee breakdown to a connected client (no prior request needed).
+ */
+router.post(
+  '/proactive',
+  authenticateJWT,
+  validateRequest(proactiveQuoteSchema),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (req.user!.role !== Role.ADVISOR) {
+      res.status(403).json({ success: false, message: 'Only advisors can send proactive quotes' });
+      return;
+    }
+    const { clientId, categorySlug, advisorNote, lineItems, validityHours = 72 } = req.body;
+
+    try {
+      const advisor = await prisma.advisor.findUnique({ where: { phoneNumber: req.user!.phoneNumber } });
+      if (!advisor) { res.status(404).json({ success: false, message: 'Advisor not found' }); return; }
+
+      // Verify client has unlocked this advisor
+      const unlock = await prisma.contactUnlock.findUnique({
+        where: { userId_advisorId: { userId: clientId, advisorId: advisor.id } },
+      });
+      if (!unlock) {
+        res.status(403).json({ success: false, message: 'Client has not connected with you' });
+        return;
+      }
+
+      const clientUser = await prisma.user.findUnique({ where: { id: clientId } });
+      if (!clientUser) { res.status(404).json({ success: false, message: 'Client not found' }); return; }
+
+      // Check no open quote already exists
+      const existing = await prisma.feeQuote.findFirst({
+        where: {
+          clientId,
+          advisorId: advisor.id,
+          status: { in: [QuoteStatus.REQUESTED, QuoteStatus.QUOTED, QuoteStatus.VIEWED] },
+        },
+      });
+      if (existing) {
+        res.status(400).json({ success: false, message: 'An open quote already exists for this client' });
+        return;
+      }
+
+      const totalAmount = lineItems.reduce((sum: number, item: { amount: number }) => sum + item.amount, 0);
+      const validUntil = new Date(Date.now() + validityHours * 3_600_000);
+
+      const quote = await prisma.$transaction(async (tx) => {
+        const q = await tx.feeQuote.create({
+          data: {
+            clientId,
+            advisorId: advisor.id,
+            categorySlug,
+            status: QuoteStatus.QUOTED,
+            advisorNote,
+            totalAmount,
+            validUntil,
+          },
+        });
+        await tx.feeQuoteLineItem.createMany({
+          data: lineItems.map((item: { description: string; amount: number }, i: number) => ({
+            quoteId: q.id,
+            description: item.description,
+            amount: item.amount,
+            sortOrder: i,
+          })),
+        });
+        return tx.feeQuote.findUnique({ where: { id: q.id }, include: QUOTE_INCLUDE });
+      });
+
+      await prisma.notification.create({
+        data: {
+          userId: clientId,
+          type:   'QUOTE_SUBMITTED',
+          refId:  quote!.id,
+          title:  'Fee Quote from Your Advisor',
+          body:   `${advisor.fullName} has sent you a fee breakdown of ₹${totalAmount.toLocaleString('en-IN')}.`,
+        },
+      }).catch(() => {});
+
+      io.to(`user:${clientId}`).emit('quote_submitted', {
+        quoteId:     quote!.id,
+        totalAmount: String(totalAmount),
+        advisorName: advisor.fullName,
+        validUntil:  validUntil.toISOString(),
+      });
+
+      if (clientUser.pushToken) {
+        sendPushNotification(
+          clientUser.pushToken,
+          'New Fee Quote from Your Advisor',
+          `${advisor.fullName} sent a fee breakdown of ₹${totalAmount.toLocaleString('en-IN')}.`,
+          { quoteId: quote!.id, screen: 'QuoteView' }
+        );
+      }
+
+      res.status(201).json({ success: true, data: quote });
+    } catch (err) {
+      console.error('[POST /quotes/proactive]', err);
+      res.status(500).json({ success: false, message: 'Failed to send quote' });
+    }
+  }
+);
+
+/**
+ * GET /quotes/connected-clients
+ * ADVISOR: list clients who have unlocked them (for proactive quote sending).
+ */
+router.get(
+  '/connected-clients',
+  authenticateJWT,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (req.user!.role !== Role.ADVISOR) {
+      res.status(403).json({ success: false, message: 'Advisors only' });
+      return;
+    }
+    try {
+      const advisor = await prisma.advisor.findUnique({ where: { phoneNumber: req.user!.phoneNumber } });
+      if (!advisor) { res.json({ success: true, data: [] }); return; }
+
+      const unlocks = await prisma.contactUnlock.findMany({
+        where: { advisorId: advisor.id },
+        include: {
+          user: {
+            select: {
+              id: true, fullName: true, phoneNumber: true, avatarUrl: true, createdAt: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // For each client, check if there's an open quote
+      const clientIds = unlocks.map(u => u.userId);
+      const openQuotes = await prisma.feeQuote.findMany({
+        where: {
+          advisorId: advisor.id,
+          clientId:  { in: clientIds },
+          status:    { in: [QuoteStatus.REQUESTED, QuoteStatus.QUOTED, QuoteStatus.VIEWED] },
+        },
+        select: { clientId: true, status: true },
+      });
+      const openQuoteMap = new Map(openQuotes.map(q => [q.clientId, q.status]));
+
+      res.json({
+        success: true,
+        data: unlocks.map(u => ({
+          ...u,
+          openQuoteStatus: openQuoteMap.get(u.userId) ?? null,
+        })),
+      });
+    } catch (err) {
+      console.error('[GET /quotes/connected-clients]', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch clients' });
+    }
+  }
+);
+
+/**
  * GET /quotes
- * CLIENT: list their own requests (with advisor info + lineItems).
- * ADVISOR: list incoming requests (with client info + lineItems).
+ * CLIENT: list their own requests. ADVISOR: list incoming requests.
  */
 router.get(
   '/',
@@ -144,11 +310,10 @@ router.get(
           include: QUOTE_INCLUDE,
           orderBy: { createdAt: 'desc' },
         });
-        // Runtime expiry check
         const now = new Date();
         const normalised = quotes.map(q => ({
           ...q,
-          status: q.status === QuoteStatus.QUOTED && q.validUntil && q.validUntil < now
+          status: (q.status === QuoteStatus.QUOTED || q.status === QuoteStatus.VIEWED) && q.validUntil && q.validUntil < now
             ? QuoteStatus.EXPIRED
             : q.status,
         }));
@@ -179,7 +344,7 @@ router.get(
 
 /**
  * GET /quotes/unread-count
- * ADVISOR: returns count of REQUESTED quotes directed at them (for badge).
+ * ADVISOR: returns count of REQUESTED quotes (badge).
  */
 router.get(
   '/unread-count',
@@ -216,11 +381,10 @@ router.get(
     try {
       const quote = await prisma.feeQuote.findUnique({
         where:   { id: req.params.id },
-        include: QUOTE_INCLUDE,
+        include: { ...QUOTE_INCLUDE, serviceTicket: { select: { id: true, ticketNumber: true, status: true } } },
       });
       if (!quote) { res.status(404).json({ success: false, message: 'Quote not found' }); return; }
 
-      // Access control
       let advisorUserId = '';
       if (role === Role.ADVISOR) {
         const adv = await prisma.advisor.findUnique({ where: { phoneNumber: req.user!.phoneNumber } });
@@ -240,7 +404,8 @@ router.get(
 
 /**
  * POST /quotes/:id/submit
- * ADVISOR submits fee breakdown for a REQUESTED quote.
+ * ADVISOR submits or re-edits a fee breakdown.
+ * Allowed when status is REQUESTED, QUOTED, or VIEWED (not yet accepted).
  */
 router.post(
   '/:id/submit',
@@ -262,16 +427,18 @@ router.post(
         res.status(404).json({ success: false, message: 'Quote request not found' });
         return;
       }
-      if (quote.status !== QuoteStatus.REQUESTED) {
-        res.status(400).json({ success: false, message: 'Quote is no longer in REQUESTED state' });
+
+      const editableStatuses = [QuoteStatus.REQUESTED, QuoteStatus.QUOTED, QuoteStatus.VIEWED];
+      if (!editableStatuses.includes(quote.status)) {
+        res.status(400).json({ success: false, message: 'Quote can no longer be edited' });
         return;
       }
 
       const totalAmount = lineItems.reduce((sum: number, item: { amount: number }) => sum + item.amount, 0);
       const validUntil = new Date(Date.now() + validityHours * 3_600_000);
+      const isEdit = quote.status !== QuoteStatus.REQUESTED;
 
       const updated = await prisma.$transaction(async (tx) => {
-        // Replace any existing line items (idempotent re-submit)
         await tx.feeQuoteLineItem.deleteMany({ where: { quoteId: quote.id } });
         await tx.feeQuoteLineItem.createMany({
           data: lineItems.map((item: { description: string; amount: number }, i: number) => ({
@@ -288,32 +455,30 @@ router.post(
         });
       });
 
-      // In-app notification for client
       const clientUser = await prisma.user.findUnique({ where: { id: quote.clientId } });
       await prisma.notification.create({
         data: {
           userId: quote.clientId,
           type:   'QUOTE_SUBMITTED',
           refId:  quote.id,
-          title:  'Your Fee Quote is Ready!',
-          body:   `${advisor.fullName} has sent you a fee breakdown of ₹${totalAmount.toLocaleString('en-IN')}.`,
+          title:  isEdit ? 'Fee Quote Updated' : 'Your Fee Quote is Ready!',
+          body:   `${advisor.fullName} has ${isEdit ? 'updated' : 'sent'} a fee breakdown of ₹${totalAmount.toLocaleString('en-IN')}.`,
         },
-      }).catch(() => { /* non-fatal */ });
+      }).catch(() => {});
 
-      // Socket event to client's room
       io.to(`user:${quote.clientId}`).emit('quote_submitted', {
         quoteId:     quote.id,
         totalAmount: String(totalAmount),
         advisorName: advisor.fullName,
         validUntil:  validUntil.toISOString(),
+        isEdit,
       });
 
-      // Push notification to client
       if (clientUser?.pushToken) {
         sendPushNotification(
           clientUser.pushToken,
-          'Your Fee Quote is Ready!',
-          `${advisor.fullName} sent a fee breakdown of ₹${totalAmount.toLocaleString('en-IN')}.`,
+          isEdit ? 'Fee Quote Updated' : 'Your Fee Quote is Ready!',
+          `${advisor.fullName} ${isEdit ? 'updated' : 'sent'} a fee breakdown of ₹${totalAmount.toLocaleString('en-IN')}.`,
           { quoteId: quote.id, screen: 'QuoteView' }
         );
       }
@@ -342,7 +507,7 @@ router.post(
         return;
       }
       if (quote.status !== QuoteStatus.QUOTED) {
-        res.json({ success: true, data: quote }); // already viewed/accepted — no-op
+        res.json({ success: true, data: quote });
         return;
       }
 
@@ -351,7 +516,6 @@ router.post(
         data:  { viewedAt: new Date(), status: QuoteStatus.VIEWED },
       });
 
-      // Notify advisor in real-time
       io.to(`advisor:${quote.advisorId}`).emit('quote_viewed', { quoteId: quote.id });
 
       res.json({ success: true, data: updated });
@@ -364,7 +528,7 @@ router.post(
 
 /**
  * POST /quotes/:id/accept
- * CLIENT accepts a quote (status → ACCEPTED).
+ * CLIENT accepts a quote (status → ACCEPTED). Payment + ticket creation handled separately.
  */
 router.post(
   '/:id/accept',

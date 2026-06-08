@@ -3,7 +3,9 @@ import { z } from 'zod';
 import prisma from '../config/db';
 import { authenticateJWT, AuthenticatedRequest } from '../middlewares/auth';
 import { validateRequest } from '../middlewares/validate';
-import { BookingStatus, TransactionType, TransactionStatus } from '@prisma/client';
+import { BookingStatus, TransactionType, TransactionStatus, QuoteStatus } from '@prisma/client';
+import { io } from '../app';
+import { sendPushNotification } from '../utils/pushNotification';
 
 const router = Router();
 
@@ -143,7 +145,150 @@ router.post(
 );
 
 /**
- * 2. POST /payments/wallet/add
+ * 2. POST /payments/quote-checkout
+ * Pay for an accepted fee quote → creates a ServiceTicket with escrow hold.
+ */
+router.post(
+  '/quote-checkout',
+  authenticateJWT,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const userId = req.user!.id;
+    const { quoteId, gateway } = req.body;
+
+    if (!quoteId || !gateway) {
+      res.status(400).json({ success: false, message: 'quoteId and gateway are required' });
+      return;
+    }
+
+    try {
+      const quote = await prisma.feeQuote.findUnique({
+        where:   { id: quoteId },
+        include: {
+          advisor: { select: { id: true, fullName: true, pushToken: true } },
+          client:  { select: { id: true, fullName: true, pushToken: true } },
+          serviceTicket: true,
+        },
+      });
+
+      if (!quote) {
+        res.status(404).json({ success: false, message: 'Quote not found' });
+        return;
+      }
+      if (quote.clientId !== userId) {
+        res.status(403).json({ success: false, message: 'Forbidden' });
+        return;
+      }
+      if (quote.status !== QuoteStatus.ACCEPTED && quote.status !== QuoteStatus.QUOTED && quote.status !== QuoteStatus.VIEWED) {
+        res.status(400).json({ success: false, message: 'Quote must be accepted before payment' });
+        return;
+      }
+      if (quote.serviceTicket) {
+        res.status(400).json({ success: false, message: 'Payment already made for this quote' });
+        return;
+      }
+
+      const totalAmount = Number(quote.totalAmount ?? 0);
+      if (totalAmount <= 0) {
+        res.status(400).json({ success: false, message: 'Invalid quote amount' });
+        return;
+      }
+
+      const commissionRate = 0.15;
+      const commission     = parseFloat((totalAmount * commissionRate).toFixed(2));
+      const netAmount      = parseFloat((totalAmount - commission).toFixed(2));
+
+      let paymentRef = '';
+
+      if (gateway === 'WALLET') {
+        const wallet = await prisma.wallet.findUnique({ where: { userId } });
+        if (!wallet || Number(wallet.balance) < totalAmount) {
+          res.status(400).json({ success: false, message: 'Insufficient wallet balance' });
+          return;
+        }
+        await prisma.wallet.update({
+          where: { userId },
+          data:  { balance: { decrement: totalAmount } },
+        });
+        paymentRef = `WL-TK-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      } else {
+        paymentRef = `PAY-${gateway.slice(0, 3)}-TK-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      }
+
+      // Mark quote as ACCEPTED and create ticket atomically
+      const ticket = await prisma.$transaction(async (tx) => {
+        await tx.feeQuote.update({
+          where: { id: quoteId },
+          data:  { status: QuoteStatus.ACCEPTED },
+        });
+
+        // Generate unique ticket number
+        let ticketNumber = '';
+        let attempts = 0;
+        do {
+          const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+          const rand = Math.floor(1000 + Math.random() * 9000);
+          ticketNumber = `TK-${date}-${rand}`;
+          const exists = await tx.serviceTicket.findUnique({ where: { ticketNumber } });
+          if (!exists) break;
+          attempts++;
+        } while (attempts < 5);
+
+        return tx.serviceTicket.create({
+          data: {
+            ticketNumber,
+            quoteId,
+            clientId:   quote.clientId,
+            advisorId:  quote.advisor.id,
+            totalAmount,
+            commission,
+            netAmount,
+            paymentRef,
+          },
+        });
+      });
+
+      // Notify advisor
+      io.to(`advisor:${quote.advisor.id}`).emit('ticket_created', {
+        ticketId:     ticket.id,
+        ticketNumber: ticket.ticketNumber,
+        clientName:   quote.client.fullName,
+        totalAmount,
+      });
+
+      if (quote.advisor.pushToken) {
+        sendPushNotification(
+          quote.advisor.pushToken,
+          'New Work Order Received!',
+          `${quote.client.fullName} paid ₹${totalAmount.toLocaleString('en-IN')}. Start the work and add stages.`,
+          { ticketId: ticket.id, screen: 'TicketDetail' }
+        );
+      }
+
+      // Also notify client
+      await prisma.notification.create({
+        data: {
+          userId:  quote.clientId,
+          type:    'GENERAL',
+          refId:   ticket.id,
+          title:   'Payment Successful — Work Order Created',
+          body:    `Your payment of ₹${totalAmount.toLocaleString('en-IN')} is held securely. Ticket ${ticket.ticketNumber} has been created.`,
+        },
+      }).catch(() => {});
+
+      res.status(201).json({
+        success: true,
+        message: 'Payment successful. Work ticket created.',
+        data: { ticket, paymentRef },
+      });
+    } catch (err) {
+      console.error('[POST /payments/quote-checkout]', err);
+      res.status(500).json({ success: false, message: 'Payment failed' });
+    }
+  }
+);
+
+/**
+ * 3. POST /payments/wallet/add
  * Simulate adding funds directly to Client BrokerSaab Wallet balance
  */
 router.post('/wallet/add', authenticateJWT, async (req: AuthenticatedRequest, res: Response): Promise<void> => {

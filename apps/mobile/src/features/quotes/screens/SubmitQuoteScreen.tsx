@@ -15,12 +15,16 @@ type Props = NativeStackScreenProps<AdvisorDashboardStackParamList, 'SubmitQuote
 interface LineRow { description: string; amount: string }
 
 export const SubmitQuoteScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { quoteId, clientName } = route.params;
+  const { quoteId, clientName, isEdit, existingLineItems, existingNote } = route.params;
   const qc = useQueryClient();
 
-  const [rows,         setRows]         = useState<LineRow[]>([{ description: '', amount: '' }]);
-  const [advisorNote,  setAdvisorNote]  = useState('');
-  const [validityHours, setValidityHours] = useState(48);
+  const [rows, setRows] = useState<LineRow[]>(
+    existingLineItems && existingLineItems.length > 0
+      ? existingLineItems
+      : [{ description: '', amount: '' }]
+  );
+  const [advisorNote,   setAdvisorNote]   = useState(existingNote ?? '');
+  const [validityHours, setValidityHours] = useState(72);
 
   const addRow  = () => setRows(p => [...p, { description: '', amount: '' }]);
   const delRow  = (i: number) => setRows(p => p.length > 1 ? p.filter((_, idx) => idx !== i) : p);
@@ -45,7 +49,10 @@ export const SubmitQuoteScreen: React.FC<Props> = ({ route, navigation }) => {
     onSuccess: (data) => {
       if (data.success) {
         qc.invalidateQueries({ queryKey: ['advisorQuotes'] });
-        Alert.alert('Sent!', `Quote of ₹${total.toLocaleString('en-IN')} sent to ${clientName}.`, [
+        const msg = isEdit
+          ? `Quote updated and re-sent to ${clientName}.`
+          : `Quote of ₹${total.toLocaleString('en-IN')} sent to ${clientName}.`;
+        Alert.alert(isEdit ? 'Updated!' : 'Sent!', msg, [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
       } else {
@@ -58,8 +65,18 @@ export const SubmitQuoteScreen: React.FC<Props> = ({ route, navigation }) => {
   return (
     <SafeAreaView style={s.safe}>
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={s.heading}>Compose Quote</Text>
+        <View style={s.headingRow}>
+          <Text style={s.heading}>{isEdit ? 'Edit Quote' : 'Compose Quote'}</Text>
+          {isEdit && <View style={s.editBadge}><Text style={s.editBadgeText}>EDITING</Text></View>}
+        </View>
         <Text style={s.sub}>for {clientName}</Text>
+        {isEdit && (
+          <View style={s.editNote}>
+            <Text style={s.editNoteText}>
+              You can update the quote while the client has not yet paid. They will be notified of the change.
+            </Text>
+          </View>
+        )}
 
         <Text style={s.label}>Line Items</Text>
         {rows.map((row, i) => (
@@ -119,7 +136,7 @@ export const SubmitQuoteScreen: React.FC<Props> = ({ route, navigation }) => {
         <TouchableOpacity style={[s.btn, isPending && s.btnDisabled]} onPress={() => mutate()} disabled={isPending}>
           {isPending
             ? <ActivityIndicator color="#0B1F3A" />
-            : <Text style={s.btnText}>Send Quote to Client</Text>}
+            : <Text style={s.btnText}>{isEdit ? 'Update & Resend Quote' : 'Send Quote to Client'}</Text>}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -127,14 +144,19 @@ export const SubmitQuoteScreen: React.FC<Props> = ({ route, navigation }) => {
 };
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Palette.background },
-  scroll: { padding: Spacing.lg },
-  heading: { ...Typography.h2, color: Palette.text },
-  sub: { ...Typography.body2, color: Palette.textSecondary, marginBottom: Spacing.xl },
+  safe:          { flex: 1, backgroundColor: Palette.background },
+  scroll:        { padding: Spacing.lg },
+  headingRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  heading:       { ...Typography.heading, color: Palette.text },
+  editBadge:     { backgroundColor: '#7C3AED20', borderRadius: Radius.full, paddingHorizontal: 10, paddingVertical: 3, borderWidth: 1, borderColor: '#7C3AED60' },
+  editBadgeText: { fontSize: 9, fontWeight: '800', color: '#7C3AED', letterSpacing: 1 },
+  sub:           { ...Typography.bodySmall, color: Palette.textSecondary, marginBottom: Spacing.sm },
+  editNote:      { backgroundColor: '#EDE9FE', borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.lg, borderLeftWidth: 3, borderLeftColor: '#7C3AED' },
+  editNoteText:  { fontSize: 12, color: '#4C1D95', lineHeight: 18 },
   label: { ...Typography.caption, color: Palette.textSecondary, marginBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.5 },
   rowContainer: { flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'center' },
   flex1: { flex: 1 },
-  input: { borderWidth: 1, borderColor: Palette.border, borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 10, color: Palette.text, backgroundColor: Palette.surface, ...Typography.body2 },
+  input: { borderWidth: 1, borderColor: Palette.border, borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 10, color: Palette.text, backgroundColor: Palette.surface, ...Typography.bodySmall },
   amtInput: { width: 90 },
   delBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center' },
   delBtnText: { color: '#DC2626', fontWeight: '700', fontSize: 13 },
@@ -142,7 +164,7 @@ const s = StyleSheet.create({
   addBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: Radius.full, borderWidth: 1, borderColor: Palette.primary, backgroundColor: Palette.primary + '15' },
   addBtnText: { color: Palette.primary, fontWeight: '700', fontSize: 13 },
   total: { fontSize: 18, fontWeight: '900', color: '#D4AF37' },
-  textarea: { borderWidth: 1, borderColor: Palette.border, borderRadius: Radius.md, padding: Spacing.md, color: Palette.text, backgroundColor: Palette.surface, height: 80, textAlignVertical: 'top', ...Typography.body2, marginBottom: Spacing.sm },
+  textarea: { borderWidth: 1, borderColor: Palette.border, borderRadius: Radius.md, padding: Spacing.md, color: Palette.text, backgroundColor: Palette.surface, height: 80, textAlignVertical: 'top', ...Typography.bodySmall, marginBottom: Spacing.sm },
   validityRow: { flexDirection: 'row', gap: 8, marginBottom: Spacing.xl },
   validityBtn: { flex: 1, paddingVertical: 10, borderRadius: Radius.sm, borderWidth: 1, borderColor: Palette.border, backgroundColor: Palette.surface, alignItems: 'center' },
   validityBtnActive: { backgroundColor: Palette.primary, borderColor: Palette.primary },

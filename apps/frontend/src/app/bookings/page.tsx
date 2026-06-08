@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Calendar, Clock, MapPin, ShieldCheck, AlertCircle, Loader2,
   ArrowLeft, XCircle, CheckCircle2, RefreshCw, BookOpen, Phone, Eye,
-  UserCheck, MessageSquare, FileText, Bell
+  UserCheck, MessageSquare, FileText, Bell, Ticket
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import FeeQuoteViewModal from '@/components/FeeQuoteViewModal';
@@ -24,6 +24,7 @@ interface FeeQuote {
   createdAt: string;
   lineItems: { id: string; description: string; amount: string; sortOrder: number }[];
   advisor: { id: string; fullName: string; avatarUrl?: string };
+  serviceTicket?: { id: string; ticketNumber: string; status: string } | null;
 }
 
 interface Booking {
@@ -122,6 +123,21 @@ export default function BookingsPage() {
   const [selectedQuote,   setSelectedQuote]   = useState<FeeQuote | null>(null);
   const [showQuoteModal,  setShowQuoteModal]  = useState(false);
 
+  // Service Tickets
+  const [tickets,        setTickets]        = useState<any[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+
+  const fetchTickets = async () => {
+    setTicketsLoading(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(`${API}/tickets`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setTickets(data.data);
+    } catch { /* ignore */ }
+    finally { setTicketsLoading(false); }
+  };
+
   const fetchQuotes = async () => {
     setQuotesLoading(true);
     try {
@@ -142,6 +158,7 @@ export default function BookingsPage() {
     fetchContactCredits();
     fetchContactedAdvisors();
     fetchQuotes();
+    fetchTickets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn]);
 
@@ -474,6 +491,67 @@ export default function BookingsPage() {
           );
         })()}
 
+        {/* ── MY SERVICE TICKETS ── */}
+        {(tickets.length > 0 || ticketsLoading) && (
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Ticket size={15} className="text-emerald-400" />
+                <h2 className="text-sm font-bold text-white">My Work Tickets</h2>
+                {tickets.length > 0 && (
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    {tickets.length}
+                  </span>
+                )}
+              </div>
+              <button onClick={fetchTickets} className="text-slate-500 hover:text-emerald-400 transition-colors p-1">
+                <RefreshCw size={13} />
+              </button>
+            </div>
+            {ticketsLoading ? (
+              <div className="flex items-center justify-center py-8 text-slate-400">
+                <Loader2 size={18} className="animate-spin mr-2" /> Loading tickets…
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {tickets.map((t: any) => {
+                  const statusColor =
+                    t.status === 'OPEN'             ? 'text-blue-300 bg-blue-500/15 border-blue-500/30' :
+                    t.status === 'IN_PROGRESS'       ? 'text-amber-300 bg-amber-500/15 border-amber-500/30' :
+                    t.status === 'AWAITING_CONFIRM'  ? 'text-purple-300 bg-purple-500/15 border-purple-500/30' :
+                    t.status === 'PAYOUT_RELEASED'   ? 'text-emerald-300 bg-emerald-500/15 border-emerald-500/30' :
+                    t.status === 'DISPUTED'          ? 'text-red-300 bg-red-500/10 border-red-500/20' :
+                                                       'text-gray-400 bg-gray-500/10 border-gray-500/20';
+                  const needsAction = t.status === 'AWAITING_CONFIRM';
+                  return (
+                    <button key={t.id}
+                      onClick={() => router.push(`/tickets/${t.id}`)}
+                      className={`w-full text-left flex items-center gap-4 px-4 py-3.5 rounded-2xl border transition-all hover:brightness-110 ${needsAction ? 'border-purple-500/40 bg-purple-500/10' : 'border-white/8 bg-white/[0.03]'}`}>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.25)' }}>
+                        <Ticket size={15} className="text-emerald-300" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-white truncate">{t.advisor?.fullName}</p>
+                        <p className="text-[11px] text-slate-400">
+                          {t.ticketNumber} · ₹{Number(t.totalAmount).toLocaleString('en-IN')}
+                          {t.stages?.length ? ` · ${t.stages.filter((s: any) => s.status === 'CONFIRMED').length}/${t.stages.length} stages` : ''}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${statusColor}`}>
+                          {t.status.replace('_', ' ')}
+                        </span>
+                        {needsAction && <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── CONTACTED ADVISORS ── */}
         <div className="mt-10">
           {/* Section header */}
@@ -581,6 +659,11 @@ export default function BookingsPage() {
       onDeclined={(id) => {
         setQuotes(prev => prev.map(q => q.id === id ? { ...q, status: 'CANCELLED' } : q));
         setShowQuoteModal(false);
+      }}
+      onAccepted={(quoteId, ticketId) => {
+        setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: 'ACCEPTED' } : q));
+        // Re-fetch quotes to get the serviceTicket relation
+        fetchQuotes();
       }}
     />
     </>

@@ -64,6 +64,22 @@ enum QuoteStatus {
   EXPIRED     // validUntil passed without action
 }
 
+enum ServiceTicketStatus {
+  OPEN                 // payment received, work not yet started
+  IN_PROGRESS          // advisor working
+  AWAITING_CONFIRM     // advisor marked a stage done, waiting user confirmation
+  DISPUTED             // user raised a dispute
+  CLOSED               // user closed ticket, payment to be released
+  PAYOUT_RELEASED      // platform released payment to advisor
+}
+
+enum StageStatus {
+  PENDING              // advisor created stage, not started
+  IN_PROGRESS          // advisor working on this stage
+  AWAITING_CONFIRM     // advisor marked done, waiting user to confirm
+  CONFIRMED            // user confirmed completion
+}
+
 enum DocumentType {
   AADHAAR_CARD
   PASSPORT_PHOTO
@@ -101,6 +117,8 @@ model User {
   contactUnlocks         ContactUnlock[]
   feeQuotes              FeeQuote[]               @relation("ClientFeeQuotes")
   notifications          Notification[]
+  serviceTickets         ServiceTicket[]          @relation("ClientServiceTickets")
+  ticketComments         TicketComment[]
 
   @@index([phoneNumber])
 }
@@ -153,6 +171,7 @@ model Advisor {
   subscriptions      AdvisorSubscription[]
   contactUnlocks     ContactUnlock[]
   feeQuotes          FeeQuote[]         @relation("AdvisorFeeQuotes")
+  serviceTickets     ServiceTicket[]    @relation("AdvisorServiceTickets")
 
   @@index([verificationStatus])
   @@index([location])
@@ -444,6 +463,7 @@ model FeeQuote {
   updatedAt     DateTime    @updatedAt
 
   lineItems     FeeQuoteLineItem[]
+  serviceTicket ServiceTicket?
 
   @@index([clientId])
   @@index([advisorId])
@@ -529,4 +549,67 @@ model AdminUsers {
 
   assignedAdvisors Advisor[]        @relation("SubAdminAdvisors")
   assignedTickets  SupportTickets[] @relation("AssignedTickets")
+}
+
+// ── Service Ticket System (Escrow-based work tracking) ────────────────────────
+
+model ServiceTicket {
+  id               String              @id @default(uuid())
+  ticketNumber     String              @unique
+  quoteId          String              @unique
+  quote            FeeQuote            @relation(fields: [quoteId], references: [id])
+  clientId         String
+  client           User                @relation("ClientServiceTickets", fields: [clientId], references: [id])
+  advisorId        String
+  advisor          Advisor             @relation("AdvisorServiceTickets", fields: [advisorId], references: [id])
+  totalAmount      Decimal             @db.Decimal(10, 2)
+  commission       Decimal             @db.Decimal(10, 2) @default(0)
+  netAmount        Decimal             @db.Decimal(10, 2)
+  status           ServiceTicketStatus @default(OPEN)
+  paymentRef       String?             // gateway reference from payment
+  closedAt         DateTime?
+  closingComment   String?             @db.Text
+  userRating       Int?                // 1-5 stars given at close
+  userReview       String?             @db.Text
+  payoutReleasedAt DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  stages           TicketStage[]
+  comments         TicketComment[]
+
+  @@index([clientId])
+  @@index([advisorId])
+  @@index([status])
+}
+
+model TicketStage {
+  id             String        @id @default(uuid())
+  ticketId       String
+  ticket         ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?       @db.Text
+  status         StageStatus   @default(PENDING)
+  advisorComment String?       @db.Text
+  sortOrder      Int           @default(0)
+  completedAt    DateTime?
+  confirmedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([ticketId])
+}
+
+model TicketComment {
+  id          String        @id @default(uuid())
+  ticketId    String
+  ticket      ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User          @relation(fields: [authorId], references: [id])
+  authorRole  String        // CLIENT | ADVISOR
+  authorName  String
+  content     String        @db.Text
+  createdAt   DateTime      @default(now())
+
+  @@index([ticketId])
 }
