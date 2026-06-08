@@ -323,4 +323,50 @@ router.post(
   }
 );
 
+/**
+ * GET /bookings/:id
+ * Single booking detail — used by mobile BookingDetailScreen
+ */
+router.get('/:id', authenticateJWT, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const userId = req.user!.id;
+  const role = req.user!.role;
+
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        client: { select: { id: true, fullName: true, phoneNumber: true, avatarUrl: true } },
+        advisor: { select: { id: true, fullName: true, businessName: true, avatarUrl: true, location: true } },
+        transaction: true,
+        chatRoom: true,
+      },
+    });
+
+    if (!booking) {
+      res.status(404).json({ success: false, message: 'Booking not found' });
+      return;
+    }
+
+    // Scope check: only the booking's client, advisor, or admins can view
+    if (role === Role.CLIENT && booking.clientId !== userId) {
+      res.status(403).json({ success: false, message: 'Access denied' });
+      return;
+    }
+
+    if (role === Role.ADVISOR) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const advisor = await prisma.advisor.findUnique({ where: { phoneNumber: user!.phoneNumber } });
+      if (!advisor || booking.advisorId !== advisor.id) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return;
+      }
+    }
+
+    res.json({ success: true, data: booking });
+  } catch {
+    res.status(500).json({ success: false, message: 'Error retrieving booking' });
+  }
+});
+
 export default router;
