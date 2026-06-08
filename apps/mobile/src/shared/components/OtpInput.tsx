@@ -1,12 +1,14 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, TextInput, StyleSheet, Platform } from 'react-native';
-import { Palette, Radius, Spacing } from '../theme';
+import { Colors, Palette, Radius, Spacing } from '../theme';
 
 interface OtpInputProps {
   length?: number;
   onFill: (otp: string) => void;
   onChangeText?: (otp: string) => void;
   disabled?: boolean;
+  value?: string; // external value for auto-fill
+  darkMode?: boolean;
 }
 
 export const OtpInput: React.FC<OtpInputProps> = ({
@@ -14,9 +16,22 @@ export const OtpInput: React.FC<OtpInputProps> = ({
   onFill,
   onChangeText,
   disabled = false,
+  value,
+  darkMode = false,
 }) => {
   const [values, setValues] = useState<string[]>(Array(length).fill(''));
   const refs = useRef<(TextInput | null)[]>([]);
+
+  // Sync external value (e.g. auto-fill from dev OTP)
+  useEffect(() => {
+    if (value !== undefined) {
+      const chars = value.slice(0, length).split('');
+      const padded = [...chars, ...Array(length - chars.length).fill('')];
+      setValues(padded);
+      if (value.length === length) onFill(value);
+      onChangeText?.(value);
+    }
+  }, [value]);
 
   const handleChange = (text: string, index: number) => {
     const char = text.slice(-1);
@@ -50,14 +65,18 @@ export const OtpInput: React.FC<OtpInputProps> = ({
         <TextInput
           key={i}
           ref={(r) => { refs.current[i] = r; }}
-          style={[styles.cell, values[i] ? styles.cellFilled : null]}
+          style={[
+            styles.cell,
+            darkMode && styles.cellDark,
+            values[i] ? (darkMode ? styles.cellFilledDark : styles.cellFilled) : null,
+          ]}
           value={values[i]}
           onChangeText={(text) => handleChange(text, i)}
           onKeyPress={(e) => handleKeyPress(e, i)}
           keyboardType="numeric"
           maxLength={1}
           textAlign="center"
-          selectionColor={Palette.primary}
+          selectionColor={Colors.gold[500]}
           editable={!disabled}
           caretHidden={Platform.OS === 'android'}
         />
@@ -74,17 +93,26 @@ const styles = StyleSheet.create({
   },
   cell: {
     width: 46,
-    height: 54,
-    backgroundColor: Palette.inputBg,
+    height: 56,
+    backgroundColor: Colors.white,
     borderRadius: Radius.md,
     borderWidth: 1.5,
-    borderColor: Palette.inputBorder,
-    color: Palette.text,
-    fontSize: 20,
-    fontWeight: '700',
+    borderColor: Colors.slate[200],
+    color: Colors.navy[800],
+    fontSize: 22,
+    fontWeight: '800',
   },
   cellFilled: {
-    borderColor: Palette.borderStrong,
-    backgroundColor: Palette.primaryLight,
+    borderColor: Colors.gold[500],
+    backgroundColor: '#FFFBEB',
+  },
+  cellDark: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.15)',
+    color: Colors.white,
+  },
+  cellFilledDark: {
+    borderColor: Colors.gold[500],
+    backgroundColor: 'rgba(212,175,55,0.1)',
   },
 });

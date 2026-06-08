@@ -3,8 +3,10 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 // ─── Auth Stack ───────────────────────────────────────────────────────────────
 export type AuthStackParamList = {
   Welcome: undefined;
+  Terms: undefined;
   PhoneOtp: undefined;
   RegisterComplete: { phoneNumber: string; isNewUser: boolean };
+  SetPassword: undefined;
   AdminLogin: undefined;
 };
 
@@ -33,8 +35,8 @@ export type BookingsStackParamList = {
 export type ProfileStackParamList = {
   ClientProfile: undefined;
   Wallet: undefined;
+  BuyPack: undefined;
   ContactsUnlocked: undefined;
-  Support: undefined;
 };
 
 export type ClientTabParamList = {

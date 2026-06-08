@@ -44,6 +44,11 @@ export const authRepository = {
       .post<ApiResponse>('/auth/set-password', { password })
       .then((r) => r.data),
 
+  setClientPassword: (newPassword: string) =>
+    apiClient
+      .post<ApiResponse>('/auth/password/set', { newPassword })
+      .then((r) => r.data),
+
   refreshToken: (refreshToken: string) =>
     apiClient
       .post<TokenRefreshResponse>('/auth/token/refresh', { refreshToken })
