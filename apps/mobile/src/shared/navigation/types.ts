@@ -5,7 +5,7 @@ export type AuthStackParamList = {
   Welcome: undefined;
   Terms: undefined;
   PhoneOtp: undefined;
-  RegisterComplete: { phoneNumber: string; isNewUser: boolean };
+  RegisterComplete: { phoneNumber: string; tempToken: string };
   SetPassword: undefined;
   AdminLogin: undefined;
 };

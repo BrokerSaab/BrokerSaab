@@ -21,7 +21,7 @@ import { authRepository } from '../../../shared/api';
 type Props = NativeStackScreenProps<AuthStackParamList, 'RegisterComplete'>;
 
 export const RegisterCompleteScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { phoneNumber } = route.params;
+  const { phoneNumber, tempToken } = route.params;
   const { login } = useAuthStore();
   const { showToast } = useUiStore();
   const [fullName, setFullName] = useState('');
@@ -35,9 +35,9 @@ export const RegisterCompleteScreen: React.FC<Props> = ({ route, navigation }) =
     }
     setLoading(true);
     try {
-      const res = await authRepository.registerClient(phoneNumber, fullName.trim(), email.trim() || undefined);
-      if (res.accessToken && res.refreshToken && res.user) {
-        await login({ accessToken: res.accessToken, refreshToken: res.refreshToken }, res.user);
+      const res = await authRepository.registerClient(tempToken, fullName.trim(), email.trim() || undefined);
+      if (res.tokens?.accessToken && res.tokens?.refreshToken && res.user) {
+        await login({ accessToken: res.tokens.accessToken, refreshToken: res.tokens.refreshToken }, res.user);
         navigation.navigate('SetPassword');
       }
     } catch (e: any) {

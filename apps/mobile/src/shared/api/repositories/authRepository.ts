@@ -34,9 +34,12 @@ export const authRepository = {
       .post<AuthLoginResponse>('/auth/login/password', { email, password })
       .then((r) => r.data),
 
-  registerClient: (phoneNumber: string, fullName: string, email?: string) =>
+  registerClient: (tempToken: string, fullName: string, email?: string) =>
     apiClient
-      .post<AuthLoginResponse>('/auth/register/client', { phoneNumber, fullName, email })
+      .post<{ success: boolean; tokens: { accessToken: string; refreshToken: string }; user: AuthLoginResponse['user'] }>(
+        '/auth/register/complete',
+        { tempToken, fullName, email }
+      )
       .then((r) => r.data),
 
   setAdvisorPassword: (password: string) =>

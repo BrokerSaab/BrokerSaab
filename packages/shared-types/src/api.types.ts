@@ -52,12 +52,14 @@ export interface OtpSendResponse {
   message: string;
   isNewUser: boolean;
   sid?: string;
+  devOtp?: string;
 }
 
 export interface OtpVerifyResponse {
   success: boolean;
   message: string;
   isNewUser: boolean;
+  tempToken?: string;
   user?: UserProfile;
   accessToken?: string;
   refreshToken?: string;

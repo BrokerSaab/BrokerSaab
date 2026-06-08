@@ -64,10 +64,10 @@ export const PhoneOtpScreen: React.FC<Props> = ({ navigation }) => {
       const cleaned = phone.replace(/\D/g, '');
       const res = await authRepository.verifyOtp(`+91${cleaned}`, otp);
 
-      if (res.isNewUser) {
+      if (res.isNewUser && res.tempToken) {
         navigation.navigate('RegisterComplete', {
           phoneNumber: `+91${cleaned}`,
-          isNewUser: true,
+          tempToken: res.tempToken,
         });
       } else if (res.accessToken && res.refreshToken && res.user) {
         await login({ accessToken: res.accessToken, refreshToken: res.refreshToken }, res.user);
