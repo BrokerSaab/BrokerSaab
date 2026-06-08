@@ -428,7 +428,7 @@ router.post(
         return;
       }
 
-      const editableStatuses = [QuoteStatus.REQUESTED, QuoteStatus.QUOTED, QuoteStatus.VIEWED];
+      const editableStatuses: QuoteStatus[] = [QuoteStatus.REQUESTED, QuoteStatus.QUOTED, QuoteStatus.VIEWED];
       if (!editableStatuses.includes(quote.status)) {
         res.status(400).json({ success: false, message: 'Quote can no longer be edited' });
         return;
