@@ -7,6 +7,7 @@ import {
   Check, DollarSign, MessageSquare, Briefcase, ChevronRight, FileText
 } from 'lucide-react';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import ContactUnlockModal from '@/components/ContactUnlockModal';
 import FeeQuoteRequestModal from '@/components/FeeQuoteRequestModal';
@@ -51,9 +52,8 @@ function CopyBtn({ text }: { text: string }) {
   );
 }
 
-export default function AdvisorProfilePage({ params }: { params: Promise<{ id: string }> }) {
-  const unwrappedParams   = React.use(params);
-  const advisorId         = unwrappedParams.id;
+export default function AdvisorProfilePage() {
+  const { id: advisorId } = useParams<{ id: string }>();
   const { user, isLoggedIn, openLoginModal } = useAuth();
 
   const [advisor, setAdvisor]           = useState<AdvisorDetail | null>(null);
