@@ -109,7 +109,7 @@ router.post('/otp/send', validateRequest(sendOtpSchema), async (req: Request, re
   res.status(200).json({
     success: true,
     message: 'OTP sent successfully',
-    devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined
+    devOtp: otp, // mock SMS — always expose OTP for testing
   });
 });
 
