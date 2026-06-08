@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -24,8 +24,14 @@ export const WelcomeScreen: React.FC<Props> = ({ navigation }) => (
 
       {/* Logo */}
       <View style={styles.logoSection}>
+        <View style={styles.logoIconWrap}>
+          <Image
+            source={require('../../../assets/logo-icon.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+        </View>
         <View style={styles.logoRow}>
-          <View style={styles.logoDot} />
           <Text style={styles.logoTextBroker}>Broker</Text>
           <Text style={styles.logoTextSaab}>Saab</Text>
         </View>
@@ -111,12 +117,18 @@ const styles = StyleSheet.create({
   },
 
   // Logo
-  logoSection: { paddingTop: Spacing.lg, alignItems: 'center', gap: 4 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  logoDot: {
-    width: 10, height: 10, borderRadius: 5,
-    backgroundColor: Colors.gold[500],
+  logoSection: { paddingTop: Spacing.lg, alignItems: 'center', gap: 6 },
+  logoIconWrap: {
+    width: 88, height: 88, borderRadius: 22, overflow: 'hidden',
+    borderWidth: 2, borderColor: 'rgba(212,175,55,0.5)',
+    shadowColor: Colors.gold[500],
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 10,
   },
+  logoImage: { width: 88, height: 88 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   logoTextBroker: { fontSize: 22, fontWeight: '900', color: Colors.white, letterSpacing: -0.3 },
   logoTextSaab: { fontSize: 22, fontWeight: '900', color: Colors.gold[500], letterSpacing: -0.3 },
   logoTagline: { fontSize: 11, color: 'rgba(255,255,255,0.35)', letterSpacing: 0.5 },

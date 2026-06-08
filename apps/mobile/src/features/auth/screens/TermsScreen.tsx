@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -79,6 +80,9 @@ export const TermsScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
           <View style={styles.logoRow}>
+            <View style={styles.navLogoWrap}>
+              <Image source={require('../../../assets/logo-icon.png')} style={styles.navLogoImg} resizeMode="contain" />
+            </View>
             <Text style={styles.logoTextBroker}>Broker</Text>
             <Text style={styles.logoTextSaab}>Saab</Text>
           </View>
@@ -203,7 +207,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
   backText: { fontSize: 14, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
-  logoRow: { flexDirection: 'row', alignItems: 'center' },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  navLogoWrap: { width: 28, height: 28, borderRadius: 7, overflow: 'hidden' },
+  navLogoImg: { width: 28, height: 28 },
   logoTextBroker: { fontSize: 18, fontWeight: '800', color: Colors.white },
   logoTextSaab: { fontSize: 18, fontWeight: '800', color: Colors.gold[500] },
 
