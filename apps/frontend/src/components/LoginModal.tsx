@@ -6,6 +6,7 @@ import {
   ArrowRight, Scale, AlertOctagon, FileText, Gavel, Lock, Eye, EyeOff
 } from 'lucide-react';
 import { AuthUser } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
@@ -17,40 +18,8 @@ interface LoginModalProps {
   onLoginSuccess: (user: AuthUser) => void;
 }
 
-const USER_TC_CLAUSES = [
-  {
-    icon: AlertOctagon,
-    color: '#ef4444',
-    title: 'Fraud & Misconduct — No Platform Liability',
-    body: 'BrokerSaab is a third-party technology marketplace. We are NOT responsible or liable for any fraudulent activity, misrepresentation, negligence, professional misconduct, or financial harm caused by any advisor, agent, or dealer on this platform. Users engage professionals entirely at their own risk.',
-  },
-  {
-    icon: Gavel,
-    color: '#f59e0b',
-    title: 'Dispute Resolution — Indian Judiciary',
-    body: 'All disputes, claims, or legal proceedings arising from use of BrokerSaab or from any transaction between a user and an advisor shall be subject exclusively to the jurisdiction of the competent courts of India. BrokerSaab shall not be a party to such disputes.',
-  },
-  {
-    icon: ShieldCheck,
-    color: '#10b981',
-    title: 'Escrow Payment Protection',
-    body: 'Payments are held in escrow and released to advisors only upon consultation completion. While escrow protects your funds, BrokerSaab does NOT guarantee the quality, accuracy, or outcome of any professional advice or service rendered.',
-  },
-  {
-    icon: FileText,
-    color: '#3b82f6',
-    title: 'User Responsibilities',
-    body: 'You are responsible for independently verifying the credentials, qualifications, and suitability of any professional before acting on their advice. BrokerSaab\'s internal verification is not a government certification and does not substitute your own due diligence.',
-  },
-  {
-    icon: Scale,
-    color: '#8b5cf6',
-    title: 'Platform Role',
-    body: 'BrokerSaab acts as a neutral intermediary only. No advisor-client relationship, fiduciary duty, or professional liability is created with BrokerSaab. The platform may suspend accounts that violate conduct policies without prior notice.',
-  },
-];
-
 export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps) {
+  const { t } = useLanguage();
   const [step, setStep]                 = useState<ModalStep>('terms');
   const [tcAccepted, setTcAccepted]     = useState(false);
   const [tcScrolled, setTcScrolled]     = useState(false);
@@ -259,13 +228,21 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
   const inputWrap = 'flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/20 transition-all bg-white';
   const inputBase = 'flex-1 px-3 py-3.5 text-sm outline-none bg-transparent text-gray-800 placeholder-gray-400';
 
+  const TC_CLAUSES = [
+    { icon: AlertOctagon, color: '#ef4444', title: t('tc.fraud.title'),    body: t('tc.fraud.body') },
+    { icon: Gavel,        color: '#f59e0b', title: t('tc.dispute.title'),  body: t('tc.dispute.body') },
+    { icon: ShieldCheck,  color: '#10b981', title: t('tc.escrow.title'),   body: t('tc.escrow.body') },
+    { icon: FileText,     color: '#3b82f6', title: t('tc.userResp.title'), body: t('tc.userResp.body') },
+    { icon: Scale,        color: '#8b5cf6', title: t('tc.platform.title'), body: t('tc.platform.body') },
+  ];
+
   const stepTitles: Record<ModalStep, string> = {
-    terms:        'Terms & Conditions',
-    phone:        'Sign In to Continue',
-    otp:          'Verify Your Number',
-    register:     'Complete Your Profile',
-    set_password: 'Secure Your Account',
-    success:      "You're All Set!",
+    terms:        t('auth.terms.title'),
+    phone:        t('auth.phone.title'),
+    otp:          t('auth.otp.title'),
+    register:     t('auth.register.title'),
+    set_password: t('auth.password.title'),
+    success:      t('auth.success.title'),
   };
 
   return (
@@ -295,12 +272,12 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
           </div>
           <h2 className="text-lg font-black text-white">{stepTitles[step]}</h2>
           <p className="text-white/50 text-xs mt-0.5">
-            {step === 'terms'        ? 'Please read and accept before continuing' :
+            {step === 'terms'        ? t('auth.terms.sub') :
              step === 'otp'          ? `OTP sent to +91 ${phoneNumber}` :
-             step === 'phone'        ? 'Enter your mobile number to get started' :
-             step === 'register'     ? 'Tell us your name to personalise your experience' :
-             step === 'set_password' ? 'Set a password for faster logins next time' :
-             'Welcome to BrokerSaab!'}
+             step === 'phone'        ? t('auth.phone.sub') :
+             step === 'register'     ? t('auth.register.sub') :
+             step === 'set_password' ? t('auth.password.sub') :
+             t('nav.trustedPlatform')}
           </p>
           {step !== 'success' && (
             <button onClick={onClose} className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors p-1" aria-label="Close">
@@ -319,10 +296,10 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
               style={{ maxHeight: '320px' }}
             >
               <p className="text-[11px] text-gray-500 leading-relaxed bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                <strong className="text-amber-700">Important:</strong> By using BrokerSaab, you acknowledge that you have read, understood, and agree to all the terms below. These terms govern your use of the platform.
+                <strong className="text-amber-700">{t('tc.important')}</strong> {t('tc.importantText')}
               </p>
 
-              {USER_TC_CLAUSES.map((clause, i) => (
+              {TC_CLAUSES.map((clause, i) => (
                 <div key={i} className="rounded-xl border overflow-hidden"
                   style={{ borderColor: `${clause.color}30`, background: `${clause.color}06` }}>
                   <div className="flex items-center gap-2.5 px-4 py-2.5 border-b"
@@ -338,17 +315,17 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
 
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
                 <p className="text-[11px] text-red-700 leading-relaxed font-medium">
-                  <strong>Governing Law:</strong> These terms are governed by the laws of the Republic of India. Any legal disputes shall be exclusively subject to the jurisdiction of the courts of India. BrokerSaab shall not be a party to any dispute between users and advisors.
+                  <strong>{t('tc.govLaw')}</strong> {t('tc.govLawText')}
                 </p>
               </div>
 
-              <p className="text-[10px] text-gray-400 text-center pb-2">Effective Date: June 2026 · BrokerSaab Technology Pvt. Ltd.</p>
+              <p className="text-[10px] text-gray-400 text-center pb-2">{t('tc.effective')}</p>
             </div>
 
             <div className="shrink-0 px-5 py-4 border-t border-gray-200 bg-white space-y-3">
               {!tcScrolled && (
                 <p className="text-[10px] text-amber-600 text-center flex items-center justify-center gap-1">
-                  <span>↓</span> Scroll down to read all terms before accepting
+                  <span>↓</span> {t('tc.scrollHint')}
                 </p>
               )}
               <label className="flex items-start gap-3 cursor-pointer group">
@@ -361,7 +338,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                   {tcAccepted && <CheckCircle2 size={12} className="text-white" />}
                 </div>
                 <span className="text-xs text-gray-600 leading-relaxed select-none">
-                  I have read and I agree to the <strong>Terms & Conditions</strong>, including that BrokerSaab is not liable for fraud or misconduct by advisors, and all disputes are subject to <strong>Indian courts</strong>.
+                  {t('tc.agreeText')}
                 </span>
               </label>
               <button
@@ -373,7 +350,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                   color: tcAccepted ? '#0B1F3A' : '#9ca3af',
                   cursor: tcAccepted ? 'pointer' : 'not-allowed',
                 }}>
-                I Accept — Continue to Sign In <ArrowRight size={15} />
+                {t('tc.acceptBtn')} <ArrowRight size={15} />
               </button>
             </div>
           </div>
@@ -403,17 +380,17 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                           ? 'bg-indigo-600 text-white'
                           : 'bg-white text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                       }`}>
-                      {method === 'otp' ? '📲 OTP Login' : '🔒 Password Login'}
+                      {method === 'otp' ? t('auth.otpLogin') : t('auth.pwdLogin')}
                     </button>
                   ))}
                 </div>
 
                 {/* Phone number */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Mobile Number</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('auth.phone.label')}</label>
                   <div className={inputWrap}>
                     <span className="px-3 py-3.5 bg-gray-50 border-r border-gray-200 text-sm text-gray-600 font-medium">+91</span>
-                    <input ref={firstInputRef} type="tel" maxLength={10} placeholder="10-digit mobile number"
+                    <input ref={firstInputRef} type="tel" maxLength={10} placeholder={t('auth.phone.placeholder')}
                       value={phoneNumber} onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
                       onKeyDown={e => e.key === 'Enter' && (loginMethod === 'otp' ? handleSendOtp() : handlePhonePasswordLogin())}
                       className={inputBase} />
@@ -424,12 +401,12 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                 {/* Password field — password tab only */}
                 {loginMethod === 'password' && (
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Password</label>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('auth.password')}</label>
                     <div className={inputWrap}>
                       <Lock size={15} className="ml-3 text-slate-400 shrink-0" />
                       <input
                         type={showLoginPwd ? 'text' : 'password'}
-                        placeholder="Your password"
+                        placeholder={t('auth.password.yourPwd')}
                         value={loginPassword}
                         onChange={e => setLoginPassword(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && handlePhonePasswordLogin()}
@@ -452,16 +429,16 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                   }`}
                   style={loginMethod === 'password' ? { background: 'linear-gradient(135deg, #4f46e5, #3730a3)' } : undefined}>
                   {loading
-                    ? <><Loader2 size={16} className="animate-spin" /> {loginMethod === 'otp' ? 'Sending…' : 'Logging in…'}</>
+                    ? <><Loader2 size={16} className="animate-spin" /> {loginMethod === 'otp' ? t('auth.phone.sending') : t('auth.loggingIn')}</>
                     : loginMethod === 'otp'
-                      ? <>Get OTP <ArrowRight size={15} /></>
-                      : <>Login <ArrowRight size={15} /></>
+                      ? <>{t('auth.getOtp')} <ArrowRight size={15} /></>
+                      : <>{t('auth.login')} <ArrowRight size={15} /></>
                   }
                 </button>
 
                 <button onClick={() => setStep('terms')}
                   className="w-full text-xs text-center text-gray-400 hover:text-gray-600 transition-colors">
-                  ← Back to Terms
+                  {t('auth.phone.backTerms')}
                 </button>
               </div>
             )}
@@ -475,7 +452,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                   </div>
                 )}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-3">Enter 6-digit OTP</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-3">{t('auth.otp.label')}</label>
                   <div className="flex gap-2 justify-between">
                     {otp.map((digit, i) => (
                       <input key={i} id={`modal-otp-${i}`} type="tel" maxLength={1} value={digit}
@@ -486,11 +463,11 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                 </div>
                 <button onClick={handleVerifyOtp} disabled={loading}
                   className="btn-gold w-full py-3.5 flex items-center justify-center gap-2 disabled:opacity-60">
-                  {loading ? <><Loader2 size={16} className="animate-spin" /> Verifying…</> : <>Verify OTP <ArrowRight size={15} /></>}
+                  {loading ? <><Loader2 size={16} className="animate-spin" /> {t('auth.otp.verifying')}</> : <>{t('auth.otp.verify')} <ArrowRight size={15} /></>}
                 </button>
                 <button onClick={() => { setStep('phone'); setError(''); setOtp(['','','','','','']); }}
                   className="w-full text-xs text-center text-gray-400 hover:text-gray-600 transition-colors">
-                  ← Change phone number
+                  {t('auth.otp.changePhone')}
                 </button>
               </div>
             )}
@@ -499,16 +476,16 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             {step === 'register' && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Full Name <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('auth.register.nameLabel')} <span className="text-red-500">*</span></label>
                   <div className={inputWrap}>
                     <User size={15} className="ml-3 text-slate-400 shrink-0" />
-                    <input ref={firstInputRef} type="text" placeholder="Your full name" value={fullName}
+                    <input ref={firstInputRef} type="text" placeholder={t('auth.register.namePlaceholder')} value={fullName}
                       onChange={e => setFullName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleRegister()}
                       className={inputBase} />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Email Address <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('auth.register.emailLabel')} <span className="text-gray-400 font-normal">{t('auth.register.emailOptional')}</span></label>
                   <div className={inputWrap}>
                     <Mail size={15} className="ml-3 text-slate-400 shrink-0" />
                     <input type="email" placeholder="you@example.com" value={email}
@@ -518,7 +495,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                 </div>
                 <button onClick={handleRegister} disabled={loading}
                   className="btn-gold w-full py-3.5 flex items-center justify-center gap-2 disabled:opacity-60">
-                  {loading ? <><Loader2 size={16} className="animate-spin" /> Creating account…</> : <>Create Account <ArrowRight size={15} /></>}
+                  {loading ? <><Loader2 size={16} className="animate-spin" /> {t('auth.register.creating')}</> : <>{t('auth.register.createBtn')} <ArrowRight size={15} /></>}
                 </button>
               </div>
             )}
@@ -531,20 +508,20 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                 <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-start gap-2">
                   <ShieldCheck size={15} className="text-indigo-500 mt-0.5 shrink-0" />
                   <p className="text-xs text-indigo-700 leading-relaxed">
-                    A password lets you skip OTP next time and log in instantly. You can always switch back to OTP login.
+                    {t('auth.password.info')}
                   </p>
                 </div>
 
                 {/* New password */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                    New Password <span className="text-red-500">*</span>
+                    {t('auth.password.newLabel')} <span className="text-red-500">*</span>
                   </label>
                   <div className={inputWrap}>
                     <Lock size={15} className="ml-3 text-slate-400 shrink-0" />
                     <input
                       type={showNewPwd ? 'text' : 'password'}
-                      placeholder="Min 8 chars, upper + lower + number"
+                      placeholder={t('auth.password.placeholder')}
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && document.getElementById('confirm-pwd')?.focus()}
@@ -559,13 +536,13 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
 
                 {/* Confirm password */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Confirm Password</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('auth.password.confirmLabel')}</label>
                   <div className={inputWrap}>
                     <Lock size={15} className="ml-3 text-slate-400 shrink-0" />
                     <input
                       id="confirm-pwd"
                       type={showConfirmPwd ? 'text' : 'password'}
-                      placeholder="Repeat your password"
+                      placeholder={t('auth.password.repeatPlaceholder')}
                       value={confirmPassword}
                       onChange={e => setConfirmPassword(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleSetPassword()}
@@ -577,7 +554,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                     </button>
                   </div>
                   {confirmPassword && newPassword !== confirmPassword && (
-                    <p className="text-xs text-red-500 mt-1 ml-1">Passwords do not match</p>
+                    <p className="text-xs text-red-500 mt-1 ml-1">{t('auth.passwordsNoMatch')}</p>
                   )}
                 </div>
 
@@ -588,8 +565,8 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                   className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60 text-white"
                   style={{ background: 'linear-gradient(135deg, #4f46e5, #3730a3)', boxShadow: '0 4px 14px rgba(79,70,229,0.35)' }}>
                   {loading
-                    ? <><Loader2 size={16} className="animate-spin" /> Setting password…</>
-                    : <>Set Password <ArrowRight size={15} /></>
+                    ? <><Loader2 size={16} className="animate-spin" /> {t('auth.password.setting')}</>
+                    : <>{t('auth.password.setBtn')} <ArrowRight size={15} /></>
                   }
                 </button>
 
@@ -597,7 +574,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                 <button
                   onClick={() => { if (pendingUser) onLoginSuccess(pendingUser); setStep('success'); }}
                   className="w-full text-xs text-center text-gray-400 hover:text-indigo-600 transition-colors py-1">
-                  Skip for now — I'll use OTP next time →
+                  {t('auth.password.skip')}
                 </button>
               </div>
             )}
@@ -608,8 +585,8 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                 <div className="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mx-auto mb-4">
                   <CheckCircle2 size={32} className="text-emerald-500" />
                 </div>
-                <p className="text-gray-800 font-semibold text-base mb-1">Welcome{fullName ? `, ${fullName.split(' ')[0]}` : ''}!</p>
-                <p className="text-gray-500 text-sm">You are now signed in. Continuing…</p>
+                <p className="text-gray-800 font-semibold text-base mb-1">{fullName ? `${t('auth.success.signedIn').replace('!', `, ${fullName.split(' ')[0]}!`)}` : t('auth.success.signedIn')}</p>
+                <p className="text-gray-500 text-sm">{t('auth.success.welcomeText')}</p>
               </div>
             )}
           </div>
@@ -624,7 +601,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             </div>
             <a href="/auth/admin"
               className="w-full flex items-center justify-center gap-2 border-2 border-gray-200 text-gray-700 font-semibold py-3 rounded-xl text-sm hover:border-gray-300 hover:bg-gray-50 transition-all">
-              <span>🔑</span> Admin / Advisor Login
+              <span>🔑</span> {t('auth.adminLogin')}
             </a>
           </div>
         )}

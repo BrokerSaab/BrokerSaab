@@ -4,20 +4,22 @@ import React, { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Phone, ArrowRight, ArrowLeft, ShieldCheck, KeyRound, User, Mail, CheckCircle2, Loader2, LayoutDashboard, BookOpen, Scale, AlertOctagon, FileText, Gavel, Lock, Eye, EyeOff } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type AuthStep = 'terms' | 'phone' | 'otp' | 'register' | 'set_password' | 'success';
 
-const USER_TC_CLAUSES = [
-  { color: '#ef4444', icon: AlertOctagon, title: 'No Liability for Fraud or Misconduct', body: 'BrokerSaab is a third-party technology marketplace. We are NOT responsible or liable for any fraudulent activity, misrepresentation, negligence, professional misconduct, or financial harm caused by any advisor, agent, or dealer listed on this platform. Users engage professionals entirely at their own risk.' },
-  { color: '#f59e0b', icon: Gavel, title: 'Disputes — Indian Judiciary', body: 'All disputes, claims, or proceedings arising from use of BrokerSaab shall be subject exclusively to the jurisdiction of the competent courts of India. BrokerSaab is not a party to disputes between users and advisors.' },
-  { color: '#10b981', icon: ShieldCheck, title: 'Escrow Payment Protection', body: 'Payments are held in escrow until consultation completion. BrokerSaab does NOT guarantee the quality, accuracy, or outcome of any professional advice or service.' },
-  { color: '#3b82f6', icon: FileText, title: 'User Responsibilities', body: "You are responsible for independently verifying any professional's credentials before acting on their advice. BrokerSaab's internal verification is not a government certification." },
-  { color: '#8b5cf6', icon: Scale, title: 'Platform Role', body: 'BrokerSaab is a neutral intermediary only. No fiduciary duty or professional liability is created with BrokerSaab by using this platform.' },
-];
-
 export default function AuthPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [step, setStep] = useState<AuthStep>('terms');
+
+  const TC_CLAUSES = [
+    { color: '#ef4444', icon: AlertOctagon, title: t('tc.fraud.title'), body: t('tc.fraud.body') },
+    { color: '#f59e0b', icon: Gavel,        title: t('tc.dispute.title'), body: t('tc.dispute.body') },
+    { color: '#10b981', icon: ShieldCheck,  title: t('tc.escrow.title'), body: t('tc.escrow.body') },
+    { color: '#3b82f6', icon: FileText,     title: t('tc.userResp.title'), body: t('tc.userResp.body') },
+    { color: '#8b5cf6', icon: Scale,        title: t('tc.platform.title'), body: t('tc.platform.body') },
+  ];
 
   // Redirect already-authenticated users to their destination
   useEffect(() => {
@@ -225,20 +227,20 @@ export default function AuthPage() {
   };
 
   const stepTitle: Record<AuthStep, string> = {
-    terms:        'Terms & Conditions',
-    phone:        'Sign In to Continue',
-    otp:          'Verify Your Number',
-    register:     'Complete Your Profile',
-    set_password: 'Secure Your Account',
-    success:      "You're All Set!",
+    terms:        t('auth.terms.title'),
+    phone:        t('auth.phone.title'),
+    otp:          t('auth.otp.title'),
+    register:     t('auth.register.title'),
+    set_password: t('auth.password.title'),
+    success:      t('auth.success.title'),
   };
   const stepSub: Record<AuthStep, string> = {
-    terms:        'Please read and accept before continuing',
-    phone:        'Enter your mobile number to get started',
+    terms:        t('auth.terms.sub'),
+    phone:        t('auth.phone.sub'),
     otp:          `OTP sent to +91 ${phoneNumber}`,
-    register:     'Tell us your name to personalise your experience',
-    set_password: 'Set a password for faster login next time',
-    success:      'Welcome to BrokerSaab!',
+    register:     t('auth.register.sub'),
+    set_password: t('auth.password.sub'),
+    success:      t('nav.trustedPlatform'),
   };
 
   return (
@@ -297,9 +299,9 @@ export default function AuthPage() {
                   className="overflow-y-auto px-6 sm:px-8 pt-6 pb-4 space-y-3"
                   style={{ maxHeight: '280px', background: '#f8f7f0' }}>
                   <p className="text-[11px] text-gray-500 leading-relaxed bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                    <strong className="text-amber-700">Important:</strong> By using BrokerSaab, you acknowledge that you have read, understood, and agree to all the terms below.
+                    <strong className="text-amber-700">{t('tc.important')}</strong> {t('tc.importantText')}
                   </p>
-                  {USER_TC_CLAUSES.map((clause, i) => (
+                  {TC_CLAUSES.map((clause, i) => (
                     <div key={i} className="rounded-xl border overflow-hidden"
                       style={{ borderColor: `${clause.color}30`, background: `${clause.color}06` }}>
                       <div className="flex items-center gap-2.5 px-4 py-2 border-b"
@@ -312,15 +314,15 @@ export default function AuthPage() {
                   ))}
                   <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
                     <p className="text-[11px] text-red-700 leading-relaxed font-medium">
-                      <strong>Governing Law:</strong> These terms are governed by the laws of India. All disputes shall be subject exclusively to Indian courts. BrokerSaab shall not be a party to any dispute between users and advisors.
+                      <strong>{t('tc.govLaw')}</strong> {t('tc.govLawText')}
                     </p>
                   </div>
-                  <p className="text-[10px] text-gray-400 text-center pb-2">Effective Date: June 2026</p>
+                  <p className="text-[10px] text-gray-400 text-center pb-2">{t('tc.effective')}</p>
                 </div>
                 {/* Accept section */}
                 <div className="px-6 sm:px-8 py-4 border-t border-gray-200 bg-white space-y-3">
                   {!tcScrolled && (
-                    <p className="text-[10px] text-amber-600 text-center">↓ Scroll to read all terms</p>
+                    <p className="text-[10px] text-amber-600 text-center">{t('tc.scrollHint')}</p>
                   )}
                   <label className="flex items-start gap-3 cursor-pointer">
                     <div className="mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all"
@@ -329,13 +331,13 @@ export default function AuthPage() {
                       {tcAccepted && <CheckCircle2 size={12} className="text-white" />}
                     </div>
                     <span className="text-xs text-gray-600 leading-relaxed select-none">
-                      I agree to the Terms & Conditions, including that BrokerSaab is <strong>not liable for fraud or misconduct</strong> by advisors, and all disputes are subject to <strong>Indian courts</strong>.
+                      {t('tc.agreeText')}
                     </span>
                   </label>
                   <button disabled={!tcAccepted} onClick={() => tcAccepted && setStep('phone')}
                     className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all"
                     style={{ background: tcAccepted ? 'linear-gradient(135deg, #D4AF37, #B48C22)' : '#e5e7eb', color: tcAccepted ? '#0B1F3A' : '#9ca3af', cursor: tcAccepted ? 'pointer' : 'not-allowed' }}>
-                    I Accept — Continue <ArrowRight size={15} />
+                    {t('tc.acceptBtn')} <ArrowRight size={15} />
                   </button>
                 </div>
               </div>
@@ -352,7 +354,7 @@ export default function AuthPage() {
             {step === 'phone' && (
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Mobile Number</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.phone.label')}</label>
                   <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/20 transition-all">
                     <span className="bg-gray-50 px-4 py-3.5 text-gray-500 font-medium border-r border-gray-200 text-sm">+91</span>
                     <input
@@ -360,7 +362,7 @@ export default function AuthPage() {
                       maxLength={10}
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Enter 10-digit number"
+                      placeholder={t('auth.enterPhone')}
                       className="flex-1 px-4 py-3.5 text-gray-900 text-base outline-none placeholder:text-gray-400"
                       autoFocus
                     />
@@ -374,12 +376,12 @@ export default function AuthPage() {
                   className="w-full bg-gold-500 text-navy-800 font-bold py-3.5 rounded-xl text-sm hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg shadow-gold-500/20"
                 >
                   {loading ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
-                  {loading ? 'Sending OTP...' : 'Send OTP'}
+                  {loading ? t('auth.sending') : t('auth.phone.sendOtp')}
                 </button>
 
                 <div className="relative my-4">
                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
-                  <div className="relative flex justify-center text-xs"><span className="bg-white px-3 text-gray-400">or</span></div>
+                  <div className="relative flex justify-center text-xs"><span className="bg-white px-3 text-gray-400">{t('auth.orText')}</span></div>
                 </div>
 
                 <Link
@@ -390,7 +392,7 @@ export default function AuthPage() {
                   onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(212,175,55,0.4)')}
                 >
                   <KeyRound size={16} className="text-[#B48C22]" />
-                  Admin / Advisor Login
+                  {t('auth.adminLogin')}
                 </Link>
               </div>
             )}
@@ -405,7 +407,7 @@ export default function AuthPage() {
                 )}
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3 text-center">Enter 6-digit OTP</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3 text-center">{t('auth.otp.label')}</label>
                   <div className="flex justify-center gap-2 sm:gap-3">
                     {otp.map((digit, i) => (
                       <input
@@ -430,7 +432,7 @@ export default function AuthPage() {
                   className="w-full bg-gold-500 text-navy-800 font-bold py-3.5 rounded-xl text-sm hover:bg-gold-400 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-gold-500/20"
                 >
                   {loading ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
-                  {loading ? 'Verifying...' : 'Verify OTP'}
+                  {loading ? t('auth.verifying') : t('auth.otp.verify')}
                 </button>
 
                 <button
@@ -439,7 +441,7 @@ export default function AuthPage() {
                   onClick={() => { setStep('phone'); setOtp(['', '', '', '', '', '']); setError(''); }}
                   className="w-full text-[#B48C22]/70 text-sm hover:text-[#B48C22] transition-colors py-2"
                 >
-                  ← Change phone number
+                  {t('auth.otp.changePhone')}
                 </button>
               </div>
             )}
@@ -448,14 +450,14 @@ export default function AuthPage() {
             {step === 'register' && (
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name *</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.register.nameLabel')} *</label>
                   <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/20 transition-all">
                     <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><User size={18} className="text-gray-400" /></span>
                     <input
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Enter your full name"
+                      placeholder={t('auth.register.namePlaceholder')}
                       className="flex-1 px-4 py-3.5 text-gray-900 text-sm outline-none placeholder:text-gray-400"
                       autoFocus
                     />
@@ -463,7 +465,7 @@ export default function AuthPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email (Optional)</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.register.emailLabel')} <span className="font-normal text-gray-400">{t('auth.register.emailOptional')}</span></label>
                   <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/20 transition-all">
                     <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><Mail size={18} className="text-gray-400" /></span>
                     <input
@@ -482,7 +484,7 @@ export default function AuthPage() {
                   className="w-full bg-gold-500 text-navy-800 font-bold py-3.5 rounded-xl text-sm hover:bg-gold-400 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-gold-500/20"
                 >
                   {loading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                  {loading ? 'Creating Account...' : 'Complete Registration'}
+                  {loading ? t('auth.creatingAccount') : t('auth.completeReg')}
                 </button>
               </div>
             )}
@@ -493,19 +495,19 @@ export default function AuthPage() {
                 <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
                   <Lock size={16} className="text-blue-500 shrink-0 mt-0.5" />
                   <p className="text-xs text-blue-700 leading-relaxed">
-                    <strong>Set a password</strong> so you can log in faster next time — no OTP needed. You can always use OTP login too.
+                    {t('auth.password.info')}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.password.newLabel')}</label>
                   <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/20 transition-all">
                     <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><Lock size={17} className="text-gray-400" /></span>
                     <input
                       type={showPwd ? 'text' : 'password'}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Min. 8 chars, A-Z, a-z, 0-9"
+                      placeholder={t('auth.password.placeholder')}
                       className="flex-1 px-4 py-3.5 text-gray-900 text-sm outline-none placeholder:text-gray-400"
                       autoFocus
                     />
@@ -516,10 +518,10 @@ export default function AuthPage() {
                   {newPassword.length > 0 && (
                     <div className="flex gap-1.5 mt-1.5 flex-wrap">
                       {[
-                        { label: '8+ chars', ok: newPassword.length >= 8 },
-                        { label: 'Uppercase', ok: /[A-Z]/.test(newPassword) },
-                        { label: 'Lowercase', ok: /[a-z]/.test(newPassword) },
-                        { label: 'Number', ok: /\d/.test(newPassword) },
+                        { label: t('auth.pwdReq.chars'), ok: newPassword.length >= 8 },
+                        { label: t('auth.pwdReq.upper'), ok: /[A-Z]/.test(newPassword) },
+                        { label: t('auth.pwdReq.lower'), ok: /[a-z]/.test(newPassword) },
+                        { label: t('auth.pwdReq.number'), ok: /\d/.test(newPassword) },
                       ].map(r => (
                         <span key={r.label} className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${r.ok ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'}`}>
                           {r.ok ? '✓' : '·'} {r.label}
@@ -530,14 +532,14 @@ export default function AuthPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">{t('auth.password.confirmLabel')}</label>
                   <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/20 transition-all">
                     <span className="bg-gray-50 px-3 py-3.5 border-r border-gray-200"><Lock size={17} className="text-gray-400" /></span>
                     <input
                       type={showConfirmPwd ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Repeat your password"
+                      placeholder={t('auth.password.repeatPlaceholder')}
                       className="flex-1 px-4 py-3.5 text-gray-900 text-sm outline-none placeholder:text-gray-400"
                     />
                     <button type="button" onClick={() => setShowConfirmPwd(p => !p)} className="px-3 text-gray-400 hover:text-gray-600">
@@ -546,7 +548,7 @@ export default function AuthPage() {
                   </div>
                   {confirmPassword.length > 0 && (
                     <p className={`text-xs mt-1 font-medium ${newPassword === confirmPassword ? 'text-emerald-600' : 'text-red-500'}`}>
-                      {newPassword === confirmPassword ? '✓ Passwords match' : '✗ Passwords do not match'}
+                      {newPassword === confirmPassword ? t('auth.passwordsMatch') : t('auth.passwordsNoMatch')}
                     </p>
                   )}
                 </div>
@@ -558,7 +560,7 @@ export default function AuthPage() {
                   style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', color: '#D4AF37', boxShadow: '0 8px 20px rgba(11,31,58,0.4)' }}
                 >
                   {loading ? <Loader2 size={18} className="animate-spin" /> : <KeyRound size={18} />}
-                  {loading ? 'Saving Password…' : 'Set Password & Continue'}
+                  {loading ? t('auth.savingPwd') : t('auth.setPwdContinue')}
                 </button>
 
                 <button
@@ -566,7 +568,7 @@ export default function AuthPage() {
                   onClick={() => { setStep('success'); setTimeout(() => router.push('/services'), 1500); }}
                   className="w-full text-gray-400 text-sm hover:text-gray-600 transition-colors py-1.5"
                 >
-                  Skip for now — I'll use OTP login
+                  {t('auth.skipOtp')}
                 </button>
               </div>
             )}
@@ -583,14 +585,14 @@ export default function AuthPage() {
                   }
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">You&apos;re signed in!</h3>
+                  <h3 className="text-lg font-bold text-gray-900">{t('auth.success.signedIn')}</h3>
                   {userRole === 'ADVISOR' ? (
                     <p className="text-sm text-blue-600 mt-1 font-medium">
-                      Welcome back, Advisor. Redirecting to your dashboard…
+                      {t('auth.success.advisorText')}
                     </p>
                   ) : (
                     <p className="text-sm text-gray-500 mt-1">
-                      Welcome to BrokerSaab! Taking you to services…
+                      {t('auth.success.welcomeText')}
                     </p>
                   )}
                 </div>
@@ -601,7 +603,7 @@ export default function AuthPage() {
                     className="inline-flex items-center gap-2 font-bold px-8 py-3 rounded-xl text-sm shadow-lg transition-all hover:brightness-110"
                     style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}
                   >
-                    <LayoutDashboard size={16} /> Go to My Dashboard
+                    <LayoutDashboard size={16} /> {t('auth.goToDashboard')}
                   </Link>
                 ) : (
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -609,13 +611,13 @@ export default function AuthPage() {
                       href="/"
                       className="inline-flex items-center gap-2 bg-gold-500 text-navy-800 font-bold px-6 py-3 rounded-xl text-sm hover:bg-gold-400 shadow-lg transition-all"
                     >
-                      <BookOpen size={16} /> Explore Services
+                      <BookOpen size={16} /> {t('auth.exploreServices')}
                     </Link>
                     <Link
                       href="/bookings"
                       className="inline-flex items-center gap-2 border-2 border-gray-200 text-gray-700 font-semibold px-6 py-3 rounded-xl text-sm hover:bg-gray-50 transition-all"
                     >
-                      My Consultations
+                      {t('auth.myConsultations')}
                     </Link>
                   </div>
                 )}
@@ -628,8 +630,7 @@ export default function AuthPage() {
             <div className="px-6 py-3 text-center border-t shrink-0"
               style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', borderColor: 'rgba(212,175,55,0.12)' }}>
               <p className="text-[10px] text-white/30">
-                You accepted our{' '}
-                <button onClick={() => setStep('terms')} className="text-[#D4AF37]/60 hover:text-[#D4AF37] underline">Terms & Conditions</button>
+                <button onClick={() => setStep('terms')} className="text-[#D4AF37]/60 hover:text-[#D4AF37] underline">{t('auth.terms.title')}</button>
                 {' '}· BrokerSaab is not liable for advisor fraud
               </p>
             </div>

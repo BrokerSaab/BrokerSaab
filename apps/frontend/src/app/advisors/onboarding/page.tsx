@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   UserPlus, CheckCircle2, Star, ArrowRight, AlertCircle, Loader2,
   Phone, Mail, Lock, Eye, EyeOff, User, Briefcase, FileCheck, Award,
@@ -65,7 +66,6 @@ interface FormData {
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const STEP_ORDER: Step[] = ['welcome', 'phone_otp', 'advisor_type', 'account', 'profile', 'kyc', 'services', 'availability', 'review', 'payment', 'success'];
-const PROGRESS_STEPS = ['Verify', 'Type', 'Account', 'Profile', 'KYC', 'Services', 'Availability', 'Review'];
 
 // GST constants (display-only — backend computes the actual charge)
 const BASE_PRICE   = 1999;
@@ -250,6 +250,7 @@ const getSubModuleIcon = (moduleId: string | null, subName: string) => {
 // ── Component ──────────────────────────────────────────────────────────────────
 export default function AdvisorOnboarding() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [step, setStep] = useState<Step>('welcome');
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM);
   const [loading, setLoading] = useState(false);
@@ -282,8 +283,19 @@ export default function AdvisorOnboarding() {
     }
   }, [expandedModule]);
 
+  const PROGRESS_STEPS = [
+    t('onboard.progress.verify'),
+    t('onboard.progress.type'),
+    t('onboard.progress.account'),
+    t('onboard.progress.profile'),
+    t('onboard.progress.kyc'),
+    t('onboard.progress.services'),
+    t('onboard.progress.availability'),
+    t('onboard.progress.review'),
+  ];
+
   const handleClose = () => {
-    if (window.confirm("Are you sure you want to cancel the onboarding registration? Any unsaved progress will be lost.")) {
+    if (window.confirm(t('onboard.cancel'))) {
       router.push('/');
     }
   };
@@ -882,8 +894,8 @@ ${availLines ? `<div class="section">
                 Broker<span style={{ color: '#D4AF37' }}>Saab</span>
               </span>
             </div>
-            <h1 className="text-lg font-black text-white leading-tight">Advisor Registration</h1>
-            <p className="text-white/50 text-xs mt-0.5">Join thousands of verified advisors on BrokerSaab</p>
+            <h1 className="text-lg font-black text-white leading-tight">{t('onboard.title')}</h1>
+            <p className="text-white/50 text-xs mt-0.5">{t('onboard.sub')}</p>
             <button
               type="button"
               onClick={handleClose}
@@ -945,20 +957,20 @@ ${availLines ? `<div class="section">
                 <UserPlus size={30} className="text-indigo-500" />
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                Become a <span className="text-indigo-600 font-bold">Verified Advisor</span>
+                {t('onboard.welcome.heading').split(' ').slice(0,2).join(' ')} <span className="text-indigo-600 font-bold">{t('onboard.welcome.heading').split(' ').slice(2).join(' ')}</span>
               </h1>
-              <p className="text-sm text-gray-500">Join BrokerSaab and start earning from your expertise — completely free to register.</p>
+              <p className="text-sm text-gray-500">{t('onboard.welcome.sub')}</p>
             </div>
 
             {/* How It Works */}
             <div className="mb-6">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">How It Works</h2>
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{t('onboard.welcome.howTitle')}</h2>
               <div className="space-y-3">
                 {[
-                  { n: '1', title: 'Fill your professional profile', desc: 'Share your name, license, fees, and expertise in a few minutes.' },
-                  { n: '2', title: 'Select your service categories', desc: 'Choose the legal or financial services you specialise in.' },
-                  { n: '3', title: 'Set your availability', desc: 'Pick the days and hours you are available for consultations.' },
-                  { n: '4', title: 'Submit for admin review', desc: 'Our team verifies credentials and goes live within 24–48 hours.' },
+                  { n: '1', title: t('onboard.welcome.step1Title'), desc: t('onboard.welcome.step1Desc') },
+                  { n: '2', title: t('onboard.welcome.step2Title'), desc: t('onboard.welcome.step2Desc') },
+                  { n: '3', title: t('onboard.welcome.step3Title'), desc: t('onboard.welcome.step3Desc') },
+                  { n: '4', title: t('onboard.welcome.step4Title'), desc: t('onboard.welcome.step4Desc') },
                 ].map(item => (
                   <div key={item.n} className="flex gap-3 items-start">
                     <div className="w-7 h-7 rounded-full bg-indigo-700 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{item.n}</div>
@@ -974,13 +986,13 @@ ${availLines ? `<div class="section">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               {/* Requirements */}
               <div className="bg-gray-50 rounded-2xl p-4">
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Requirements</h2>
+                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{t('onboard.welcome.reqTitle')}</h2>
                 <ul className="space-y-2">
                   {[
-                    'Active phone number & email',
-                    'At least one service category',
-                    'Professional bio (50+ characters)',
-                    'License number (optional but recommended)',
+                    t('onboard.welcome.req1'),
+                    t('onboard.welcome.req2'),
+                    t('onboard.welcome.req3'),
+                    t('onboard.welcome.req4'),
                   ].map(req => (
                     <li key={req} className="flex gap-2 items-start text-sm text-gray-700">
                       <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
@@ -992,13 +1004,13 @@ ${availLines ? `<div class="section">
 
               {/* Benefits */}
               <div className="bg-indigo-500/5 rounded-2xl p-4 border border-indigo-500/20">
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Benefits</h2>
+                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{t('onboard.welcome.benTitle')}</h2>
                 <ul className="space-y-2">
                   {[
-                    'Earn consultation fees directly',
-                    'Set your own flexible hours',
-                    'Verified badge builds trust',
-                    'Escrow-protected payments',
+                    t('onboard.welcome.ben1'),
+                    t('onboard.welcome.ben2'),
+                    t('onboard.welcome.ben3'),
+                    t('onboard.welcome.ben4'),
                   ].map(b => (
                     <li key={b} className="flex gap-2 items-start text-sm text-gray-700">
                       <Star size={15} className="text-indigo-500 shrink-0 mt-0.5" />
@@ -1013,8 +1025,8 @@ ${availLines ? `<div class="section">
             <div className="mb-5 rounded-2xl border border-gray-200 overflow-hidden">
               <div className="flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-indigo-700 to-indigo-800">
                 <Scale size={15} className="text-indigo-200 shrink-0" />
-                <span className="text-indigo-100 text-[11px] font-black uppercase tracking-wider">Advisor Terms & Conditions</span>
-                <span className="ml-auto text-indigo-300/80 text-[10px]">Must accept to proceed</span>
+                <span className="text-indigo-100 text-[11px] font-black uppercase tracking-wider">{t('onboard.welcome.tcTitle')}</span>
+                <span className="ml-auto text-indigo-300/80 text-[10px]">{t('onboard.welcome.tcMust')}</span>
               </div>
 
               {/* Scrollable T&C */}
@@ -1022,11 +1034,11 @@ ${availLines ? `<div class="section">
                 className="overflow-y-auto px-4 py-3 space-y-2.5"
                 style={{ maxHeight: '160px', background: '#f8f7f0' }}>
                 {[
-                  { color: '#ef4444', title: 'No Platform Liability for Fraud or Misbehaviour', body: 'BrokerSaab is a third-party technology marketplace. The platform is NOT liable for any fraudulent activity, misrepresentation, negligence, or professional misconduct by any advisor listed on the platform — including you. Users engage with you as an independent professional, not as a BrokerSaab employee or representative.' },
-                  { color: '#f59e0b', title: 'Disputes — Indian Judiciary', body: 'All disputes, complaints, or proceedings arising from your advisory services or your use of BrokerSaab shall be subject exclusively to the jurisdiction of the competent courts of India. BrokerSaab will not represent either party in any dispute.' },
-                  { color: '#3b82f6', title: 'Document Authenticity & Accuracy', body: 'You confirm that all KYC documents, license information, qualifications, and professional credentials submitted to BrokerSaab are genuine, current, and accurate. Submitting false or fraudulent documents is an offence under applicable Indian law and will result in immediate account termination and referral to law enforcement.' },
-                  { color: '#8b5cf6', title: 'Independent Professional Responsibility', body: 'You are solely responsible for the quality, accuracy, and legality of all advice, services, and documents you provide to clients. BrokerSaab does not supervise, endorse, or guarantee your advice. Professional liability remains entirely with you.' },
-                  { color: '#10b981', title: 'Platform Commission & Conduct', body: 'BrokerSaab deducts a 15% service commission from all completed consultation payments. You agree to maintain professional conduct, honour confirmed bookings, and not solicit clients to transact outside the platform. Violations will result in immediate suspension and forfeiture of wallet balance.' },
+                  { color: '#ef4444', title: t('onboard.adv.noLiability.title'), body: t('onboard.adv.noLiability.body') },
+                  { color: '#f59e0b', title: t('onboard.adv.disputes.title'),   body: t('onboard.adv.disputes.body') },
+                  { color: '#3b82f6', title: t('onboard.adv.docAuth.title'),    body: t('onboard.adv.docAuth.body') },
+                  { color: '#8b5cf6', title: t('onboard.adv.indResp.title'),    body: t('onboard.adv.indResp.body') },
+                  { color: '#10b981', title: t('onboard.adv.commission.title'), body: t('onboard.adv.commission.body') },
                 ].map((clause, i) => (
                   <div key={i} className="rounded-xl border overflow-hidden"
                     style={{ borderColor: `${clause.color}30`, background: `${clause.color}06` }}>
@@ -1040,16 +1052,16 @@ ${availLines ? `<div class="section">
                 ))}
                 <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5">
                   <p className="text-[11px] text-red-700 leading-relaxed font-medium">
-                    <strong>Governing Law:</strong> These terms are governed by the laws of the Republic of India. BrokerSaab will fully cooperate with Indian law enforcement in any investigation of fraud, forgery, or misconduct.
+                    <strong>{t('onboard.adv.govLaw')}</strong> {t('onboard.adv.govLawText')}
                   </p>
                 </div>
-                <p className="text-[10px] text-gray-400 text-center pb-1">Effective: June 2026 · BrokerSaab Technology Pvt. Ltd.</p>
+                <p className="text-[10px] text-gray-400 text-center pb-1">{t('tc.effective')}</p>
               </div>
 
               {/* Accept checkbox */}
               <div className="px-4 py-3 border-t border-gray-200 bg-white space-y-2.5">
                 {!tcScrolled && (
-                  <p className="text-[10px] text-amber-600 text-center">↓ Scroll to read all advisor terms before accepting</p>
+                  <p className="text-[10px] text-amber-600 text-center">{t('onboard.welcome.tcScrollHint')}</p>
                 )}
                 <label className="flex items-start gap-3 cursor-pointer">
                   <div className="mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all"
@@ -1058,7 +1070,7 @@ ${availLines ? `<div class="section">
                     {tcAccepted && <CheckCircle2 size={12} className="text-white" />}
                   </div>
                   <span className="text-xs text-gray-600 leading-relaxed select-none">
-                    I have read and accept the Advisor Terms & Conditions, including that BrokerSaab is <strong>not liable for fraud or misconduct</strong>, disputes are under <strong>Indian courts</strong>, and all my submitted documents are <strong>genuine and accurate</strong>.
+                    {t('onboard.welcome.tcAgree')}
                   </span>
                 </label>
               </div>
@@ -1073,7 +1085,7 @@ ${availLines ? `<div class="section">
                 color: tcAccepted ? '#0B1F3A' : '#9ca3af',
                 cursor: tcAccepted ? 'pointer' : 'not-allowed',
               }}>
-              {tcAccepted ? <><CheckCircle2 size={16} /> I Accept — Start Registration</> : <>Accept Terms to Continue <ArrowRight size={16} /></>}
+              {tcAccepted ? <><CheckCircle2 size={16} /> {t('onboard.welcome.acceptBtn')}</> : <>{t('onboard.welcome.acceptTermsBtn')} <ArrowRight size={16} /></>}
             </button>
           </div>
         )}
@@ -1082,14 +1094,14 @@ ${availLines ? `<div class="section">
         {step === 'phone_otp' && (
           <div className="p-4 sm:p-5 space-y-3">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Verify Your Mobile Number</h2>
-              <p className="text-sm text-gray-500">We'll send a 6-digit OTP to confirm your number.</p>
+              <h2 className="text-lg font-bold text-gray-900">{t('onboard.otp.title')}</h2>
+              <p className="text-sm text-gray-500">{t('onboard.otp.sub')}</p>
             </div>
 
             {/* Phone entry */}
             {(otpSubStep === 'phone' || otpSubStep === 'sent') && (
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Mobile Number</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.otp.phoneLabel')}</label>
                 <div className={inputWrap}>
                   <span className="px-3 py-3 bg-gray-50 border-r border-gray-200 text-sm text-gray-600 font-medium">+91</span>
                   <input type="tel" maxLength={10} placeholder="10-digit number"
@@ -1115,20 +1127,20 @@ ${availLines ? `<div class="section">
                     if (d.devOtp) setDevOtp(d.devOtp);
                     setOtpSubStep('sent');
                     setOtpCooldown(30);
-                    const t = setInterval(() => setOtpCooldown(c => { if (c <= 1) { clearInterval(t); return 0; } return c - 1; }), 1000);
+                    const timer = setInterval(() => setOtpCooldown(c => { if (c <= 1) { clearInterval(timer); return 0; } return c - 1; }), 1000);
                   } catch { setError('Network error. Please try again.'); }
                   finally { setOtpLoading(false); }
                 }}
                 className="w-full py-3 rounded-xl font-bold text-sm transition-all"
                 style={{ background: formData.phoneNumber.length === 10 ? 'linear-gradient(135deg,#D4AF37,#B48C22)' : '#e5e7eb', color: formData.phoneNumber.length === 10 ? '#0B1F3A' : '#9ca3af', cursor: formData.phoneNumber.length === 10 ? 'pointer' : 'not-allowed' }}>
-                {otpLoading ? <span className="flex items-center justify-center gap-2"><Loader2 size={16} className="animate-spin" /> Sending…</span> : 'Send OTP'}
+                {otpLoading ? <span className="flex items-center justify-center gap-2"><Loader2 size={16} className="animate-spin" /> {t('onboard.otp.sending')}</span> : t('onboard.otp.sendOtp')}
               </button>
             )}
 
             {/* OTP input + verify */}
             {otpSubStep === 'sent' && (
               <div className="space-y-3">
-                <label className="block text-xs font-semibold text-gray-600">Enter 6-digit OTP</label>
+                <label className="block text-xs font-semibold text-gray-600">{t('onboard.otp.enterOtp')}</label>
                 {devOtp && (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs">
                     <AlertCircle size={14} className="shrink-0" /> Dev OTP: <strong>{devOtp}</strong>
@@ -1166,12 +1178,12 @@ ${availLines ? `<div class="section">
                   }}
                   className="w-full py-3 rounded-xl font-bold text-sm transition-all"
                   style={{ background: otpValue.length === 6 ? 'linear-gradient(135deg,#D4AF37,#B48C22)' : '#e5e7eb', color: otpValue.length === 6 ? '#0B1F3A' : '#9ca3af' }}>
-                  {otpLoading ? <span className="flex items-center justify-center gap-2"><Loader2 size={16} className="animate-spin" /> Verifying…</span> : 'Verify OTP'}
+                  {otpLoading ? <span className="flex items-center justify-center gap-2"><Loader2 size={16} className="animate-spin" /> {t('onboard.otp.verifying')}</span> : t('onboard.otp.verifyOtp')}
                 </button>
                 {otpCooldown === 0 ? (
-                  <button onClick={() => setOtpSubStep('phone')} className="w-full text-xs text-indigo-600 hover:text-indigo-800 underline py-1">Resend OTP</button>
+                  <button onClick={() => setOtpSubStep('phone')} className="w-full text-xs text-indigo-600 hover:text-indigo-800 underline py-1">{t('onboard.otp.resend')}</button>
                 ) : (
-                  <p className="text-center text-xs text-gray-400">Resend in {otpCooldown}s</p>
+                  <p className="text-center text-xs text-gray-400">{t('onboard.otp.resendIn')}{otpCooldown}s</p>
                 )}
               </div>
             )}
@@ -1181,8 +1193,8 @@ ${availLines ? `<div class="section">
               <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
                 <CheckCircle2 size={22} className="text-green-500 shrink-0" />
                 <div>
-                  <p className="font-bold text-green-700 text-sm">+91 {formData.phoneNumber} Verified!</p>
-                  <p className="text-green-600 text-xs">Your mobile number is confirmed.</p>
+                  <p className="font-bold text-green-700 text-sm">+91 {formData.phoneNumber} {t('onboard.otp.verified')}</p>
+                  <p className="text-green-600 text-xs">{t('onboard.otp.verifiedSub')}</p>
                 </div>
               </div>
             )}
@@ -1193,7 +1205,7 @@ ${availLines ? `<div class="section">
                 <div className="flex items-start gap-3">
                   <Clock size={15} className="text-indigo-600 mt-0.5 shrink-0" />
                   <p className="text-sm text-indigo-800">
-                    <strong>Welcome back!</strong> You previously stopped at <strong>{resumeSession.stepLabel.replace(/_/g, ' ')}</strong> (step {resumeSession.currentStep}/8). Would you like to continue where you left off?
+                    <strong>{t('onboard.otp.welcomeBack')}</strong> {t('onboard.otp.stoppedAt')} <strong>{resumeSession.stepLabel.replace(/_/g, ' ')}</strong> (step {resumeSession.currentStep}/8). {t('onboard.otp.resumeQ')}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -1228,23 +1240,23 @@ ${availLines ? `<div class="section">
                     className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white transition-all"
                     style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}
                   >
-                    Continue from {resumeSession.stepLabel.replace(/_/g, ' ')}
+                    {t('onboard.otp.continueFrom')} {resumeSession.stepLabel.replace(/_/g, ' ')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setResumeSession(null)}
                     className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-indigo-700 border-2 border-indigo-300 bg-white hover:bg-indigo-50 transition-all"
                   >
-                    Start Fresh
+                    {t('onboard.otp.startFresh')}
                   </button>
                 </div>
               </div>
             )}
 
             <div className="flex gap-3 pt-2">
-              <button onClick={goBack} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-all">Back</button>
+              <button onClick={goBack} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-all">{t('onboard.btn.back')}</button>
               <button onClick={goNext} disabled={!formData.otpVerified} className="btn-gold flex-1 py-3 flex items-center justify-center gap-2 disabled:opacity-40">
-                Next: Advisor Type <ArrowRight size={15} />
+                {t('onboard.btn.next')} <ArrowRight size={15} />
               </button>
             </div>
           </div>
@@ -1254,8 +1266,8 @@ ${availLines ? `<div class="section">
         {step === 'advisor_type' && (
           <div className="p-4 sm:p-5 space-y-3">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Choose Your Advisor Type</h2>
-              <p className="text-sm text-gray-500">This determines your verification requirements and platform visibility.</p>
+              <h2 className="text-lg font-bold text-gray-900">{t('onboard.type.title')}</h2>
+              <p className="text-sm text-gray-500">{t('onboard.type.sub')}</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1302,9 +1314,9 @@ ${availLines ? `<div class="section">
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button onClick={goBack} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-all">Back</button>
+              <button onClick={goBack} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-all">{t('onboard.btn.back')}</button>
               <button onClick={goNext} disabled={!formData.advisorType} className="btn-gold flex-1 py-3 flex items-center justify-center gap-2 disabled:opacity-40">
-                Next: Account <ArrowRight size={15} />
+                {t('onboard.btn.next')} <ArrowRight size={15} />
               </button>
             </div>
           </div>
@@ -1314,13 +1326,13 @@ ${availLines ? `<div class="section">
         {step === 'account' && (
           <div className="p-4 sm:p-5 space-y-3">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Create Your Account</h2>
-              <p className="text-sm text-gray-500">These credentials will be used to log in to your advisor dashboard.</p>
+              <h2 className="text-lg font-bold text-gray-900">{t('onboard.account.title')}</h2>
+              <p className="text-sm text-gray-500">{t('onboard.account.sub')}</p>
             </div>
 
             {/* Phone */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Mobile Number</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.otp.phoneLabel')}</label>
               <div className={inputWrap}>
                 <span className="px-3 py-3 bg-gray-50 border-r border-gray-200 text-sm text-gray-600 font-medium">+91</span>
                 <input type="tel" maxLength={10} placeholder="10-digit number" value={formData.phoneNumber}
@@ -1333,7 +1345,7 @@ ${availLines ? `<div class="section">
 
             {/* Email */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Email Address</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.account.emailLabel')}</label>
               <div className={inputWrap}>
                 <Mail size={16} className={inputIcon} />
                 <input type="email" placeholder="you@example.com" value={formData.email}
@@ -1343,7 +1355,7 @@ ${availLines ? `<div class="section">
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Password</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.account.pwdLabel')}</label>
               <div className={inputWrap}>
                 <Lock size={16} className={inputIcon} />
                 <input type={showPassword ? 'text' : 'password'} placeholder="Min. 6 characters" value={formData.password}
@@ -1356,7 +1368,7 @@ ${availLines ? `<div class="section">
 
             {/* Confirm Password */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Confirm Password</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.account.confirmPwdLabel')}</label>
               <div className={inputWrap}>
                 <Lock size={16} className={inputIcon} />
                 <input type={showConfirmPassword ? 'text' : 'password'} placeholder="Re-enter password" value={formData.confirmPassword}
@@ -1369,10 +1381,10 @@ ${availLines ? `<div class="section">
 
             <div className="flex gap-3 pt-2">
               <button onClick={goBack} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-all">
-                Back
+                {t('onboard.btn.back')}
               </button>
               <button onClick={goNext} className="btn-gold flex-1 py-3 flex items-center justify-center gap-2">
-                Next: Profile <ArrowRight size={15} />
+                {t('onboard.btn.next')} <ArrowRight size={15} />
               </button>
             </div>
           </div>
@@ -1382,14 +1394,14 @@ ${availLines ? `<div class="section">
         {step === 'profile' && (
           <div className="p-4 sm:p-5 space-y-3">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Professional Profile</h2>
-              <p className="text-sm text-gray-500">Tell clients about your expertise and experience.</p>
+              <h2 className="text-lg font-bold text-gray-900">{t('onboard.profile.title')}</h2>
+              <p className="text-sm text-gray-500">{t('onboard.profile.sub')}</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Full Name */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Full Name *</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.nameLabel')}</label>
                 <div className={inputWrap}>
                   <User size={16} className={inputIcon} />
                   <input type="text" placeholder="As on your license" value={formData.fullName}
@@ -1399,7 +1411,7 @@ ${availLines ? `<div class="section">
 
               {/* Business Name */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Business / Firm Name <span className="text-gray-400 font-normal">(optional)</span></label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.bizNameLabel')} <span className="text-gray-400 font-normal">(optional)</span></label>
                 <div className={inputWrap}>
                   <Briefcase size={16} className={inputIcon} />
                   <input type="text" placeholder="e.g. Sen & Associates" value={formData.businessName}
@@ -1409,7 +1421,7 @@ ${availLines ? `<div class="section">
 
               {/* License */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">License Number <span className="text-gray-400 font-normal">(optional)</span></label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.licenseLabel')} <span className="text-gray-400 font-normal">(optional)</span></label>
                 <div className={inputWrap}>
                   <FileCheck size={16} className={inputIcon} />
                   <input type="text" placeholder="e.g. BAR/MH/12345" value={formData.licenseNumber}
@@ -1419,7 +1431,7 @@ ${availLines ? `<div class="section">
 
               {/* Experience */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Years of Experience *</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.expLabel')}</label>
                 <div className={inputWrap}>
                   <Award size={16} className={inputIcon} />
                   <input type="number" min="0" step="1" placeholder="e.g. 8" value={formData.experienceYears}
@@ -1430,7 +1442,7 @@ ${availLines ? `<div class="section">
               {/* State + City structured location */}
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">State *</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.stateLabel')}</label>
                   <div className={inputWrap}>
                     <MapPin size={16} className={inputIcon} />
                     <select
@@ -1450,7 +1462,7 @@ ${availLines ? `<div class="section">
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">City / Area *</label>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.cityLabel')}</label>
                   <div className={inputWrap}>
                     <MapPin size={16} className={inputIcon} />
                     <input
@@ -1472,7 +1484,7 @@ ${availLines ? `<div class="section">
 
               {/* Fee */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Consultation Fee (₹) <span className="text-gray-400 font-normal">(optional)</span></label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.feeLabel')} <span className="text-gray-400 font-normal">(optional)</span></label>
                 <div className={inputWrap}>
                   <span className="px-3 py-3 bg-gray-50 border-r border-gray-200 text-sm text-gray-600 font-bold">₹</span>
                   <input type="number" min="0" placeholder="e.g. 1500" value={formData.consultationFee}
@@ -1482,7 +1494,7 @@ ${availLines ? `<div class="section">
 
               {/* Circle */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Circle / Block <span className="text-gray-400 font-normal">(optional)</span></label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.circleLabel')} <span className="text-gray-400 font-normal">(optional)</span></label>
                 <div className={inputWrap}>
                   <MapPin size={16} className={inputIcon} />
                   <input type="text" placeholder="e.g. Raxaul Circle, Motihari Block"
@@ -1494,7 +1506,7 @@ ${availLines ? `<div class="section">
 
               {/* Subdivision */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Subdivision <span className="text-gray-400 font-normal">(optional)</span></label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.subdivLabel')} <span className="text-gray-400 font-normal">(optional)</span></label>
                 <div className={inputWrap}>
                   <MapPin size={16} className={inputIcon} />
                   <input type="text" placeholder="e.g. East Champaran, Gopalganj"
@@ -1507,7 +1519,7 @@ ${availLines ? `<div class="section">
 
             {/* Languages */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Languages Spoken *</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.langLabel')}</label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {formData.languages.map(lang => (
                   <span key={lang} className="flex items-center gap-1 bg-indigo-100 text-indigo-800 text-xs font-medium px-3 py-1 rounded-full">
@@ -1519,7 +1531,7 @@ ${availLines ? `<div class="section">
                 ))}
               </div>
               <div className={inputWrap}>
-                <input ref={langInputRef} type="text" placeholder="Type language + Enter (e.g. Hindi, English)" value={langInput}
+                <input ref={langInputRef} type="text" placeholder={t('onboard.profile.langPlaceholder')} value={langInput}
                   onChange={e => setLangInput(e.target.value)} onKeyDown={handleLangKey} className={inputBase} />
                 <button type="button" onClick={addLanguage} className="pr-3 text-indigo-500 hover:text-indigo-600">
                   <Plus size={18} />
@@ -1530,7 +1542,7 @@ ${availLines ? `<div class="section">
 
             {/* Bio */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Professional Bio *</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.bioLabel')}</label>
               <textarea rows={3} placeholder="Describe your expertise, approach, and what clients can expect when working with you. (minimum 50 characters)"
                 value={formData.bio} onChange={e => update('bio', e.target.value)}
                 className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none transition-all" />
@@ -1544,10 +1556,10 @@ ${availLines ? `<div class="section">
 
             <div className="flex gap-3 pt-2">
               <button onClick={goBack} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-all">
-                Back
+                {t('onboard.btn.back')}
               </button>
               <button onClick={goNext} className="btn-gold flex-1 py-3 flex items-center justify-center gap-2">
-                Next: Services <ArrowRight size={15} />
+                {t('onboard.btn.next')} <ArrowRight size={15} />
               </button>
             </div>
           </div>
@@ -1557,10 +1569,9 @@ ${availLines ? `<div class="section">
         {step === 'kyc' && (
           <div className="p-4 sm:p-5 space-y-3">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">KYC Document Upload</h2>
+              <h2 className="text-lg font-bold text-gray-900">{t('onboard.kyc.title')}</h2>
               <p className="text-sm text-gray-500">
-                Aadhaar and photo are required for all advisors.
-                {formData.advisorType === 'AUTHORIZED' && ' License copy is additionally required for Authorized Advisors.'}
+                {t('onboard.kyc.sub')}
               </p>
             </div>
 
@@ -1569,20 +1580,20 @@ ${availLines ? `<div class="section">
               <div className="flex items-start gap-2">
                 <ShieldCheck size={16} className="text-amber-600 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-800 leading-relaxed">
-                  <strong>Aadhaar Data Security Notice (UIDAI / Aadhaar Act 2016):</strong> Your Aadhaar number is stored only as an irreversible one-way cryptographic hash — it cannot be recovered or read by anyone, including BrokerSaab staff. Only the last 4 digits are stored in readable form for identity confirmation. Your data is processed exclusively for KYC verification in compliance with Government of India regulations.
+                  {t('onboard.kyc.consentNotice')}
                 </p>
               </div>
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input type="checkbox" checked={formData.aadhaarConsentGiven}
                   onChange={e => update('aadhaarConsentGiven', e.target.checked)}
                   className="w-4 h-4 rounded border-gray-300 accent-amber-500" />
-                <span className="text-xs text-amber-700 font-medium">I consent to Aadhaar data processing as described above</span>
+                <span className="text-xs text-amber-700 font-medium">{t('onboard.kyc.consentCheckbox')}</span>
               </label>
             </div>
 
             {/* Aadhaar card upload */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-gray-600">Aadhaar Card <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-semibold text-gray-600">{t('onboard.kyc.aadhaarLabel')}</label>
               <div className={inputWrap}>
                 <FileCheck size={16} className={inputIcon} />
                 <input type="text" maxLength={14} placeholder="12-digit Aadhaar number"
@@ -1592,7 +1603,7 @@ ${availLines ? `<div class="section">
               </div>
               <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-indigo-400 transition-all bg-gray-50">
                 <FileText size={16} className="text-gray-400 shrink-0" />
-                <span className="text-sm text-gray-500 flex-1">{formData.aadhaarFile ? formData.aadhaarFile.name : 'Upload Aadhaar card (JPG, PNG or PDF, max 5 MB)'}</span>
+                <span className="text-sm text-gray-500 flex-1">{formData.aadhaarFile ? formData.aadhaarFile.name : t('onboard.kyc.uploadAadhaar')}</span>
                 {formData.aadhaarFile && <CheckCircle2 size={16} className="text-green-500 shrink-0" />}
                 <input type="file" accept="image/*,application/pdf" className="hidden"
                   onChange={e => { if (e.target.files?.[0]) update('aadhaarFile', e.target.files[0]); }} />
@@ -1601,10 +1612,10 @@ ${availLines ? `<div class="section">
 
             {/* Passport photo upload */}
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-gray-600">Passport-size Photo <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-semibold text-gray-600">{t('onboard.kyc.photoLabel')}</label>
               <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-indigo-400 transition-all bg-gray-50">
                 <User size={16} className="text-gray-400 shrink-0" />
-                <span className="text-sm text-gray-500 flex-1">{formData.passportPhotoFile ? formData.passportPhotoFile.name : 'Upload your photo (JPG or PNG, max 5 MB)'}</span>
+                <span className="text-sm text-gray-500 flex-1">{formData.passportPhotoFile ? formData.passportPhotoFile.name : t('onboard.kyc.uploadPhoto')}</span>
                 {formData.passportPhotoFile && <CheckCircle2 size={16} className="text-green-500 shrink-0" />}
                 <input type="file" accept="image/*" className="hidden"
                   onChange={e => { if (e.target.files?.[0]) update('passportPhotoFile', e.target.files[0]); }} />
@@ -1615,7 +1626,7 @@ ${availLines ? `<div class="section">
             {formData.advisorType === 'AUTHORIZED' && (
               <>
                 <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-gray-600">License Number <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-semibold text-gray-600">{t('onboard.kyc.licenseNumLabel')}</label>
                   <div className={inputWrap}>
                     <Award size={16} className={inputIcon} />
                     <input type="text" placeholder="e.g. REG/MH/2024/12345" value={formData.licenseNumber}
@@ -1624,10 +1635,10 @@ ${availLines ? `<div class="section">
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-gray-600">License Copy <span className="text-red-500">*</span></label>
+                  <label className="block text-xs font-semibold text-gray-600">{t('onboard.kyc.licenseLabel')}</label>
                   <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-indigo-400 transition-all bg-gray-50">
                     <FileCheck size={16} className="text-gray-400 shrink-0" />
-                    <span className="text-sm text-gray-500 flex-1">{formData.licenseFile ? formData.licenseFile.name : 'Upload license document (JPG, PNG or PDF, max 5 MB)'}</span>
+                    <span className="text-sm text-gray-500 flex-1">{formData.licenseFile ? formData.licenseFile.name : t('onboard.kyc.uploadLicense')}</span>
                     {formData.licenseFile && <CheckCircle2 size={16} className="text-green-500 shrink-0" />}
                     <input type="file" accept="image/*,application/pdf" className="hidden"
                       onChange={e => { if (e.target.files?.[0]) update('licenseFile', e.target.files[0]); }} />
@@ -1635,7 +1646,7 @@ ${availLines ? `<div class="section">
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-gray-600">GST Number <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <label className="block text-xs font-semibold text-gray-600">{t('onboard.kyc.gstNumLabel')}</label>
                   <div className={inputWrap}>
                     <Percent size={16} className={inputIcon} />
                     <input type="text" placeholder="e.g. 27AAPFU0939F1ZV" value={formData.gstNumber}
@@ -1644,10 +1655,10 @@ ${availLines ? `<div class="section">
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-gray-600">GST Certificate <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <label className="block text-xs font-semibold text-gray-600">{t('onboard.kyc.gstLabel')}</label>
                   <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-indigo-400 transition-all bg-gray-50">
                     <FileText size={16} className="text-gray-400 shrink-0" />
-                    <span className="text-sm text-gray-500 flex-1">{formData.gstCertFile ? formData.gstCertFile.name : 'Upload GST certificate (JPG, PNG or PDF, max 5 MB) — optional'}</span>
+                    <span className="text-sm text-gray-500 flex-1">{formData.gstCertFile ? formData.gstCertFile.name : t('onboard.kyc.uploadGstCert')}</span>
                     {formData.gstCertFile && <CheckCircle2 size={16} className="text-green-500 shrink-0" />}
                     <input type="file" accept="image/*,application/pdf" className="hidden"
                       onChange={e => { if (e.target.files?.[0]) update('gstCertFile', e.target.files[0]); }} />
@@ -1657,9 +1668,9 @@ ${availLines ? `<div class="section">
             )}
 
             <div className="flex gap-3 pt-2">
-              <button onClick={goBack} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-all">Back</button>
+              <button onClick={goBack} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-all">{t('onboard.btn.back')}</button>
               <button onClick={goNext} className="btn-gold flex-1 py-3 flex items-center justify-center gap-2">
-                Next: Services <ArrowRight size={15} />
+                {t('onboard.btn.next')} <ArrowRight size={15} />
               </button>
             </div>
           </div>
@@ -1671,9 +1682,9 @@ ${availLines ? `<div class="section">
             <div className="mb-5">
               <div className="flex items-center gap-2 mb-1">
                 <Sparkles size={18} className="text-indigo-500" />
-                <h2 className="text-lg font-bold text-gray-900">Select Your Service Areas</h2>
+                <h2 className="text-lg font-bold text-gray-900">{t('onboard.services.title')}</h2>
               </div>
-              <p className="text-sm text-gray-500">Choose your domains, then pick specific specialisations within each. Click a module tile to expand its sub-services.</p>
+              <p className="text-sm text-gray-500">{t('onboard.services.sub')}</p>
             </div>
 
             {/* ── Module Tiles Grid ── */}
@@ -1983,10 +1994,10 @@ ${availLines ? `<div class="section">
 
             <div className="flex gap-3">
               <button onClick={goBack} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-all">
-                Back
+                {t('onboard.btn.back')}
               </button>
               <button onClick={goNext} className="btn-gold flex-1 py-3 flex items-center justify-center gap-2">
-                Next: Availability <ArrowRight size={15} />
+                {t('onboard.btn.next')} <ArrowRight size={15} />
               </button>
             </div>
           </div>
@@ -1996,8 +2007,8 @@ ${availLines ? `<div class="section">
         {step === 'availability' && (
           <div className="p-4 sm:p-5">
             <div className="mb-5">
-              <h2 className="text-lg font-bold text-gray-900">Set Your Availability</h2>
-              <p className="text-sm text-gray-500">Toggle the days you are available and set your time slots. You can update this anytime.</p>
+              <h2 className="text-lg font-bold text-gray-900">{t('onboard.avail.title')}</h2>
+              <p className="text-sm text-gray-500">{t('onboard.avail.sub')}</p>
             </div>
 
             {/* Quick-select shortcuts */}
@@ -2122,13 +2133,13 @@ ${availLines ? `<div class="section">
 
             <div className="flex gap-3 mt-2">
               <button onClick={goBack} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-all">
-                Back
+                {t('onboard.btn.back')}
               </button>
               <button onClick={() => { setError(''); setStep('review'); }} className="py-3 px-5 rounded-xl text-sm font-semibold text-gray-500 hover:text-gray-700 transition-colors">
-                Skip for Now
+                {t('onboard.btn.skip')}
               </button>
               <button onClick={goNext} className="btn-gold flex-1 py-3 flex items-center justify-center gap-2">
-                Review <ArrowRight size={15} />
+                {t('onboard.btn.review')} <ArrowRight size={15} />
               </button>
             </div>
           </div>
@@ -2139,8 +2150,8 @@ ${availLines ? `<div class="section">
           <div className="p-4 sm:p-5 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Review Your Application</h2>
-                <p className="text-sm text-gray-500">Please verify all details before submitting.</p>
+                <h2 className="text-lg font-bold text-gray-900">{t('onboard.review.title')}</h2>
+                <p className="text-sm text-gray-500">{t('onboard.review.sub')}</p>
               </div>
               {formData.advisorType && (
                 <span className="shrink-0 px-3 py-1 rounded-full text-xs font-black"
@@ -2373,23 +2384,23 @@ ${availLines ? `<div class="section">
                 {confirmed && <Check size={12} className="text-white" />}
               </div>
               <span className="text-sm text-gray-700 select-none leading-relaxed">
-                I confirm that all the above information is <strong className="text-gray-900">accurate and authentic</strong>. I agree to BrokerSaab&apos;s Advisor Terms and understand that providing false information may lead to immediate account suspension.
+                {t('onboard.review.confirmTextFull')}
               </span>
             </label>
 
             <div className="flex gap-3">
               <button onClick={goBack} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-600 hover:border-gray-300 transition-all">
-                Back
+                {t('onboard.btn.back')}
               </button>
               {isAuthorized ? (
                 <button onClick={handleSubmit} disabled={!confirmed || loading}
                   className="btn-gold flex-1 py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {loading ? <><Loader2 size={16} className="animate-spin" /> Creating account…</> : <><CreditCard size={16} /> Proceed to Payment <ArrowRight size={14} /></>}
+                  {loading ? <><Loader2 size={16} className="animate-spin" /> {t('onboard.review.creatingAccount')}</> : <><CreditCard size={16} /> {t('onboard.review.proceedPayment')} <ArrowRight size={14} /></>}
                 </button>
               ) : (
                 <button onClick={handleSubmit} disabled={!confirmed || loading}
                   className="btn-gold flex-1 py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {loading ? <><Loader2 size={16} className="animate-spin" /> Submitting…</> : <><ShieldCheck size={16} /> Submit for Verification</>}
+                  {loading ? <><Loader2 size={16} className="animate-spin" /> {t('onboard.review.submitting')}</> : <><ShieldCheck size={16} /> {t('onboard.review.submitVerification')}</>}
                 </button>
               )}
             </div>
@@ -2406,8 +2417,8 @@ ${availLines ? `<div class="section">
                 <ArrowLeft size={16} />
               </button>
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Complete Payment to Submit</h2>
-                <p className="text-sm text-gray-500">Your application will be submitted only after payment is confirmed.</p>
+                <h2 className="text-lg font-bold text-gray-900">{t('onboard.payment.title')}</h2>
+                <p className="text-sm text-gray-500">{t('onboard.payment.sub')}</p>
               </div>
             </div>
 
@@ -2627,15 +2638,15 @@ ${availLines ? `<div class="section">
             <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: 'rgba(212,175,55,0.1)', border: '2px solid rgba(212,175,55,0.35)' }}>
               <ShieldCheck size={48} className="text-[#D4AF37]" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile Submitted!</h2>
-            <p className="text-gray-500 text-sm mb-8">Our team will review your credentials and get back to you within 24–48 hours.</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('onboard.success.title')}</h2>
+            <p className="text-gray-500 text-sm mb-8">{t('onboard.success.sub')}</p>
 
             <div className="text-left space-y-4 mb-8">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">What Happens Next</h3>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('onboard.success.whatsNext')}</h3>
               {[
-                { icon: Search, title: 'Profile Review (24–48h)', desc: 'Our team verifies your license number and credentials.' },
-                { icon: ShieldCheck, title: 'Email Confirmation', desc: 'You receive a notification once your profile is approved.' },
-                { icon: CheckCircle2, title: 'Go Live', desc: 'Your profile appears on BrokerSaab and clients can book you.' },
+                { icon: Search, title: t('onboard.success.step1Title'), desc: t('onboard.success.step1Desc') },
+                { icon: ShieldCheck, title: t('onboard.success.step2Title'), desc: t('onboard.success.step2Desc') },
+                { icon: CheckCircle2, title: t('onboard.success.step3Title'), desc: t('onboard.success.step3Desc') },
               ].map((item, i) => {
                 const Icon = item.icon;
                 return (
@@ -2654,22 +2665,22 @@ ${availLines ? `<div class="section">
 
             {/* ── Print / Download Application ── */}
             <div className="rounded-2xl border-2 border-dashed border-gray-200 p-4 bg-gray-50">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 text-center">Save Your Application</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 text-center">{t('onboard.success.saveApp')}</p>
               <div className="flex gap-3">
                 <button
                   onClick={printApplication}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all hover:bg-indigo-50"
                   style={{ borderColor: '#4F46E5', color: '#4F46E5' }}>
-                  <Printer size={15} /> Print Application
+                  <Printer size={15} /> {t('onboard.success.printApp')}
                 </button>
                 <button
                   onClick={printApplication}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
                   style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: 'white' }}>
-                  <Download size={15} /> Download PDF
+                  <Download size={15} /> {t('onboard.success.downloadPdf')}
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 text-center mt-2">Opens print dialog — choose "Save as PDF" to download</p>
+              <p className="text-[10px] text-gray-400 text-center mt-2">{t('onboard.success.printHint')}</p>
             </div>
 
             {/* Invoice download for AUTHORIZED advisors who paid */}
@@ -2691,10 +2702,10 @@ ${availLines ? `<div class="section">
 
             <div className="flex flex-col sm:flex-row gap-3">
               <Link href="/" className="btn-gold flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold">
-                <Home size={15} /> Explore BrokerSaab
+                <Home size={15} /> {t('onboard.success.exploreServices')}
               </Link>
               <Link href="/auth/admin" className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-700 hover:border-gray-300 transition-all">
-                <User size={15} /> Advisor Login
+                <User size={15} /> {t('onboard.success.advisorLogin')}
               </Link>
             </div>
           </div>

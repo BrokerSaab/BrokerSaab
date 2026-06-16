@@ -72,7 +72,7 @@ const DEMO_BOOKINGS: Booking[] = [
 ];
 
 export default function AdvisorDashboard() {
-  const { isLoggedIn, user } = useAuth();
+  const { isLoggedIn, authReady, user } = useAuth();
   const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -139,6 +139,7 @@ export default function AdvisorDashboard() {
   };
 
   useEffect(() => {
+    if (!authReady) return;
     if (!isLoggedIn) { router.push('/auth/admin'); return; }
     if (user?.role !== 'ADVISOR') { router.push('/'); return; }
     fetchBookings();
@@ -148,7 +149,7 @@ export default function AdvisorDashboard() {
     fetchConnectedClients();
     fetchTickets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn, user]);
+  }, [authReady, isLoggedIn, user]);
 
   useEffect(() => {
     if (!isLoggedIn || !user?.id) return;

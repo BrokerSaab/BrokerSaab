@@ -54,7 +54,7 @@ const OPEN_PLACEHOLDERS: Record<string, string> = {
 };
 
 export default function AdvisorServicesPage() {
-  const { isLoggedIn, user } = useAuth();
+  const { isLoggedIn, authReady, user } = useAuth();
   const router = useRouter();
 
   const [selectedSlugs, setSelectedSlugs] = useState<string[]>([]);
@@ -68,11 +68,12 @@ export default function AdvisorServicesPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    if (!authReady) return;
     if (!isLoggedIn) { router.push('/auth/admin'); return; }
     if (user?.role !== 'ADVISOR') { router.push('/'); return; }
     fetchCurrentServices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn, user]);
+  }, [authReady, isLoggedIn, user]);
 
   const fetchCurrentServices = async () => {
     setLoading(true);

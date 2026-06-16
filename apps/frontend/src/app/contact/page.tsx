@@ -8,6 +8,7 @@ import {
   MessageSquare, Send, ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
@@ -42,44 +43,45 @@ interface Ticket {
   updatedAt: string;
 }
 
-const STATUS_STYLE: Record<TicketStatus, { label: string; bg: string; text: string; border: string }> = {
-  OPEN:        { label: 'Open',        bg: 'bg-amber-500/10',  text: 'text-amber-400',  border: 'border-amber-500/30' },
-  IN_PROGRESS: { label: 'In Progress', bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/30' },
-  RESOLVED:    { label: 'Resolved',    bg: 'bg-emerald-500/10',text: 'text-emerald-400',border: 'border-emerald-500/30' },
-  CLOSED:      { label: 'Closed',      bg: 'bg-slate-500/10',  text: 'text-slate-400',  border: 'border-slate-500/30' },
-};
-
-const PRIORITY_STYLE: Record<TicketPriority, { label: string; text: string; bg: string }> = {
-  LOW:    { label: 'Low',    text: 'text-slate-400',  bg: 'bg-slate-500/10' },
-  MEDIUM: { label: 'Medium', text: 'text-blue-400',   bg: 'bg-blue-500/10' },
-  HIGH:   { label: 'High',   text: 'text-amber-400',  bg: 'bg-amber-500/10' },
-  URGENT: { label: 'Urgent', text: 'text-red-400',    bg: 'bg-red-500/10' },
-};
-
-const CATEGORY_LABELS: Record<TicketCategory, string> = {
-  GENERAL:       'General',
-  BILLING:       'Billing',
-  TECHNICAL:     'Technical',
-  BOOKING_ISSUE: 'Booking Issue',
-  ADVISOR_ISSUE: 'Advisor Issue',
-  OTHER:         'Other',
-};
-
 function ActivityIcon({ action }: { action: string }) {
   if (action === 'ASSIGNED') return <UserCheck size={13} className="text-indigo-400 shrink-0" />;
   if (action === 'CLOSED')   return <Lock size={13} className="text-slate-400 shrink-0" />;
   return <Activity size={13} className="text-gold-400 shrink-0" />;
 }
 
-function activityLabel(act: TicketActivity): string {
-  if (act.action === 'ASSIGNED') return act.note || 'Ticket assigned';
-  if (act.action === 'CLOSED')   return 'Ticket closed';
-  if (act.toStatus)              return `Status → ${act.toStatus.replace('_', ' ')}`;
-  return act.note || act.action;
-}
-
 export default function ContactPage() {
   const { isLoggedIn, user, openLoginModal } = useAuth();
+  const { t } = useLanguage();
+
+  const STATUS_STYLE: Record<TicketStatus, { label: string; bg: string; text: string; border: string }> = {
+    OPEN:        { label: t('contact.status.open'),       bg: 'bg-amber-500/10',  text: 'text-amber-400',  border: 'border-amber-500/30' },
+    IN_PROGRESS: { label: t('contact.status.inProgress'), bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/30' },
+    RESOLVED:    { label: t('contact.status.resolved'),   bg: 'bg-emerald-500/10',text: 'text-emerald-400',border: 'border-emerald-500/30' },
+    CLOSED:      { label: t('contact.status.closed'),     bg: 'bg-slate-500/10',  text: 'text-slate-400',  border: 'border-slate-500/30' },
+  };
+
+  const PRIORITY_STYLE: Record<TicketPriority, { label: string; text: string; bg: string }> = {
+    LOW:    { label: t('contact.priority.low'),    text: 'text-slate-400',  bg: 'bg-slate-500/10' },
+    MEDIUM: { label: t('contact.priority.medium'), text: 'text-blue-400',   bg: 'bg-blue-500/10' },
+    HIGH:   { label: t('contact.priority.high'),   text: 'text-amber-400',  bg: 'bg-amber-500/10' },
+    URGENT: { label: t('contact.priority.urgent'), text: 'text-red-400',    bg: 'bg-red-500/10' },
+  };
+
+  const CATEGORY_LABELS: Record<TicketCategory, string> = {
+    GENERAL:       t('contact.category.general'),
+    BILLING:       t('contact.category.billing'),
+    TECHNICAL:     t('contact.category.technical'),
+    BOOKING_ISSUE: t('contact.category.bookingIssue'),
+    ADVISOR_ISSUE: t('contact.category.advisorIssue'),
+    OTHER:         t('contact.category.other'),
+  };
+
+  const activityLabel = (act: TicketActivity): string => {
+    if (act.action === 'ASSIGNED') return act.note || t('contact.activity.assigned');
+    if (act.action === 'CLOSED')   return t('contact.activity.closed');
+    if (act.toStatus)              return `Status → ${act.toStatus.replace('_', ' ')}`;
+    return act.note || act.action;
+  };
 
   const [tickets, setTickets]         = useState<Ticket[]>([]);
   const [loading, setLoading]         = useState(false);
@@ -120,7 +122,7 @@ export default function ContactPage() {
     e.preventDefault();
     setSubmitError('');
     if (!subject.trim() || !description.trim()) {
-      setSubmitError('Subject and description are required.');
+      setSubmitError(t('contact.requiredError'));
       return;
     }
     setSubmitting(true);
@@ -137,10 +139,10 @@ export default function ContactPage() {
         setShowForm(false);
         setSubject(''); setDescription(''); setCategory('GENERAL'); setPriority('MEDIUM');
       } else {
-        setSubmitError(data.message || 'Failed to submit ticket.');
+        setSubmitError(data.message || t('contact.failedSubmit'));
       }
     } catch {
-      setSubmitError('Network error. Please try again.');
+      setSubmitError(t('contact.networkError'));
     } finally {
       setSubmitting(false);
     }
@@ -160,19 +162,19 @@ export default function ContactPage() {
             </Link>
             <div>
               <h1 className="text-lg font-bold text-white flex items-center gap-2">
-                <TicketCheck size={18} className="text-gold-400" /> Support Center
+                <TicketCheck size={18} className="text-gold-400" /> {t('contact.pageTitle')}
               </h1>
-              <p className="text-slate-400 text-xs mt-0.5">Raise and track support tickets</p>
+              <p className="text-slate-400 text-xs mt-0.5">{t('contact.pageSub')}</p>
             </div>
           </div>
         </div>
         <div className="max-w-xl mx-auto px-4 py-24 text-center">
           <div className="bg-slate-900 border border-gold-500/10 rounded-2xl p-10 space-y-5">
             <ShieldCheck size={40} className="text-indigo-400 mx-auto" />
-            <h2 className="text-xl font-bold text-white">Sign in to access support</h2>
-            <p className="text-slate-400 text-sm">Create tickets and track their resolution from your account.</p>
+            <h2 className="text-xl font-bold text-white">{t('contact.signInTitle')}</h2>
+            <p className="text-slate-400 text-sm">{t('contact.signInSub')}</p>
             <button onClick={() => openLoginModal()} className="btn-gold inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold">
-              Sign In
+              {t('contact.signInBtn')}
             </button>
           </div>
         </div>
@@ -190,10 +192,10 @@ export default function ContactPage() {
           </Link>
           <div>
             <h1 className="text-lg font-bold text-white flex items-center gap-2">
-              <TicketCheck size={18} className="text-gold-400" /> Support Center
+              <TicketCheck size={18} className="text-gold-400" /> {t('contact.pageTitle')}
             </h1>
             <p className="text-slate-400 text-xs mt-0.5">
-              {user?.fullName ? `Logged in as ${user.fullName}` : 'Your support tickets'}
+              {user?.fullName ? `${t('contact.loggedInAs')} ${user.fullName}` : t('contact.yourTickets')}
             </p>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -201,7 +203,7 @@ export default function ContactPage() {
               onClick={openNew}
               className="btn-gold inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold"
             >
-              <Plus size={14} /> Raise Ticket
+              <Plus size={14} /> {t('contact.raiseTicket')}
             </button>
             <button onClick={fetchTickets} className="text-slate-400 hover:text-gold-400 transition-colors p-2" title="Refresh">
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -216,18 +218,18 @@ export default function ContactPage() {
           {/* ── Left: Ticket List ── */}
           <div className="lg:w-2/5 space-y-3">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-              My Tickets {tickets.length > 0 && <span className="ml-1 text-indigo-400">({tickets.length})</span>}
+              {t('contact.myTickets')} {tickets.length > 0 && <span className="ml-1 text-indigo-400">({tickets.length})</span>}
             </p>
 
             {loading && tickets.length === 0 ? (
               <div className="flex items-center justify-center py-16 text-slate-400">
-                <Loader2 size={20} className="animate-spin mr-2" /> Loading…
+                <Loader2 size={20} className="animate-spin mr-2" /> {t('contact.loading')}
               </div>
             ) : tickets.length === 0 ? (
               <div className="bg-slate-900 border border-dashed border-slate-700 rounded-2xl px-5 py-10 text-center">
                 <MessageSquare size={32} className="text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-400 text-sm font-medium">No tickets yet</p>
-                <p className="text-slate-500 text-xs mt-1">Click "Raise Ticket" to get help.</p>
+                <p className="text-slate-400 text-sm font-medium">{t('contact.noTickets')}</p>
+                <p className="text-slate-500 text-xs mt-1">{t('contact.raiseHint')}</p>
               </div>
             ) : (
               tickets.map(t => {
@@ -280,7 +282,7 @@ export default function ContactPage() {
               <div className="bg-slate-900 border border-indigo-500/20 rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="text-base font-bold text-white flex items-center gap-2">
-                    <Plus size={16} className="text-gold-400" /> New Support Ticket
+                    <Plus size={16} className="text-gold-400" /> {t('contact.newTicket')}
                   </h2>
                   <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white transition-colors">
                     <X size={18} />
@@ -295,12 +297,12 @@ export default function ContactPage() {
                   )}
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 mb-1.5">Subject *</label>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1.5">{t('contact.subject')} *</label>
                     <input
                       type="text"
                       value={subject}
                       onChange={e => setSubject(e.target.value)}
-                      placeholder="Brief description of your issue"
+                      placeholder={t('contact.subjectPlaceholder')}
                       className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-xl px-4 py-2.5 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
                       maxLength={200}
                     />
@@ -308,7 +310,7 @@ export default function ContactPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1.5">Category</label>
+                      <label className="block text-xs font-semibold text-slate-400 mb-1.5">{t('contact.category')}</label>
                       <select
                         value={category}
                         onChange={e => setCategory(e.target.value as TicketCategory)}
@@ -320,26 +322,26 @@ export default function ContactPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-400 mb-1.5">Priority</label>
+                      <label className="block text-xs font-semibold text-slate-400 mb-1.5">{t('contact.priorityLabel')}</label>
                       <select
                         value={priority}
                         onChange={e => setPriority(e.target.value as TicketPriority)}
                         className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500 transition-colors appearance-none"
                       >
-                        <option value="LOW">Low</option>
-                        <option value="MEDIUM">Medium</option>
-                        <option value="HIGH">High</option>
-                        <option value="URGENT">Urgent</option>
+                        <option value="LOW">{t('contact.priority.low')}</option>
+                        <option value="MEDIUM">{t('contact.priority.medium')}</option>
+                        <option value="HIGH">{t('contact.priority.high')}</option>
+                        <option value="URGENT">{t('contact.priority.urgent')}</option>
                       </select>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 mb-1.5">Description *</label>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1.5">{t('contact.description')} *</label>
                     <textarea
                       value={description}
                       onChange={e => setDescription(e.target.value)}
-                      placeholder="Describe your issue in detail…"
+                      placeholder={t('contact.descPlaceholder')}
                       rows={5}
                       maxLength={2000}
                       className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-xl px-4 py-2.5 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
@@ -352,7 +354,7 @@ export default function ContactPage() {
                     disabled={submitting}
                     className="btn-gold w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold disabled:opacity-60"
                   >
-                    {submitting ? <><Loader2 size={15} className="animate-spin" /> Submitting…</> : <><Send size={15} /> Submit Ticket</>}
+                    {submitting ? <><Loader2 size={15} className="animate-spin" /> {t('contact.submitting')}</> : <><Send size={15} /> {t('contact.submit')}</>}
                   </button>
                 </form>
               </div>
@@ -380,7 +382,7 @@ export default function ContactPage() {
                   })()}
                   {(() => {
                     const p = PRIORITY_STYLE[selected.priority as TicketPriority] || PRIORITY_STYLE.MEDIUM;
-                    return <span className={`text-xs font-semibold px-3 py-1 rounded-full ${p.bg} ${p.text}`}>{p.label} Priority</span>;
+                    return <span className={`text-xs font-semibold px-3 py-1 rounded-full ${p.bg} ${p.text}`}>{p.label} {t('contact.priorityLabel')}</span>;
                   })()}
                   <span className="text-xs text-indigo-300 bg-indigo-500/10 px-3 py-1 rounded-full">
                     {CATEGORY_LABELS[selected.category as TicketCategory] || selected.category}
@@ -401,7 +403,7 @@ export default function ContactPage() {
                 {selected.closingNotes && (
                   <div className="bg-slate-800/40 border border-slate-700/30 rounded-xl p-4">
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                      <Lock size={11} /> Closing Notes
+                      <Lock size={11} /> {t('contact.closingNotes')}
                     </p>
                     <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-wrap">{selected.closingNotes}</p>
                   </div>
@@ -410,7 +412,7 @@ export default function ContactPage() {
                 {/* Activity Timeline */}
                 {selected.activities.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Activity Timeline</p>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">{t('contact.activityTimeline')}</p>
                     <div className="space-y-3">
                       {selected.activities.map((act, i) => (
                         <div key={i} className="flex items-start gap-3">
@@ -433,7 +435,7 @@ export default function ContactPage() {
                 )}
 
                 <p className="text-[10px] text-slate-600">
-                  Raised {new Date(selected.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  {t('contact.raisedOn')} {new Date(selected.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
             )}
@@ -443,7 +445,7 @@ export default function ContactPage() {
               <div className="hidden lg:flex items-center justify-center h-64 border border-dashed border-slate-800 rounded-2xl">
                 <div className="text-center space-y-2">
                   <TicketCheck size={32} className="text-slate-700 mx-auto" />
-                  <p className="text-slate-500 text-sm">Select a ticket or raise a new one</p>
+                  <p className="text-slate-500 text-sm">{t('contact.selectOrRaise')}</p>
                 </div>
               </div>
             )}

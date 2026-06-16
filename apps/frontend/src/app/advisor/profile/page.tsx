@@ -15,7 +15,7 @@ function imgSrc(url: string | null | undefined): string | null {
 }
 
 export default function AdvisorProfileImagesPage() {
-  const { isLoggedIn, user } = useAuth();
+  const { isLoggedIn, authReady, user } = useAuth();
   const router = useRouter();
 
   const [avatarUrl,    setAvatarUrl]    = useState<string | null>(null);
@@ -39,6 +39,7 @@ export default function AdvisorProfileImagesPage() {
   const token = () => localStorage.getItem('accessToken') || '';
 
   useEffect(() => {
+    if (!authReady) return;
     if (!isLoggedIn) { router.push('/auth'); return; }
     if (user?.role !== 'ADVISOR') { router.push('/'); return; }
     fetch(`${API}/advisors/me/images`, { headers: { Authorization: `Bearer ${token()}` } })
@@ -51,7 +52,7 @@ export default function AdvisorProfileImagesPage() {
         }
       })
       .catch(() => {});
-  }, [isLoggedIn]);
+  }, [authReady, isLoggedIn]);
 
   const initials = fullName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 

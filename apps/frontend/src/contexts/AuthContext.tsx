@@ -13,6 +13,7 @@ export interface AuthUser {
 interface AuthContextValue {
   user: AuthUser | null;
   isLoggedIn: boolean;
+  authReady: boolean;
   isModalOpen: boolean;
   openLoginModal: (afterLoginCallback?: () => void) => void;
   closeLoginModal: () => void;
@@ -34,16 +35,22 @@ import LoginModal from '@/components/LoginModal';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const afterLoginCallbackRef = useRef<(() => void) | null>(null);
 
-  // Hydrate from localStorage after mount (avoids SSR mismatch)
+  // Hydrate from localStorage after mount (avoids SSR mismatch).
+  // authReady stays false until this runs, so pages that redirect on
+  // `!isLoggedIn` don't bounce an already-logged-in user before we've
+  // had a chance to read their session back out of localStorage.
   useEffect(() => {
     try {
       const stored = localStorage.getItem('user');
       if (stored) setUser(JSON.parse(stored));
     } catch {
       localStorage.removeItem('user');
+    } finally {
+      setAuthReady(true);
     }
   }, []);
 
@@ -84,9 +91,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isLoggedIn: !!user, isModalOpen, openLoginModal, closeLoginModal, logout }),
+    () => ({ user, isLoggedIn: !!user, authReady, isModalOpen, openLoginModal, closeLoginModal, logout }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [user, isModalOpen]
+    [user, authReady, isModalOpen]
   );
 
   return (
