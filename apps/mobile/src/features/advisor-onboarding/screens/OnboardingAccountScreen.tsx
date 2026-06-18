@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutation } from '@tanstack/react-query';
 import { AdvisorOnboardingStackParamList } from '../../../shared/navigation/types';
 import { Palette, Spacing, Typography } from '../../../shared/theme';
+import { Colors, Radius } from '../../../shared/theme';
 import { Input, Button } from '../../../shared/components';
+import { TermsModal } from '../../../shared/components/TermsModal';
 import { useUiStore } from '../../../shared/store/uiStore';
 import { useOnboardingStore } from '../hooks/useOnboardingStore';
 import { OnboardingProgress } from '../components/OnboardingProgress';
@@ -32,6 +34,8 @@ export const OnboardingAccountScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState(form.email);
   const [password, setPassword] = useState(form.password);
   const [confirm, setConfirm] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsModalVisible, setTermsModalVisible] = useState(false);
 
   const strength = PASSWORD_STRENGTH(password);
   const mismatch = confirm && password !== confirm;
@@ -52,7 +56,7 @@ export const OnboardingAccountScreen: React.FC<Props> = ({ navigation }) => {
     onError: (err: any) => showToast('error', err?.response?.data?.error ?? 'Failed to create account'),
   });
 
-  const canProceed = email.includes('@') && password.length >= 8 && password === confirm;
+  const canProceed = email.includes('@') && password.length >= 8 && password === confirm && termsAccepted;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -111,6 +115,39 @@ export const OnboardingAccountScreen: React.FC<Props> = ({ navigation }) => {
           ))}
         </View>
 
+        {/* Terms acceptance */}
+        <TouchableOpacity
+          style={styles.termsRow}
+          onPress={() => setTermsAccepted((v) => !v)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+            {termsAccepted && <Text style={styles.checkmark}>✓</Text>}
+          </View>
+          <Text style={styles.termsLabel}>
+            I agree to the{' '}
+            <Text
+              style={styles.termsLink}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                setTermsModalVisible(true);
+              }}
+            >
+              Terms & Conditions
+            </Text>
+            {' '}&{' '}
+            <Text
+              style={styles.termsLink}
+              onPress={(e) => {
+                e.stopPropagation?.();
+                setTermsModalVisible(true);
+              }}
+            >
+              Privacy Policy
+            </Text>
+          </Text>
+        </TouchableOpacity>
+
         <Button
           label={isPending ? 'Creating Account…' : 'Create Account & Continue'}
           onPress={() => createAccount()}
@@ -121,6 +158,15 @@ export const OnboardingAccountScreen: React.FC<Props> = ({ navigation }) => {
           size="lg"
         />
       </ScrollView>
+
+      <TermsModal
+        visible={termsModalVisible}
+        onClose={() => setTermsModalVisible(false)}
+        onAgree={() => {
+          setTermsAccepted(true);
+          setTermsModalVisible(false);
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -136,4 +182,31 @@ const styles = StyleSheet.create({
   strengthLabel: { fontSize: 11, fontWeight: '700', minWidth: 70, textAlign: 'right' },
   rules: { gap: 4 },
   rule: { ...Typography.caption },
+
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 4,
+    borderWidth: 1.5, borderColor: Colors.slate[300],
+    backgroundColor: Colors.white,
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 2, flexShrink: 0,
+  },
+  checkboxChecked: {
+    borderColor: Colors.emerald[500],
+    backgroundColor: 'rgba(16,185,129,0.1)',
+  },
+  checkmark: { fontSize: 12, color: Colors.emerald[500], fontWeight: '900' },
+  termsLabel: {
+    flex: 1, fontSize: 13, color: Colors.slate[600], lineHeight: 20,
+  },
+  termsLink: {
+    color: Colors.indigo[600],
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
 });

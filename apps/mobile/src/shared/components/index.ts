@@ -11,3 +11,5 @@ export { SkeletonLoader, SkeletonLine } from './SkeletonLoader';
 export { ToastBar } from './ToastBar';
 export { ConfirmModal } from './ConfirmModal';
 export { StarRating } from './StarRating';
+export { BrokerSaabLogo } from './BrokerSaabLogo';
+export { TermsModal } from './TermsModal';
