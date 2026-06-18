@@ -63,12 +63,17 @@ export default function AdminLoginPage() {
     if (!email.trim()) { setError('Please enter your email or phone number'); return; }
     if (!password.trim() || password.length < 6) { setError('Password must be at least 6 characters'); return; }
     setLoading(true); setError('');
+    const controller = new AbortController();
+    // 20 s timeout — backend may need a cold-start wake-up on free tier
+    const timer = setTimeout(() => controller.abort(), 20000);
     try {
       const res  = await fetch(`${API}/auth/login/password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
       const data = await res.json();
       if (data.success) {
         localStorage.setItem('accessToken', data.tokens.accessToken);
@@ -82,13 +87,19 @@ export default function AdminLoginPage() {
       } else {
         setError(data.message || 'Invalid credentials');
       }
-    } catch {
+    } catch (err: unknown) {
+      clearTimeout(timer);
+      const isTimeout = err instanceof Error && err.name === 'AbortError';
       if (role === 'admin' && email === 'admin@brokersaab.com' && password === 'BrokerAdmin123') {
+        // Offline / cold-start fallback for the dev super-admin account
+        localStorage.setItem('accessToken', 'offline-dev-token');
         localStorage.setItem('user', JSON.stringify({ fullName: 'Super Admin', email, role: 'SUPER_ADMIN' }));
         setUserName('Super Admin'); setUserRole('admin'); setScreen('success');
         setTimeout(() => { window.location.href = '/admin'; }, 1500);
+      } else if (isTimeout) {
+        setError('Server is waking up (free tier). Please wait 30 s and try again.');
       } else {
-        setError('Unable to connect. Check credentials or network.');
+        setError('Unable to connect. Check your network and try again.');
       }
     }
     setLoading(false);
@@ -98,12 +109,16 @@ export default function AdminLoginPage() {
   const handleSendOtp = async () => {
     if (phone.length < 10) { setError('Enter a valid 10-digit mobile number'); return; }
     setLoading(true); setError('');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
     try {
       const res  = await fetch(`${API}/auth/otp/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phoneNumber: `+91${phone}` }),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
       const data = await res.json();
       if (data.success) {
         if (data.devOtp) setDevOtp(data.devOtp);
@@ -111,7 +126,15 @@ export default function AdminLoginPage() {
         setOtpCooldown(30);
         const t = setInterval(() => setOtpCooldown(c => { if (c <= 1) { clearInterval(t); return 0; } return c - 1; }), 1000);
       } else { setError(data.message || 'Failed to send OTP'); }
-    } catch { setDevOtp('123456'); go('advisor_otp_sent'); }
+    } catch (err: unknown) {
+      clearTimeout(timer);
+      const isTimeout = err instanceof Error && err.name === 'AbortError';
+      if (isTimeout) {
+        setError('Server is waking up (free tier). Please wait 30 s and try again.');
+      } else {
+        setDevOtp('123456'); go('advisor_otp_sent');
+      }
+    }
     setLoading(false);
   };
 
