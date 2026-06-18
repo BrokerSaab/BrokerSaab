@@ -5,6 +5,7 @@
  *   twilio    → Twilio Messages API  (needs TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER)
  *   msg91     → MSG91 OTP API v5     (needs MSG91_AUTHKEY, MSG91_TEMPLATE_ID, MSG91_SENDER_ID)
  *   fast2sms  → Fast2SMS bulk OTP    (needs FAST2SMS_API_KEY)
+ *   2factor   → 2Factor.in OTP API   (needs TWOFACTOR_API_KEY) — 1000 free OTPs/month, no DLT needed
  *
  * When SMS_PROVIDER is absent (local dev / CI), the OTP is only printed to
  * the console and the call succeeds — no SMS is sent.
@@ -18,6 +19,7 @@ export async function sendOtpSms(phoneNumber: string, otp: string): Promise<SmsR
   try {
     if (provider === 'twilio')    return await sendViaTwilio(phoneNumber, otp);
     if (provider === 'msg91')     return await sendViaMSG91(phoneNumber, otp);
+    if (provider === '2factor')   return await sendVia2Factor(phoneNumber, otp);
     if (provider === 'fast2sms')  return await sendViaFast2SMS(phoneNumber, otp);
 
     // No provider configured — dev / test mode
@@ -120,4 +122,20 @@ async function sendViaFast2SMS(to: string, otp: string): Promise<SmsResult> {
   const data = await res.json() as { return?: boolean; message?: string[] };
   if (data.return) return { success: true };
   return { success: false, error: data.message?.[0] ?? 'Fast2SMS error' };
+}
+
+// ── 2Factor.in ────────────────────────────────────────────────────────────────
+// Sign up at https://2factor.in — free plan: 1000 OTPs/month, no DLT needed.
+//   TWOFACTOR_API_KEY  (API key from 2factor.in dashboard)
+async function sendVia2Factor(to: string, otp: string): Promise<SmsResult> {
+  const apiKey = process.env.TWOFACTOR_API_KEY!;
+  // 2Factor needs 10-digit Indian mobile (no country code)
+  const mobile = to.replace(/^\+91/, '').replace(/^\+/, '').replace(/\D/g, '').slice(-10);
+
+  const url = `https://2factor.in/API/V1/${apiKey}/SMS/${mobile}/${otp}/OTP1`;
+  const res  = await fetch(url);
+  const data = await res.json() as { Status?: string; Details?: string };
+
+  if (data.Status === 'Success') return { success: true };
+  return { success: false, error: data.Details ?? '2Factor error' };
 }
