@@ -6,6 +6,7 @@ import { Role } from '@prisma/client';
 import prisma from '../config/db';
 import { validateRequest } from '../middlewares/validate';
 import { authenticateJWT, AuthenticatedRequest, logAuditEvent } from '../middlewares/auth';
+import { sendOtpSms } from '../utils/sms';
 
 const router = Router();
 
@@ -93,23 +94,36 @@ const generateTokens = (user: { id: string; phoneNumber: string; role: Role }, a
 
 /**
  * 1. POST /auth/otp/send
- * Mock sending SMS OTP. Returns OTP in dev mode for seamless testing.
+ * Generates a real 6-digit OTP and delivers it via SMS (provider set by
+ * SMS_PROVIDER env var: twilio | msg91 | fast2sms).
+ * In development / staging (NODE_ENV != 'production') the OTP is also
+ * returned in the response body as `devOtp` for easy manual testing.
  */
 router.post('/otp/send', validateRequest(sendOtpSchema), async (req: Request, res: Response): Promise<void> => {
   const { phoneNumber } = req.body;
-  
-  // Create a 6-digit OTP (mock)
-  const otp = '123456'; 
-  const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes validity
-  
-  mockOtpStore.set(phoneNumber, { otp, expiresAt });
-  
-  console.log(`[SMS Gateway Mock] Sent OTP ${otp} to phone ${phoneNumber}`);
 
+  // Generate cryptographically random 6-digit OTP
+  const otp       = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = Date.now() + 5 * 60 * 1000; // 5-minute window
+
+  mockOtpStore.set(phoneNumber, { otp, expiresAt });
+
+  const { success, error } = await sendOtpSms(phoneNumber, otp);
+
+  if (!success) {
+    console.error(`[OTP] SMS delivery failed for ${phoneNumber}:`, error);
+    // Remove the stored OTP so the user can retry cleanly
+    mockOtpStore.delete(phoneNumber);
+    res.status(503).json({ success: false, message: 'Failed to send OTP. Please try again.' });
+    return;
+  }
+
+  const isProduction = process.env.NODE_ENV === 'production';
   res.status(200).json({
     success: true,
     message: 'OTP sent successfully',
-    devOtp: otp, // mock SMS — always expose OTP for testing
+    // Only expose OTP outside production (for local / staging testing)
+    ...(!isProduction && { devOtp: otp }),
   });
 });
 
