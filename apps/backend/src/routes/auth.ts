@@ -7,14 +7,12 @@ import prisma from '../config/db';
 import { validateRequest } from '../middlewares/validate';
 import { authenticateJWT, AuthenticatedRequest, logAuditEvent } from '../middlewares/auth';
 import { sendOtpSms } from '../utils/sms';
+import { otpSet, otpGet, otpDel } from '../config/redis';
 
 const router = Router();
 
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'brokersaab_secret_access_token_12345_dev_super_secret';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'brokersaab_secret_refresh_token_67890_dev_super_secret';
-
-// Simple local OTP storage (In production, use Redis cache with TTL)
-const mockOtpStore = new Map<string, { otp: string; expiresAt: number }>();
 
 // Validation Schemas
 const sendOtpSchema = z.object({
@@ -103,17 +101,17 @@ router.post('/otp/send', validateRequest(sendOtpSchema), async (req: Request, re
   const { phoneNumber } = req.body;
 
   // Generate cryptographically random 6-digit OTP
-  const otp       = String(Math.floor(100000 + Math.random() * 900000));
-  const expiresAt = Date.now() + 5 * 60 * 1000; // 5-minute window
+  const otp = String(Math.floor(100000 + Math.random() * 900000));
 
-  mockOtpStore.set(phoneNumber, { otp, expiresAt });
+  // Store with 5-minute TTL (Redis handles expiry; in-memory fallback checks manually)
+  await otpSet(phoneNumber, otp, 300);
 
   const { success, error } = await sendOtpSms(phoneNumber, otp);
 
   if (!success) {
     console.error(`[OTP] SMS delivery failed for ${phoneNumber}:`, error);
     // Remove the stored OTP so the user can retry cleanly
-    mockOtpStore.delete(phoneNumber);
+    await otpDel(phoneNumber);
     res.status(503).json({ success: false, message: 'Failed to send OTP. Please try again.' });
     return;
   }
@@ -133,26 +131,20 @@ router.post('/otp/send', validateRequest(sendOtpSchema), async (req: Request, re
  */
 router.post('/otp/verify', validateRequest(verifyOtpSchema), async (req: Request, res: Response): Promise<void> => {
   const { phoneNumber, otp } = req.body;
-  const entry = mockOtpStore.get(phoneNumber);
+  const stored = await otpGet(phoneNumber);
 
-  if (!entry) {
-    res.status(400).json({ success: false, message: 'OTP request expired or not found' });
+  if (!stored) {
+    res.status(400).json({ success: false, message: 'OTP request expired or not found. Please request a new OTP.' });
     return;
   }
 
-  if (entry.expiresAt < Date.now()) {
-    mockOtpStore.delete(phoneNumber);
-    res.status(400).json({ success: false, message: 'OTP has expired' });
-    return;
-  }
-
-  if (entry.otp !== otp) {
+  if (stored !== otp) {
     res.status(400).json({ success: false, message: 'Invalid OTP code' });
     return;
   }
 
-  // Clear OTP entry
-  mockOtpStore.delete(phoneNumber);
+  // Consume OTP — single use only
+  await otpDel(phoneNumber);
 
   // Check if User exists
   let user = await prisma.user.findUnique({
