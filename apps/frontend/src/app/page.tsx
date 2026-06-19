@@ -814,7 +814,7 @@ export default function DiscoverPage() {
       {/* ═══════════════════════════════════════
           HERO — Dark navy gradient
           ═══════════════════════════════════════ */}
-      <section className={`relative overflow-hidden transition-colors duration-300 ${
+      <section className={`relative transition-colors duration-300 ${
         theme === 'light' ? 'bg-[#F4F6FB] text-slate-800 border-b border-slate-200' : 'navy-gradient-bg text-white'
       }`}>
         <div className={`absolute inset-0 opacity-[0.03] pointer-events-none ${
@@ -963,7 +963,7 @@ export default function DiscoverPage() {
 
                 {/* Auto-suggestions dropdown */}
                 {showSuggestions && suggestions.length > 0 && (
-                  <div className={`absolute top-full left-0 right-0 mt-1.5 rounded-xl border shadow-xl z-50 overflow-hidden ${
+                  <div className={`absolute top-full left-0 right-0 mt-1.5 rounded-xl border shadow-xl z-[200] max-h-72 overflow-y-auto ${
                     theme === 'light' ? 'bg-white border-slate-200' : 'bg-[#0c192d] border-white/10'
                   }`}>
                     {suggestions.map((s, i) => (
