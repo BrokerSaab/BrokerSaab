@@ -154,7 +154,7 @@ router.get('/', validateRequest(searchAdvisorsQuerySchema), async (req: Request,
     };
   }
 
-  // Full-text search (uses OR on separate fields, safe since category now uses direct key)
+  // Full-text search across advisor fields and custom specialization text
   if (search) {
     whereConditions.OR = [
       { fullName: { contains: search as string, mode: 'insensitive' } },
@@ -163,6 +163,7 @@ router.get('/', validateRequest(searchAdvisorsQuerySchema), async (req: Request,
       { location: { contains: search as string, mode: 'insensitive' } },
       { circle: { contains: search as string, mode: 'insensitive' } },
       { subdivision: { contains: search as string, mode: 'insensitive' } },
+      { specializations: { some: { specialization: { name: { contains: search as string, mode: 'insensitive' } } } } },
     ];
   }
 

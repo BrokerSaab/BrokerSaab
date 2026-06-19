@@ -444,6 +444,8 @@ export default function DiscoverPage() {
         addItem(sub.nameEn, mod.titleEn);
         sub.keywords.forEach(kw => addItem(kw, mod.titleEn));
       });
+      // Open modules (no sub-modules) have module-level keywords for discoverability
+      mod.moduleKeywords?.forEach(kw => addItem(kw, mod.titleEn));
     });
     return items;
   }, []);
@@ -479,8 +481,9 @@ export default function DiscoverPage() {
 
       const matchesModuleEn = mod.titleEn.toLowerCase().includes(query);
       const matchesModuleHi = mod.titleHi.toLowerCase().includes(query);
+      const matchesModuleKeyword = mod.moduleKeywords?.some(kw => kw.toLowerCase().includes(query)) ?? false;
 
-      if (matchesModuleEn || matchesModuleHi) return mod;
+      if (matchesModuleEn || matchesModuleHi || matchesModuleKeyword) return mod;
       if (matchedSubs.length > 0) return { ...mod, subModules: matchedSubs };
       return null;
     }).filter(Boolean) as Module[];

@@ -24,6 +24,7 @@ export interface Module {
   descriptionHi: string;
   iconName: string;
   subModules: SubModule[];
+  moduleKeywords?: string[];
 }
 
 export interface ModuleColor {
@@ -454,7 +455,15 @@ export const MODULES_DATA: Module[] = [
     description: "End-to-end guidance for foreign university admissions: IELTS prep, SOP, shortlisting, visa and pre-departure.",
     descriptionHi: "विदेशी विश्वविद्यालय में दाखिले के लिए IELTS, SOP, university shortlisting, visa और pre-departure guidance।",
     iconName: "Plane",
-    subModules: []
+    subModules: [],
+    moduleKeywords: [
+      "IELTS coaching", "TOEFL preparation", "GRE prep", "GMAT coaching",
+      "SOP writing", "statement of purpose", "LOR guidance", "letter of recommendation",
+      "study abroad", "foreign university", "overseas education", "abroad admission",
+      "UK university", "USA university", "Canada university", "Australia university",
+      "scholarship guidance", "student visa", "pre-departure briefing",
+      "university shortlisting", "college application abroad"
+    ]
   },
   {
     id: "m22",
@@ -463,7 +472,14 @@ export const MODULES_DATA: Module[] = [
     description: "Complete support for Indian college admissions: NEET/JEE/CAT counseling, seat allotment and enrollment.",
     descriptionHi: "भारतीय college में दाखिले के लिए NEET/JEE/CAT counseling, seat allotment और enrollment में पूरी मदद।",
     iconName: "School",
-    subModules: []
+    subModules: [],
+    moduleKeywords: [
+      "NEET counseling", "JEE counseling", "CAT coaching", "CLAT guidance",
+      "engineering college admission", "medical college admission", "MBA admission",
+      "college admission India", "seat allotment", "JOSAA counseling", "MCC counseling",
+      "B.Tech admission", "MBBS admission", "BDS admission", "BCA admission",
+      "private college admission", "management quota", "NRI quota"
+    ]
   },
   {
     id: "m23",
@@ -472,7 +488,14 @@ export const MODULES_DATA: Module[] = [
     description: "Corporate job placement: resume building, interview preparation, offer negotiation and post-joining support.",
     descriptionHi: "Corporate नौकरी के लिए resume, interview prep, offer negotiation और post-joining support।",
     iconName: "ClipboardList",
-    subModules: []
+    subModules: [],
+    moduleKeywords: [
+      "job placement", "resume writing", "CV building", "interview preparation",
+      "career counseling", "job search", "recruitment", "offer letter negotiation",
+      "IT job placement", "software engineer job", "fresher job placement",
+      "LinkedIn profile", "campus placement", "off-campus recruitment",
+      "government job", "private job", "naukri registration", "employment"
+    ]
   },
   {
     id: "m24",
@@ -481,7 +504,14 @@ export const MODULES_DATA: Module[] = [
     description: "Expert visa, work permit and PR guidance for Canada, Australia, UK, USA and other countries.",
     descriptionHi: "Canada, Australia, UK, USA जैसे देशों के लिए visa, work permit और PR की विशेषज्ञ मार्गदर्शन।",
     iconName: "FileCheck",
-    subModules: []
+    subModules: [],
+    moduleKeywords: [
+      "Canada PR", "Canada permanent residency", "Express Entry", "Australia PR",
+      "Australia skilled migration", "UK visa", "UK work permit", "USA green card",
+      "immigration consultant", "work permit", "permanent residency",
+      "dependent visa", "spouse visa", "family visa", "immigration",
+      "IELTS for immigration", "points-based visa", "PR application"
+    ]
   },
   {
     id: "m25",
@@ -490,7 +520,11 @@ export const MODULES_DATA: Module[] = [
     description: "Any specialization not listed above — describe your unique expertise and connect with the right clients.",
     descriptionHi: "ऊपर सूचीबद्ध नहीं की गई कोई भी विशेषज्ञता — अपनी अनूठी सेवा का वर्णन करें।",
     iconName: "Sparkles",
-    subModules: []
+    subModules: [],
+    moduleKeywords: [
+      "custom service", "special service", "unique expertise", "other services",
+      "miscellaneous", "any service", "specialized advisor"
+    ]
   },
   {
     id: "m26",
