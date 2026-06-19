@@ -99,7 +99,8 @@ async function sendViaMSG91(to: string, otp: string): Promise<SmsResult> {
 // ── Fast2SMS ──────────────────────────────────────────────────────────────────
 // Sign up at https://www.fast2sms.com — get free credits on signup, fill in:
 //   FAST2SMS_API_KEY  (your API key from dashboard)
-// Note: Fast2SMS OTP route does not require DLT registration in trial mode.
+// Uses route 'q' (Quick SMS) — sends plain SMS, no DLT registration required,
+// no voice call fallback. The 'otp' route triggers Voice OTP when DLT is absent.
 async function sendViaFast2SMS(to: string, otp: string): Promise<SmsResult> {
   const apiKey = process.env.FAST2SMS_API_KEY!;
   // Fast2SMS needs 10-digit Indian mobile (no country code)
@@ -112,10 +113,11 @@ async function sendViaFast2SMS(to: string, otp: string): Promise<SmsResult> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      route:            'otp',
-      variables_values: otp,
-      flash:            0,
-      numbers:          mobile,
+      route:    'q',
+      message:  `${otp} is your BrokerSaab OTP. Valid for 5 minutes. Do not share with anyone.`,
+      language: 'english',
+      flash:    0,
+      numbers:  mobile,
     }),
   });
 
