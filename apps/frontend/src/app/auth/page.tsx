@@ -1,25 +1,25 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Phone, ArrowRight, ArrowLeft, ShieldCheck, KeyRound, User, Mail, CheckCircle2, Loader2, LayoutDashboard, BookOpen, Scale, AlertOctagon, FileText, Gavel, Lock, Eye, EyeOff } from 'lucide-react';
+import { Phone, ArrowRight, ArrowLeft, ShieldCheck, KeyRound, User, Mail, CheckCircle2, Loader2, LayoutDashboard, BookOpen, Lock, Eye, EyeOff } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-type AuthStep = 'terms' | 'phone' | 'otp' | 'register' | 'set_password' | 'success';
+type AuthStep = 'phone' | 'otp' | 'register' | 'set_password' | 'success';
+
+const TC_CLAUSES_AUTH = [
+  { color: '#ef4444', title: 'No Liability for Fraud or Misconduct', body: 'BrokerSaab is a third-party technology marketplace. We are NOT responsible or liable for any fraudulent activity, misrepresentation, negligence, professional misconduct, or financial harm caused by any advisor, agent, or dealer on this platform. Users engage professionals entirely at their own risk.' },
+  { color: '#f59e0b', title: 'Disputes — Indian Judiciary', body: 'All disputes, claims, or legal proceedings arising from use of BrokerSaab or from any transaction between a user and an advisor shall be subject exclusively to the jurisdiction of the competent courts of India.' },
+  { color: '#10b981', title: 'Escrow Payment Protection', body: 'Payments are held in escrow and released to advisors only upon consultation completion. While escrow protects your funds, BrokerSaab does NOT guarantee the quality, accuracy, or outcome of any professional advice or service rendered.' },
+  { color: '#3b82f6', title: 'User Responsibilities', body: "You are responsible for independently verifying the credentials, qualifications, and suitability of any professional before acting on their advice. BrokerSaab's internal verification is not a government certification." },
+  { color: '#8b5cf6', title: 'Platform Role', body: 'BrokerSaab acts as a neutral intermediary only. No advisor-client relationship, fiduciary duty, or professional liability is created with BrokerSaab. The platform may suspend accounts that violate conduct policies without prior notice.' },
+];
 
 export default function AuthPage() {
   const router = useRouter();
   const { t } = useLanguage();
-  const [step, setStep] = useState<AuthStep>('terms');
-
-  const TC_CLAUSES = [
-    { color: '#ef4444', icon: AlertOctagon, title: t('tc.fraud.title'), body: t('tc.fraud.body') },
-    { color: '#f59e0b', icon: Gavel,        title: t('tc.dispute.title'), body: t('tc.dispute.body') },
-    { color: '#10b981', icon: ShieldCheck,  title: t('tc.escrow.title'), body: t('tc.escrow.body') },
-    { color: '#3b82f6', icon: FileText,     title: t('tc.userResp.title'), body: t('tc.userResp.body') },
-    { color: '#8b5cf6', icon: Scale,        title: t('tc.platform.title'), body: t('tc.platform.body') },
-  ];
+  const [step, setStep] = useState<AuthStep>('phone');
 
   // Redirect already-authenticated users to their destination
   useEffect(() => {
@@ -34,8 +34,7 @@ export default function AuthPage() {
     } catch { /* ignore parse errors */ }
   }, []);
   const [tcAccepted, setTcAccepted] = useState(false);
-  const [tcScrolled, setTcScrolled] = useState(false);
-  const tcScrollRef = useRef<HTMLDivElement>(null);
+  const [showTcDetail, setShowTcDetail] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [fullName, setFullName] = useState('');
@@ -48,11 +47,6 @@ export default function AuthPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
-
-  const handleTcScroll = () => {
-    const el = tcScrollRef.current;
-    if (el && !tcScrolled && el.scrollTop + el.clientHeight >= el.scrollHeight - 20) setTcScrolled(true);
-  };
 
   const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
@@ -227,7 +221,6 @@ export default function AuthPage() {
   };
 
   const stepTitle: Record<AuthStep, string> = {
-    terms:        t('auth.terms.title'),
     phone:        t('auth.phone.title'),
     otp:          t('auth.otp.title'),
     register:     t('auth.register.title'),
@@ -235,7 +228,6 @@ export default function AuthPage() {
     success:      t('auth.success.title'),
   };
   const stepSub: Record<AuthStep, string> = {
-    terms:        t('auth.terms.sub'),
     phone:        t('auth.phone.sub'),
     otp:          `OTP sent to +91 ${phoneNumber}`,
     register:     t('auth.register.sub'),
@@ -256,16 +248,12 @@ export default function AuthPage() {
       <div className="w-full max-w-md relative z-10">
 
         {/* Card — same structure as LoginModal */}
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col relative"
           style={{ border: '1px solid rgba(212,175,55,0.25)', boxShadow: '0 25px 60px rgba(0,0,0,0.4)', maxHeight: '95dvh' }}>
 
-          {/* ── Header (mirrors LoginModal exactly) ── */}
+          {/* ── Header ── */}
           <div className="px-6 py-5 relative shrink-0"
-            style={{ background: step === 'terms' ? 'linear-gradient(135deg,#0a0505,#0d0818)' : 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
-            {step === 'terms' && (
-              <div className="absolute top-0 left-0 right-0 h-[3px]"
-                style={{ background: 'linear-gradient(90deg,#ef4444,#f59e0b,#8b5cf6)' }} />
-            )}
+            style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
             {step === 'set_password' && (
               <div className="absolute top-0 left-0 right-0 h-[3px]"
                 style={{ background: 'linear-gradient(90deg,#6366f1,#8b5cf6,#3b82f6)' }} />
@@ -291,56 +279,7 @@ export default function AuthPage() {
           {/* Body — scrollable flex-1 so card never exceeds viewport */}
           <div className="p-6 sm:p-7 overflow-y-auto flex-1 min-h-0">
 
-            {/* ── STEP: Terms & Conditions ── */}
-            {step === 'terms' && (
-              <div className="space-y-4">
-                {/* Compact key-points summary */}
-                <div className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden">
-                  <div className="px-4 py-3 bg-amber-50 border-b border-amber-100">
-                    <p className="text-xs font-semibold text-amber-800">
-                      By using BrokerSaab, you agree to the following key terms:
-                    </p>
-                  </div>
-                  <ul className="px-4 py-3 space-y-2.5">
-                    {[
-                      { color: '#ef4444', icon: AlertOctagon, text: 'BrokerSaab is not liable for fraud, misconduct, or financial harm by any advisor on the platform.' },
-                      { color: '#f59e0b', icon: Gavel,        text: 'All disputes are subject exclusively to the jurisdiction of Indian courts.' },
-                      { color: '#10b981', icon: ShieldCheck,  text: 'Payments are held in escrow, but service quality or outcomes are not guaranteed.' },
-                      { color: '#3b82f6', icon: FileText,     text: 'You must independently verify a professional\'s credentials before acting on their advice.' },
-                      { color: '#8b5cf6', icon: Scale,        text: 'BrokerSaab is a neutral intermediary only — no fiduciary duty is created.' },
-                    ].map((item, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <item.icon size={13} style={{ color: item.color }} className="shrink-0 mt-0.5" />
-                        <span className="text-[12px] text-gray-600 leading-snug">{item.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="px-4 py-2 border-t border-gray-100 bg-white">
-                    <p className="text-[10px] text-gray-400">⚖️ Governed by the laws of India · {t('tc.effective')}</p>
-                  </div>
-                </div>
-
-                {/* Checkbox */}
-                <label className="flex items-start gap-3 cursor-pointer" onClick={() => setTcAccepted(p => !p)}>
-                  <div className="mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all"
-                    style={{ borderColor: tcAccepted ? '#10b981' : '#d1d5db', background: tcAccepted ? '#10b981' : 'white' }}>
-                    {tcAccepted && <CheckCircle2 size={12} className="text-white" />}
-                  </div>
-                  <span className="text-xs text-gray-600 leading-relaxed select-none">
-                    I have read and agree to the <strong>Terms & Conditions</strong> & <strong>Privacy Policy</strong>.
-                  </span>
-                </label>
-
-                {/* Accept button */}
-                <button disabled={!tcAccepted} onClick={() => tcAccepted && setStep('phone')}
-                  className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all"
-                  style={{ background: tcAccepted ? 'linear-gradient(135deg, #D4AF37, #B48C22)' : '#e5e7eb', color: tcAccepted ? '#0B1F3A' : '#9ca3af', cursor: tcAccepted ? 'pointer' : 'not-allowed' }}>
-                  {t('tc.acceptBtn')} <ArrowRight size={15} />
-                </button>
-              </div>
-            )}
-
-            {error && step !== 'terms' && (
+            {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-5 flex items-start gap-2">
                 <span className="text-red-400 mt-0.5">⚠</span>
                 <span>{error}</span>
@@ -367,9 +306,31 @@ export default function AuthPage() {
                   </div>
                 </div>
 
+                {/* T&C checkbox */}
+                <label className="flex items-start gap-2.5 cursor-pointer" onClick={() => setTcAccepted(p => !p)}>
+                  <div className="mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all"
+                    style={{ borderColor: tcAccepted ? '#10b981' : '#d1d5db', background: tcAccepted ? '#10b981' : 'white' }}>
+                    {tcAccepted && <CheckCircle2 size={10} className="text-white" />}
+                  </div>
+                  <span className="text-xs text-gray-500 leading-relaxed select-none">
+                    I agree to the{' '}
+                    <button type="button"
+                      className="text-indigo-600 font-semibold underline underline-offset-2 hover:text-indigo-800 transition-colors"
+                      onClick={e => { e.stopPropagation(); setShowTcDetail(true); }}>
+                      Terms & Conditions
+                    </button>
+                    {' '}&{' '}
+                    <button type="button"
+                      className="text-indigo-600 font-semibold underline underline-offset-2 hover:text-indigo-800 transition-colors"
+                      onClick={e => { e.stopPropagation(); setShowTcDetail(true); }}>
+                      Privacy Policy
+                    </button>
+                  </span>
+                </label>
+
                 <button
                   onClick={handleSendOtp}
-                  disabled={loading || phoneNumber.length < 10}
+                  disabled={loading || phoneNumber.length < 10 || !tcAccepted}
                   className="w-full bg-gold-500 text-navy-800 font-bold py-3.5 rounded-xl text-sm hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg shadow-gold-500/20"
                 >
                   {loading ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
@@ -623,13 +584,57 @@ export default function AuthPage() {
           </div>
 
           {/* Footer */}
-          {step !== 'success' && step !== 'terms' && step !== 'set_password' && (
+          {step !== 'success' && step !== 'set_password' && (
             <div className="px-6 py-3 text-center border-t shrink-0"
               style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', borderColor: 'rgba(212,175,55,0.12)' }}>
               <p className="text-[10px] text-white/30">
-                <button onClick={() => setStep('terms')} className="text-[#D4AF37]/60 hover:text-[#D4AF37] underline">{t('auth.terms.title')}</button>
+                <button onClick={() => setShowTcDetail(true)} className="text-[#D4AF37]/60 hover:text-[#D4AF37] underline">{t('auth.terms.title')}</button>
                 {' '}· BrokerSaab is not liable for advisor fraud
               </p>
+            </div>
+          )}
+
+          {/* ── T&C Detail Panel (slide-over inside card) ── */}
+          {showTcDetail && (
+            <div className="absolute inset-0 z-20 bg-white flex flex-col rounded-3xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3 shrink-0">
+                <button onClick={() => setShowTcDetail(false)}
+                  className="text-gray-400 hover:text-gray-700 transition-colors p-1 -ml-1">
+                  <ArrowLeft size={20} />
+                </button>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base">Terms & Conditions</h3>
+                  <p className="text-[11px] text-gray-400">BrokerSaab Platform · Effective June 2026</p>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+                {TC_CLAUSES_AUTH.map((clause, i) => (
+                  <div key={i} className="rounded-xl border overflow-hidden"
+                    style={{ borderColor: `${clause.color}25`, background: `${clause.color}05` }}>
+                    <div className="px-4 py-2 border-b flex items-center gap-2"
+                      style={{ borderColor: `${clause.color}15`, background: `${clause.color}08` }}>
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: clause.color }} />
+                      <span className="text-[11px] font-black uppercase tracking-wide" style={{ color: clause.color }}>
+                        {clause.title}
+                      </span>
+                    </div>
+                    <p className="px-4 py-3 text-[12px] text-gray-600 leading-relaxed">{clause.body}</p>
+                  </div>
+                ))}
+                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                  <p className="text-[11px] text-gray-500 leading-relaxed">
+                    <strong className="text-gray-700">Governing Law:</strong> These terms are governed by the laws of the Republic of India. All disputes are subject exclusively to the jurisdiction of Indian courts.
+                  </p>
+                </div>
+              </div>
+              <div className="px-5 py-4 border-t border-gray-100 shrink-0">
+                <button
+                  onClick={() => { setTcAccepted(true); setShowTcDetail(false); }}
+                  className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all"
+                  style={{ background: 'linear-gradient(135deg, #D4AF37, #B48C22)', color: '#0B1F3A' }}>
+                  <CheckCircle2 size={15} /> I Agree & Continue
+                </button>
+              </div>
             </div>
           )}
         </div>
