@@ -327,30 +327,29 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
               )}
 
               {/* T&C checkbox */}
-              <label className="flex items-start gap-2.5 cursor-pointer" onClick={() => setTcAccepted(p => !p)}>
-                <div className="mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all"
-                  style={{ borderColor: tcAccepted ? '#10b981' : '#d1d5db', background: tcAccepted ? '#10b981' : 'white' }}>
+              <div className="flex items-start gap-2.5">
+                <button
+                  type="button"
+                  aria-label="Accept terms"
+                  onClick={() => setTcAccepted(p => !p)}
+                  className="mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all"
+                  style={{ borderColor: tcAccepted ? '#10b981' : '#d1d5db', background: tcAccepted ? '#10b981' : 'white' }}
+                >
                   {tcAccepted && <CheckCircle2 size={10} className="text-white" />}
-                </div>
+                </button>
                 <span className="text-xs text-gray-500 leading-relaxed select-none">
                   I agree to the{' '}
-                  <button
-                    type="button"
+                  <button type="button"
                     className="text-indigo-600 font-semibold underline underline-offset-2 hover:text-indigo-800 transition-colors"
-                    onClick={e => { e.stopPropagation(); setShowTcDetail(true); }}
-                  >
-                    Terms & Conditions
-                  </button>
+                    onClick={() => setShowTcDetail(true)}
+                  >Terms & Conditions</button>
                   {' '}&{' '}
-                  <button
-                    type="button"
+                  <button type="button"
                     className="text-indigo-600 font-semibold underline underline-offset-2 hover:text-indigo-800 transition-colors"
-                    onClick={e => { e.stopPropagation(); setShowTcDetail(true); }}
-                  >
-                    Privacy Policy
-                  </button>
+                    onClick={() => setShowTcDetail(true)}
+                  >Privacy Policy</button>
                 </span>
-              </label>
+              </div>
 
               {/* CTA */}
               <button
