@@ -427,6 +427,43 @@ export default function DiscoverPage() {
   }, []);
   const [viewMode, setViewMode] = useState<'user' | 'advisor'>('user');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  // Build a flat list of all searchable suggestions from modules + sub-modules + keywords
+  const ALL_SUGGESTIONS = useMemo(() => {
+    const seen = new Set<string>();
+    const items: { label: string; category: string; moduleId: string }[] = [];
+    MODULES_DATA.forEach(mod => {
+      const addItem = (label: string, category: string) => {
+        const key = label.toLowerCase();
+        if (!seen.has(key)) { seen.add(key); items.push({ label, category, moduleId: mod.id }); }
+      };
+      addItem(mod.titleEn, 'Category');
+      mod.subModules.forEach(sub => {
+        addItem(sub.nameEn, mod.titleEn);
+        sub.keywords.forEach(kw => addItem(kw, mod.titleEn));
+      });
+    });
+    return items;
+  }, []);
+
+  const suggestions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return ALL_SUGGESTIONS.filter(s => s.label.toLowerCase().includes(q)).slice(0, 7);
+  }, [searchQuery, ALL_SUGGESTIONS]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Filter modules based on search query
   const filteredModules = useMemo(() => {
@@ -861,63 +898,101 @@ export default function DiscoverPage() {
                 theme === 'light' ? 'text-slate-900' : 'text-white'
               } ${
                 language === 'EN'
-                  ? 'text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.15]'
-                  : 'text-2xl sm:text-3xl md:text-4xl lg:text-[2.6rem] leading-[1.5]'
+                  ? 'text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.1]'
+                  : 'text-3xl sm:text-4xl md:text-5xl leading-[1.4]'
               }`}>
                 {language === 'EN' ? (
-                  <>Find your <span className="gold-gradient-text">Legal & Documentation</span> Service Agents.</>
+                  <>Find your <span className="gold-gradient-text">Agents</span></>
                 ) : (
-                  <>अपने <span className="gold-gradient-text">कानूनी और<br className="hidden sm:inline" /> दस्तावेज़ीकरण</span> सेवा एजेंट खोजें।</>
+                  <>अपने <span className="gold-gradient-text">एजेंट</span> खोजें</>
                 )}
               </h1>
 
               {/* Subtitle */}
-              <p className={`text-sm sm:text-base font-medium leading-relaxed max-w-xl ${
-                language === 'HI' ? 'leading-[1.8]' : ''
+              <p className={`text-sm sm:text-base font-medium max-w-md ${
+                language === 'HI' ? 'leading-[1.8]' : 'leading-relaxed'
               } ${
-                theme === 'light' ? 'text-slate-600' : 'text-slate-400'
+                theme === 'light' ? 'text-slate-500' : 'text-slate-400'
               }`}>
                 {language === 'EN'
-                  ? 'Search in Hindi, English, or colloquial terms. Type "registry", "bainama", "GST", or whatever you call it.'
-                  : 'हिंदी, अंग्रेजी या बोलचाल के शब्दों में खोजें। "रजिस्ट्री", "बैनामा", "जीएसटी" या जो भी आप इसे कहते हैं, टाइप करें।'}
+                  ? 'Find verified professionals by service, document type, or keyword.'
+                  : 'सेवा, दस्तावेज़ या शब्द से सत्यापित पेशेवर खोजें।'}
               </p>
 
               {/* Search Bar */}
-              <div className="relative w-full max-w-xl">
-                <div className={`rounded-2xl p-1.5 flex items-center shadow-xl border transition-all ${
+              <div className="relative w-full max-w-lg" ref={searchRef}>
+                <div className={`rounded-xl p-1 flex items-center shadow-md border transition-all ${
                   theme === 'light'
-                    ? 'bg-white border-slate-200 focus-within:border-blue-500/50 focus-within:ring-4 focus-within:ring-blue-500/10'
-                    : 'bg-[#0c192d] border-white/10 focus-within:border-gold-500/30'
+                    ? 'bg-white border-slate-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500/10'
+                    : 'bg-[#0c192d] border-white/10 focus-within:border-gold-500/40'
                 }`}>
-                  <Search className="text-gold-400 ml-3 sm:ml-4 shrink-0" size={20} />
+                  <Search className="text-gold-400 ml-3 shrink-0" size={15} />
                   <input
                     type="text"
-                    placeholder={
-                      language === 'EN'
-                        ? 'Search: "registry", "bainama", "GST", "DL", "passport"...'
-                        : 'खोजें: "रजिस्ट्री", "बैनामा", "जीएसटी", "डीएल", "पासपोर्ट"...'
-                    }
+                    placeholder={language === 'EN' ? 'Search services, e.g. "GST", "registry", "DL"…' : 'खोजें: "जीएसटी", "रजिस्ट्री"…'}
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value);
                       handleSearchChange(e.target.value);
+                      setShowSuggestions(true);
                     }}
-                    className={`w-full bg-transparent border-0 outline-none text-sm sm:text-base py-2.5 sm:py-3 px-2 placeholder:text-slate-400 ${
+                    onFocus={() => setShowSuggestions(true)}
+                    className={`w-full bg-transparent border-0 outline-none text-sm py-2 px-2.5 placeholder:text-slate-400 ${
                       theme === 'light' ? 'text-slate-800' : 'text-white'
                     }`}
                   />
+                  {searchQuery && (
+                    <button
+                      onClick={() => { setSearchQuery(''); handleSearchChange(''); setShowSuggestions(false); }}
+                      className="text-slate-400 hover:text-slate-600 mr-1 transition-colors shrink-0"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
                   <button
                     onClick={() => {
+                      setShowSuggestions(false);
                       const el = document.getElementById('services-section');
-                      if (el) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }}
-                    className="bg-[#0C4EAA] text-white font-bold px-5 sm:px-7 py-2.5 sm:py-3 rounded-xl text-sm hover:bg-blue-700 transition-all shrink-0 mr-0.5 shadow-md active:scale-95"
+                    className="bg-[#0C4EAA] text-white font-bold px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-all shrink-0 mr-0.5 shadow-sm active:scale-95"
                   >
                     {language === 'EN' ? 'Search' : 'खोजें'}
                   </button>
                 </div>
+
+                {/* Auto-suggestions dropdown */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className={`absolute top-full left-0 right-0 mt-1.5 rounded-xl border shadow-xl z-50 overflow-hidden ${
+                    theme === 'light' ? 'bg-white border-slate-200' : 'bg-[#0c192d] border-white/10'
+                  }`}>
+                    {suggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        onMouseDown={() => {
+                          setSearchQuery(s.label);
+                          handleSearchChange(s.label);
+                          setShowSuggestions(false);
+                          setTimeout(() => {
+                            const el = document.getElementById('services-section');
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }, 100);
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors border-b last:border-b-0 ${
+                          theme === 'light'
+                            ? 'hover:bg-slate-50 text-slate-800 border-slate-100'
+                            : 'hover:bg-white/5 text-white border-white/5'
+                        }`}
+                      >
+                        <Search size={12} className="text-slate-400 shrink-0" />
+                        <span className="text-sm font-medium flex-1 truncate">{s.label}</span>
+                        <span className={`text-[10px] font-medium shrink-0 ${theme === 'light' ? 'text-slate-400' : 'text-slate-500'}`}>
+                          {s.category}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* "Try:" popular tags */}
