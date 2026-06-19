@@ -256,12 +256,7 @@ export default function AdvisorOnboarding() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [tcAccepted, setTcAccepted] = useState(false);
-  const [tcScrolled, setTcScrolled] = useState(false);
-  const tcScrollRef = useRef<HTMLDivElement>(null);
-  const handleTcScroll = () => {
-    const el = tcScrollRef.current;
-    if (el && !tcScrolled && el.scrollTop + el.clientHeight >= el.scrollHeight - 20) setTcScrolled(true);
-  };
+  const [showTcDetail, setShowTcDetail] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -1021,60 +1016,11 @@ ${availLines ? `<div class="section">
               </div>
             </div>
 
-            {/* ── Advisor-specific Terms & Conditions ── */}
-            <div className="mb-5 rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-indigo-700 to-indigo-800">
-                <Scale size={15} className="text-indigo-200 shrink-0" />
-                <span className="text-indigo-100 text-[11px] font-black uppercase tracking-wider">{t('onboard.welcome.tcTitle')}</span>
-                <span className="ml-auto text-indigo-300/80 text-[10px]">{t('onboard.welcome.tcMust')}</span>
-              </div>
-
-              {/* Compact bullet-point summary */}
-              <div className="px-4 py-3 space-y-2" style={{ background: '#f8f7f0' }}>
-                <p className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                  By registering as an advisor, you agree to:
-                </p>
-                <ul className="space-y-2">
-                  {[
-                    { color: '#ef4444', text: 'BrokerSaab is not liable for fraud, misconduct, or misrepresentation by you or any advisor.' },
-                    { color: '#f59e0b', text: 'All disputes arising from your advisory services are subject to Indian courts exclusively.' },
-                    { color: '#3b82f6', text: 'All KYC documents, credentials, and qualifications you submit must be genuine and accurate.' },
-                    { color: '#8b5cf6', text: 'You are solely responsible for the quality, accuracy, and legality of advice given to clients.' },
-                    { color: '#10b981', text: 'A 15% platform commission is deducted from all completed consultations. No off-platform solicitation.' },
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: item.color }} />
-                      <span className="text-[11px] text-gray-600 leading-snug">{item.text}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-[10px] text-gray-400 pt-1">⚖️ Governed by laws of India · {t('tc.effective')}</p>
-              </div>
-
-              {/* Accept checkbox */}
-              <div className="px-4 py-3 border-t border-gray-200 bg-white">
-                <label className="flex items-start gap-3 cursor-pointer" onClick={() => setTcAccepted(p => !p)}>
-                  <div className="mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all"
-                    style={{ borderColor: tcAccepted ? '#10b981' : '#d1d5db', background: tcAccepted ? '#10b981' : 'white' }}>
-                    {tcAccepted && <CheckCircle2 size={12} className="text-white" />}
-                  </div>
-                  <span className="text-xs text-gray-600 leading-relaxed select-none">
-                    I have read and agree to the <strong>Terms & Conditions</strong> & <strong>Privacy Policy</strong>.
-                  </span>
-                </label>
-              </div>
-            </div>
-
             <button
-              onClick={() => { if (tcAccepted) { setError(''); setStep('phone_otp'); } }}
-              disabled={!tcAccepted}
+              onClick={() => { setError(''); setStep('phone_otp'); }}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all"
-              style={{
-                background: tcAccepted ? 'linear-gradient(135deg,#D4AF37,#B48C22)' : '#e5e7eb',
-                color: tcAccepted ? '#0B1F3A' : '#9ca3af',
-                cursor: tcAccepted ? 'pointer' : 'not-allowed',
-              }}>
-              {tcAccepted ? <><CheckCircle2 size={16} /> {t('onboard.welcome.acceptBtn')}</> : <>{t('onboard.welcome.acceptTermsBtn')} <ArrowRight size={16} /></>}
+              style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}>
+              <ArrowRight size={16} /> {t('onboard.welcome.acceptBtn')}
             </button>
           </div>
         )}
@@ -1102,12 +1048,36 @@ ${availLines ? `<div class="section">
               </div>
             )}
 
+            {/* T&C checkbox — shown only before OTP is sent */}
+            {otpSubStep === 'phone' && (
+              <label className="flex items-start gap-2.5 cursor-pointer" onClick={() => setTcAccepted(p => !p)}>
+                <div className="mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all"
+                  style={{ borderColor: tcAccepted ? '#10b981' : '#d1d5db', background: tcAccepted ? '#10b981' : 'white' }}>
+                  {tcAccepted && <CheckCircle2 size={10} className="text-white" />}
+                </div>
+                <span className="text-xs text-gray-500 leading-relaxed select-none">
+                  I agree to the{' '}
+                  <button type="button"
+                    className="text-indigo-600 font-semibold underline underline-offset-2 hover:text-indigo-800 transition-colors"
+                    onClick={e => { e.stopPropagation(); setShowTcDetail(true); }}>
+                    Terms & Conditions
+                  </button>
+                  {' '}&{' '}
+                  <button type="button"
+                    className="text-indigo-600 font-semibold underline underline-offset-2 hover:text-indigo-800 transition-colors"
+                    onClick={e => { e.stopPropagation(); setShowTcDetail(true); }}>
+                    Privacy Policy
+                  </button>
+                </span>
+              </label>
+            )}
+
             {/* Send OTP button */}
             {otpSubStep === 'phone' && (
               <button
-                disabled={formData.phoneNumber.length !== 10 || otpLoading}
+                disabled={formData.phoneNumber.length !== 10 || otpLoading || !tcAccepted}
                 onClick={async () => {
-                  if (formData.phoneNumber.length !== 10) return;
+                  if (formData.phoneNumber.length !== 10 || !tcAccepted) return;
                   setOtpLoading(true); setError('');
                   try {
                     const r = await fetch(`${API}/auth/otp/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phoneNumber: `+91${formData.phoneNumber}` }) });
@@ -1121,7 +1091,11 @@ ${availLines ? `<div class="section">
                   finally { setOtpLoading(false); }
                 }}
                 className="w-full py-3 rounded-xl font-bold text-sm transition-all"
-                style={{ background: formData.phoneNumber.length === 10 ? 'linear-gradient(135deg,#D4AF37,#B48C22)' : '#e5e7eb', color: formData.phoneNumber.length === 10 ? '#0B1F3A' : '#9ca3af', cursor: formData.phoneNumber.length === 10 ? 'pointer' : 'not-allowed' }}>
+                style={{
+                  background: (formData.phoneNumber.length === 10 && tcAccepted) ? 'linear-gradient(135deg,#D4AF37,#B48C22)' : '#e5e7eb',
+                  color: (formData.phoneNumber.length === 10 && tcAccepted) ? '#0B1F3A' : '#9ca3af',
+                  cursor: (formData.phoneNumber.length === 10 && tcAccepted) ? 'pointer' : 'not-allowed',
+                }}>
                 {otpLoading ? <span className="flex items-center justify-center gap-2"><Loader2 size={16} className="animate-spin" /> {t('onboard.otp.sending')}</span> : t('onboard.otp.sendOtp')}
               </button>
             )}
@@ -2711,6 +2685,54 @@ ${availLines ? `<div class="section">
         )}
 
         </div>{/* end scrollable */}
+
+        {/* ── T&C Detail Panel (slides over the card) ── */}
+        {showTcDetail && (
+          <div className="absolute inset-0 z-20 bg-white flex flex-col rounded-3xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3 shrink-0">
+              <button onClick={() => setShowTcDetail(false)}
+                className="text-gray-400 hover:text-gray-700 transition-colors p-1 -ml-1">
+                <ArrowLeft size={20} />
+              </button>
+              <div>
+                <h3 className="font-bold text-gray-900 text-base">Advisor Terms & Conditions</h3>
+                <p className="text-[11px] text-gray-400">BrokerSaab Platform · Effective June 2026</p>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+              {[
+                { color: '#ef4444', title: 'No Platform Liability', body: 'BrokerSaab is not liable for any fraud, misconduct, misrepresentation, negligence, or financial harm caused by you or any other advisor on this platform. Clients engage you entirely at their own risk, and you are solely responsible for the advice and services you provide.' },
+                { color: '#f59e0b', title: 'Disputes — Indian Judiciary', body: 'All disputes, claims, or legal proceedings arising from your advisory services or from use of BrokerSaab shall be subject exclusively to the jurisdiction of the competent courts of India.' },
+                { color: '#3b82f6', title: 'Genuine KYC & Credentials', body: 'All KYC documents, professional credentials, licenses, and qualifications you submit during registration must be authentic, accurate, and up-to-date. Submission of false documents will result in immediate account termination and may lead to legal action.' },
+                { color: '#8b5cf6', title: 'Your Responsibility for Advice', body: 'You are solely and entirely responsible for the quality, accuracy, completeness, and legality of all advice and services you provide to clients. BrokerSaab does not review, endorse, or validate the content of any advice given.' },
+                { color: '#10b981', title: 'Commission & No Off-Platform Solicitation', body: 'A 15% platform commission is deducted from all completed consultations. You agree not to solicit clients for off-platform transactions or direct payments outside BrokerSaab. Violations will result in permanent account suspension.' },
+              ].map((clause, i) => (
+                <div key={i} className="rounded-xl border overflow-hidden"
+                  style={{ borderColor: `${clause.color}25`, background: `${clause.color}05` }}>
+                  <div className="px-4 py-2 border-b flex items-center gap-2"
+                    style={{ borderColor: `${clause.color}15`, background: `${clause.color}08` }}>
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: clause.color }} />
+                    <span className="text-[11px] font-black uppercase tracking-wide" style={{ color: clause.color }}>{clause.title}</span>
+                  </div>
+                  <p className="px-4 py-3 text-[12px] text-gray-600 leading-relaxed">{clause.body}</p>
+                </div>
+              ))}
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                <p className="text-[11px] text-gray-500 leading-relaxed">
+                  <strong className="text-gray-700">Governing Law:</strong> These terms are governed by the laws of the Republic of India. All disputes are subject exclusively to the jurisdiction of Indian courts.
+                </p>
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t border-gray-100 shrink-0">
+              <button
+                onClick={() => { setTcAccepted(true); setShowTcDetail(false); }}
+                className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all"
+                style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}>
+                <CheckCircle2 size={15} /> I Agree & Continue
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
