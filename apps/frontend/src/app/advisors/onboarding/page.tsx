@@ -1029,48 +1029,37 @@ ${availLines ? `<div class="section">
                 <span className="ml-auto text-indigo-300/80 text-[10px]">{t('onboard.welcome.tcMust')}</span>
               </div>
 
-              {/* Scrollable T&C */}
-              <div ref={tcScrollRef} onScroll={handleTcScroll}
-                className="overflow-y-auto px-4 py-3 space-y-2.5"
-                style={{ maxHeight: '160px', background: '#f8f7f0' }}>
-                {[
-                  { color: '#ef4444', title: t('onboard.adv.noLiability.title'), body: t('onboard.adv.noLiability.body') },
-                  { color: '#f59e0b', title: t('onboard.adv.disputes.title'),   body: t('onboard.adv.disputes.body') },
-                  { color: '#3b82f6', title: t('onboard.adv.docAuth.title'),    body: t('onboard.adv.docAuth.body') },
-                  { color: '#8b5cf6', title: t('onboard.adv.indResp.title'),    body: t('onboard.adv.indResp.body') },
-                  { color: '#10b981', title: t('onboard.adv.commission.title'), body: t('onboard.adv.commission.body') },
-                ].map((clause, i) => (
-                  <div key={i} className="rounded-xl border overflow-hidden"
-                    style={{ borderColor: `${clause.color}30`, background: `${clause.color}06` }}>
-                    <div className="px-3 py-1.5 border-b flex items-center gap-2"
-                      style={{ borderColor: `${clause.color}20`, background: `${clause.color}0c` }}>
-                      <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: clause.color }} />
-                      <span className="text-[10px] font-black uppercase tracking-wide" style={{ color: clause.color }}>{clause.title}</span>
-                    </div>
-                    <p className="px-3 py-2 text-[11px] text-gray-600 leading-relaxed">{clause.body}</p>
-                  </div>
-                ))}
-                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5">
-                  <p className="text-[11px] text-red-700 leading-relaxed font-medium">
-                    <strong>{t('onboard.adv.govLaw')}</strong> {t('onboard.adv.govLawText')}
-                  </p>
-                </div>
-                <p className="text-[10px] text-gray-400 text-center pb-1">{t('tc.effective')}</p>
+              {/* Compact bullet-point summary */}
+              <div className="px-4 py-3 space-y-2" style={{ background: '#f8f7f0' }}>
+                <p className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                  By registering as an advisor, you agree to:
+                </p>
+                <ul className="space-y-2">
+                  {[
+                    { color: '#ef4444', text: 'BrokerSaab is not liable for fraud, misconduct, or misrepresentation by you or any advisor.' },
+                    { color: '#f59e0b', text: 'All disputes arising from your advisory services are subject to Indian courts exclusively.' },
+                    { color: '#3b82f6', text: 'All KYC documents, credentials, and qualifications you submit must be genuine and accurate.' },
+                    { color: '#8b5cf6', text: 'You are solely responsible for the quality, accuracy, and legality of advice given to clients.' },
+                    { color: '#10b981', text: 'A 15% platform commission is deducted from all completed consultations. No off-platform solicitation.' },
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: item.color }} />
+                      <span className="text-[11px] text-gray-600 leading-snug">{item.text}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[10px] text-gray-400 pt-1">⚖️ Governed by laws of India · {t('tc.effective')}</p>
               </div>
 
               {/* Accept checkbox */}
-              <div className="px-4 py-3 border-t border-gray-200 bg-white space-y-2.5">
-                {!tcScrolled && (
-                  <p className="text-[10px] text-amber-600 text-center">{t('onboard.welcome.tcScrollHint')}</p>
-                )}
-                <label className="flex items-start gap-3 cursor-pointer">
+              <div className="px-4 py-3 border-t border-gray-200 bg-white">
+                <label className="flex items-start gap-3 cursor-pointer" onClick={() => setTcAccepted(p => !p)}>
                   <div className="mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all"
-                    style={{ borderColor: tcAccepted ? '#10b981' : '#d1d5db', background: tcAccepted ? '#10b981' : 'white' }}
-                    onClick={() => setTcAccepted(p => !p)}>
+                    style={{ borderColor: tcAccepted ? '#10b981' : '#d1d5db', background: tcAccepted ? '#10b981' : 'white' }}>
                     {tcAccepted && <CheckCircle2 size={12} className="text-white" />}
                   </div>
                   <span className="text-xs text-gray-600 leading-relaxed select-none">
-                    {t('onboard.welcome.tcAgree')}
+                    I have read and agree to the <strong>Terms & Conditions</strong> & <strong>Privacy Policy</strong>.
                   </span>
                 </label>
               </div>
