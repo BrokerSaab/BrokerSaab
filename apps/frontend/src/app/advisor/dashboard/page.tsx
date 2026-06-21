@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Calendar, Clock, User, AlertCircle, Loader2, ArrowLeft,
   CheckCircle2, XCircle, ShieldCheck, RefreshCw, LayoutDashboard,
   Phone, MessageSquare, BadgeCheck, Camera, Layers, FileText, Bell,
-  Eye, Edit3, Send, Users, Ticket, QrCode, Copy, Check, X
+  Eye, Edit3, Send, Users, Ticket, QrCode, Copy, Check, X, Download
 } from 'lucide-react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require('react-qr-code').default as React.ComponentType<{ value: string; size?: number; bgColor?: string; fgColor?: string; level?: string }>;
@@ -104,6 +104,8 @@ export default function AdvisorDashboard() {
   const [showQR,         setShowQR]         = useState(false);
   const [advisorPublicId, setAdvisorPublicId] = useState<string | null>(null);
   const [qrCopied,       setQrCopied]       = useState(false);
+  const [pdfLoading,     setPdfLoading]     = useState(false);
+  const qrSvgRef = useRef<HTMLDivElement>(null);
 
   const fetchQuoteRequests = async () => {
     try {
@@ -167,6 +169,198 @@ export default function AdvisorDashboard() {
     fetchAdvisorPublicId();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authReady, isLoggedIn, user]);
+
+  const downloadQRPdf = async () => {
+    if (!advisorPublicId || !qrSvgRef.current) return;
+    setPdfLoading(true);
+    try {
+      const profileUrl = `${window.location.origin}/advisors/${advisorPublicId}`;
+      const advisorName = user?.fullName || 'Advisor';
+
+      // 1. Grab the QR SVG and convert to data URL
+      const svgEl = qrSvgRef.current.querySelector('svg');
+      if (!svgEl) return;
+      const svgData = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl  = URL.createObjectURL(svgBlob);
+
+      const qrImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = svgUrl;
+      });
+
+      // 2. Load BrokerSaab logo
+      const logoImg = await new Promise<HTMLImageElement | null>(resolve => {
+        const img = new Image();
+        img.onload  = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = '/logo.png';
+      });
+
+      // 3. Draw the card on canvas (A4 width: 595px)
+      const W = 595, H = 842;
+      const canvas = document.createElement('canvas');
+      canvas.width  = W * 2;  // 2x for retina
+      canvas.height = H * 2;
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(2, 2);
+
+      // Background: deep navy gradient
+      const bg = ctx.createLinearGradient(0, 0, W, H);
+      bg.addColorStop(0,   '#0B1F3A');
+      bg.addColorStop(0.5, '#0F2545');
+      bg.addColorStop(1,   '#0a1428');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // Top golden border stripe
+      const goldGrad = ctx.createLinearGradient(0, 0, W, 0);
+      goldGrad.addColorStop(0,   '#D4AF37');
+      goldGrad.addColorStop(0.5, '#F5D77A');
+      goldGrad.addColorStop(1,   '#B48C22');
+      ctx.fillStyle = goldGrad;
+      ctx.fillRect(0, 0, W, 6);
+
+      // Bottom golden border stripe
+      ctx.fillStyle = goldGrad;
+      ctx.fillRect(0, H - 6, W, 6);
+
+      // Left indigo accent bar
+      const indigoGrad = ctx.createLinearGradient(0, 0, 0, H);
+      indigoGrad.addColorStop(0, '#4F46E5');
+      indigoGrad.addColorStop(1, '#3730A3');
+      ctx.fillStyle = indigoGrad;
+      ctx.fillRect(0, 6, 4, H - 12);
+
+      // Right indigo accent bar
+      ctx.fillStyle = indigoGrad;
+      ctx.fillRect(W - 4, 6, 4, H - 12);
+
+      // Subtle grid pattern overlay
+      ctx.globalAlpha = 0.04;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 0.5;
+      for (let x = 0; x < W; x += 30) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+      for (let y = 0; y < H; y += 30) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // Logo area
+      const logoY = 55;
+      if (logoImg) {
+        const lw = 48, lh = 48;
+        const lx = (W - lw) / 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(lx, logoY, lw, lh, 12);
+        ctx.clip();
+        ctx.drawImage(logoImg, lx, logoY, lw, lh);
+        ctx.restore();
+      } else {
+        // Fallback circle
+        ctx.fillStyle = '#D4AF37';
+        ctx.beginPath();
+        ctx.arc(W / 2, logoY + 24, 24, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // "BrokerSaab" brand name
+      ctx.font = 'bold 28px Arial, sans-serif';
+      ctx.fillStyle = '#D4AF37';
+      ctx.textAlign = 'center';
+      ctx.fillText('BrokerSaab', W / 2, logoY + 80);
+
+      // Brand tagline
+      ctx.font = '13px Arial, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillText('Your Trusted Financial Advisor Platform', W / 2, logoY + 100);
+
+      // Divider line
+      const divY = logoY + 118;
+      const divGrad = ctx.createLinearGradient(60, divY, W - 60, divY);
+      divGrad.addColorStop(0,    'transparent');
+      divGrad.addColorStop(0.2,  '#D4AF37');
+      divGrad.addColorStop(0.8,  '#D4AF37');
+      divGrad.addColorStop(1,    'transparent');
+      ctx.strokeStyle = divGrad;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(60, divY);
+      ctx.lineTo(W - 60, divY);
+      ctx.stroke();
+
+      // QR Code box — white rounded card
+      const qrSize  = 220;
+      const qrX     = (W - qrSize) / 2;
+      const qrY     = divY + 30;
+      const padding = 16;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(qrX - padding, qrY - padding, qrSize + padding * 2, qrSize + padding * 2, 18);
+      ctx.shadowColor = 'rgba(212,175,55,0.3)';
+      ctx.shadowBlur  = 30;
+      ctx.fill();
+      ctx.restore();
+
+      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+      URL.revokeObjectURL(svgUrl);
+
+      // "Scan QR to view my profile" label
+      const scanY = qrY + qrSize + padding * 2 + 28;
+      ctx.font = 'bold 16px Arial, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.textAlign = 'center';
+      ctx.fillText('SCAN QR TO VIEW MY PROFILE', W / 2, scanY);
+
+      // Advisor name (large)
+      ctx.font = 'bold 32px Arial, sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(advisorName, W / 2, scanY + 48);
+
+      // "Financial Advisor" subtitle
+      ctx.font = '15px Arial, sans-serif';
+      ctx.fillStyle = '#D4AF37';
+      ctx.fillText('Financial Advisor · BrokerSaab', W / 2, scanY + 72);
+
+      // Profile URL (small)
+      ctx.font = '11px Arial, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillText(profileUrl, W / 2, scanY + 98);
+
+      // Bottom badge
+      const badgeY = H - 50;
+      ctx.font = 'bold 11px Arial, sans-serif';
+      ctx.fillStyle = 'rgba(212,175,55,0.6)';
+      ctx.textAlign = 'center';
+      ctx.fillText('Verified by BrokerSaab  ·  brokersaab.in', W / 2, badgeY);
+
+      // Corner decorations (golden dots)
+      const dotR = 5;
+      const dotPad = 20;
+      ctx.fillStyle = '#D4AF37';
+      [[dotPad, dotPad],[W - dotPad, dotPad],[dotPad, H - dotPad],[W - dotPad, H - dotPad]].forEach(([cx, cy]) => {
+        ctx.beginPath(); ctx.arc(cx, cy, dotR, 0, Math.PI * 2); ctx.fill();
+      });
+
+      // 4. Export canvas to image, then wrap in PDF via jsPDF
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const { jsPDF } = await import('jspdf');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+      pdf.addImage(imgData, 'JPEG', 0, 0, 595, 842);
+      pdf.save(`BrokerSaab-QR-${advisorName.replace(/\s+/g, '_')}.pdf`);
+    } catch (e) {
+      console.error('PDF generation failed', e);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!isLoggedIn || !user?.id) return;
@@ -735,7 +929,7 @@ export default function AdvisorDashboard() {
           {/* QR */}
           <div className="flex justify-center py-6 px-6">
             {advisorPublicId ? (
-              <div className="p-4 bg-white rounded-2xl shadow-lg">
+              <div ref={qrSvgRef} className="p-4 bg-white rounded-2xl shadow-lg">
                 <QRCode
                   value={`${typeof window !== 'undefined' ? window.location.origin : 'https://frontend-tellar.vercel.app'}/advisors/${advisorPublicId}`}
                   size={200}
@@ -751,7 +945,7 @@ export default function AdvisorDashboard() {
             )}
           </div>
 
-          {/* URL + copy */}
+          {/* URL + copy + download */}
           {advisorPublicId && (
             <div className="px-6 pb-6 space-y-3">
               <div className="flex items-center gap-2 rounded-xl px-3 py-2.5"
@@ -772,6 +966,21 @@ export default function AdvisorDashboard() {
                 </button>
               </div>
               {qrCopied && <p className="text-[11px] text-emerald-400 text-center">Link copied!</p>}
+
+              {/* Download PDF button */}
+              <button
+                onClick={downloadQRPdf}
+                disabled={pdfLoading}
+                className="w-full py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-wait"
+                style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 6px 20px rgba(212,175,55,0.3)' }}>
+                {pdfLoading
+                  ? <><Loader2 size={15} className="animate-spin" /> Generating PDF…</>
+                  : <><Download size={15} /> Download Branded PDF Card</>
+                }
+              </button>
+              <p className="text-[10px] text-white/25 text-center">
+                Share this card with clients · They scan to view your profile
+              </p>
             </div>
           )}
         </div>

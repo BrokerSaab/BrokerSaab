@@ -13,6 +13,13 @@ import ContactUnlockModal from '@/components/ContactUnlockModal';
 import FeeQuoteRequestModal from '@/components/FeeQuoteRequestModal';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const BACKEND_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/api\/v1\/?$/, '') || '';
+
+function resolveImg(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${BACKEND_BASE}${url.startsWith('/') ? url : `/${url}`}`;
+}
 
 interface AdvisorDetail {
   id: string; fullName: string; businessName?: string; avatarUrl?: string; coverImageUrl?: string;
@@ -166,7 +173,7 @@ export default function AdvisorProfilePage() {
         {advisor.coverImageUrl ? (
           <>
             <img
-              src={advisor.coverImageUrl.startsWith('http') ? advisor.coverImageUrl : `/uploads${advisor.coverImageUrl.replace('/uploads','')}`}
+              src={resolveImg(advisor.coverImageUrl)!}
               alt="Cover"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -201,7 +208,7 @@ export default function AdvisorProfilePage() {
             {/* Avatar */}
             {advisor.avatarUrl ? (
               <img
-                src={advisor.avatarUrl.startsWith('http') ? advisor.avatarUrl : `/uploads${advisor.avatarUrl.replace('/uploads', '')}`}
+                src={resolveImg(advisor.avatarUrl)!}
                 alt={advisor.fullName}
                 className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-4 border-white/20 shadow-xl shrink-0"
               />
