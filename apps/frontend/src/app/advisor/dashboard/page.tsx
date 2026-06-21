@@ -176,183 +176,234 @@ export default function AdvisorDashboard() {
     if (!advisorPublicId || !qrSvgRef.current) return;
     setPdfLoading(true);
     try {
-      const profileUrl = `${window.location.origin}/advisors/${advisorPublicId}`;
+      const profileUrl  = `${window.location.origin}/advisors/${advisorPublicId}`;
       const advisorName = user?.fullName || 'Advisor';
 
-      // 1. Grab the QR SVG and convert to data URL
+      // ── 1. QR SVG → image ──────────────────────────────────────────────
       const svgEl = qrSvgRef.current.querySelector('svg');
       if (!svgEl) return;
       const svgData = new XMLSerializer().serializeToString(svgEl);
       const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
       const svgUrl  = URL.createObjectURL(svgBlob);
-
-      const qrImg = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = svgUrl;
+      const qrImg   = await new Promise<HTMLImageElement>((res, rej) => {
+        const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = svgUrl;
       });
 
-      // 2. Load BrokerSaab logo
-      const logoImg = await new Promise<HTMLImageElement | null>(resolve => {
+      // ── 2. BrokerSaab logo ─────────────────────────────────────────────
+      const logoImg = await new Promise<HTMLImageElement | null>(res => {
         const img = new Image();
-        img.onload  = () => resolve(img);
-        img.onerror = () => resolve(null);
+        img.onload  = () => res(img);
+        img.onerror = () => res(null);
         img.src = '/logo.png';
       });
 
-      // 3. Draw the card on canvas (A4 width: 595px)
+      // ── 3. Canvas — A4 (595 × 842 pt), drawn at 2× for sharpness ──────
       const W = 595, H = 842;
       const canvas = document.createElement('canvas');
-      canvas.width  = W * 2;  // 2x for retina
+      canvas.width  = W * 2;
       canvas.height = H * 2;
       const ctx = canvas.getContext('2d')!;
       ctx.scale(2, 2);
 
-      // Background: deep navy gradient
-      const bg = ctx.createLinearGradient(0, 0, W, H);
-      bg.addColorStop(0,   '#0B1F3A');
-      bg.addColorStop(0.5, '#0F2545');
-      bg.addColorStop(1,   '#0a1428');
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, W, H);
+      const gold   = '#D4AF37';
+      const goldLt = '#F0CC60';
+      const navy   = '#0B1F3A';
+      const navyMd = '#0F2B4A';
+      const navyLt = '#142e52';
+      const indigo = '#4F46E5';
 
-      // Top golden border stripe
-      const goldGrad = ctx.createLinearGradient(0, 0, W, 0);
-      goldGrad.addColorStop(0,   '#D4AF37');
-      goldGrad.addColorStop(0.5, '#F5D77A');
-      goldGrad.addColorStop(1,   '#B48C22');
-      ctx.fillStyle = goldGrad;
-      ctx.fillRect(0, 0, W, 6);
+      // ── HERO SECTION (top 30%) ─────────────────────────────────────────
+      const heroH = 255;
+      const heroBg = ctx.createLinearGradient(0, 0, W, heroH);
+      heroBg.addColorStop(0, navy);
+      heroBg.addColorStop(1, navyMd);
+      ctx.fillStyle = heroBg;
+      ctx.fillRect(0, 0, W, heroH);
 
-      // Bottom golden border stripe
-      ctx.fillStyle = goldGrad;
-      ctx.fillRect(0, H - 6, W, 6);
-
-      // Left indigo accent bar
-      const indigoGrad = ctx.createLinearGradient(0, 0, 0, H);
-      indigoGrad.addColorStop(0, '#4F46E5');
-      indigoGrad.addColorStop(1, '#3730A3');
-      ctx.fillStyle = indigoGrad;
-      ctx.fillRect(0, 6, 4, H - 12);
-
-      // Right indigo accent bar
-      ctx.fillStyle = indigoGrad;
-      ctx.fillRect(W - 4, 6, 4, H - 12);
-
-      // Subtle grid pattern overlay
-      ctx.globalAlpha = 0.04;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 0.5;
-      for (let x = 0; x < W; x += 30) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-      }
-      for (let y = 0; y < H; y += 30) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      // Subtle dot-grid overlay in hero
+      ctx.globalAlpha = 0.06;
+      ctx.fillStyle = '#ffffff';
+      for (let gx = 20; gx < W; gx += 28) {
+        for (let gy = 20; gy < heroH; gy += 28) {
+          ctx.beginPath(); ctx.arc(gx, gy, 1, 0, Math.PI * 2); ctx.fill();
+        }
       }
       ctx.globalAlpha = 1;
 
-      // Logo area
-      const logoY = 55;
+      // Top gold stripe
+      const topGold = ctx.createLinearGradient(0, 0, W, 0);
+      topGold.addColorStop(0, gold); topGold.addColorStop(0.5, goldLt); topGold.addColorStop(1, gold);
+      ctx.fillStyle = topGold;
+      ctx.fillRect(0, 0, W, 8);
+
+      // Left / Right indigo side bars
+      ctx.fillStyle = indigo;
+      ctx.fillRect(0, 8, 5, H - 16);
+      ctx.fillRect(W - 5, 8, 5, H - 16);
+
+      // ── LOGO + BRAND NAME on one line ──────────────────────────────────
+      const logoSize = 52;
+      const brandFont = 'bold 34px Arial, sans-serif';
+      ctx.font = brandFont;
+      const brandW = ctx.measureText('BrokerSaab').width;
+      const gap    = 16;
+      const rowW   = logoSize + gap + brandW;
+      const rowX   = (W - rowW) / 2;
+      const rowCY  = 130; // vertical centre of the logo+text row
+
+      // Logo — white rounded rectangle background
       if (logoImg) {
-        const lw = 48, lh = 48;
-        const lx = (W - lw) / 2;
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.roundRect(rowX, rowCY - logoSize / 2, logoSize, logoSize, 14);
+        ctx.shadowColor = 'rgba(212,175,55,0.35)';
+        ctx.shadowBlur  = 18;
+        ctx.fill();
+        ctx.restore();
         ctx.save();
         ctx.beginPath();
-        ctx.roundRect(lx, logoY, lw, lh, 12);
+        ctx.roundRect(rowX, rowCY - logoSize / 2, logoSize, logoSize, 14);
         ctx.clip();
-        ctx.drawImage(logoImg, lx, logoY, lw, lh);
+        ctx.drawImage(logoImg, rowX, rowCY - logoSize / 2, logoSize, logoSize);
         ctx.restore();
       } else {
-        // Fallback circle
-        ctx.fillStyle = '#D4AF37';
+        ctx.fillStyle = gold;
+        ctx.save();
         ctx.beginPath();
-        ctx.arc(W / 2, logoY + 24, 24, 0, Math.PI * 2);
+        ctx.roundRect(rowX, rowCY - logoSize / 2, logoSize, logoSize, 14);
         ctx.fill();
+        ctx.restore();
+        ctx.font = 'bold 22px Arial';
+        ctx.fillStyle = navy;
+        ctx.textAlign = 'center';
+        ctx.fillText('B', rowX + logoSize / 2, rowCY + 8);
       }
 
-      // "BrokerSaab" brand name
-      ctx.font = 'bold 28px Arial, sans-serif';
-      ctx.fillStyle = '#D4AF37';
+      // "BrokerSaab" text right of logo
+      ctx.font = brandFont;
+      ctx.fillStyle = gold;
+      ctx.textAlign = 'left';
+      ctx.fillText('BrokerSaab', rowX + logoSize + gap, rowCY + 12);
+
+      // Tagline centred below
+      ctx.font = '15px Arial, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
       ctx.textAlign = 'center';
-      ctx.fillText('BrokerSaab', W / 2, logoY + 80);
+      ctx.fillText('Trusted Advisory Platform', W / 2, rowCY + logoSize / 2 + 28);
 
-      // Brand tagline
-      ctx.font = '13px Arial, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.fillText('Your Trusted Financial Advisor Platform', W / 2, logoY + 100);
+      // Gold fading divider at bottom of hero
+      const heroDiv = heroH - 1;
+      const divG = ctx.createLinearGradient(40, heroDiv, W - 40, heroDiv);
+      divG.addColorStop(0,   'transparent');
+      divG.addColorStop(0.2, gold);
+      divG.addColorStop(0.8, gold);
+      divG.addColorStop(1,   'transparent');
+      ctx.strokeStyle = divG;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(40, heroDiv); ctx.lineTo(W - 40, heroDiv); ctx.stroke();
 
-      // Divider line
-      const divY = logoY + 118;
-      const divGrad = ctx.createLinearGradient(60, divY, W - 60, divY);
-      divGrad.addColorStop(0,    'transparent');
-      divGrad.addColorStop(0.2,  '#D4AF37');
-      divGrad.addColorStop(0.8,  '#D4AF37');
-      divGrad.addColorStop(1,    'transparent');
-      ctx.strokeStyle = divGrad;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(60, divY);
-      ctx.lineTo(W - 60, divY);
-      ctx.stroke();
+      // ── QR SECTION (middle 40%) ────────────────────────────────────────
+      const qrSecY = heroH;
+      const qrSecH = 360;
+      const qrBg = ctx.createLinearGradient(0, qrSecY, 0, qrSecY + qrSecH);
+      qrBg.addColorStop(0, navyMd);
+      qrBg.addColorStop(1, navyLt);
+      ctx.fillStyle = qrBg;
+      ctx.fillRect(0, qrSecY, W, qrSecH);
 
-      // QR Code box — white rounded card
-      const qrSize  = 220;
-      const qrX     = (W - qrSize) / 2;
-      const qrY     = divY + 30;
-      const padding = 16;
+      // "SCAN QR TO VIEW MY PROFILE" label above QR
+      ctx.font = 'bold 12px Arial, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.textAlign = 'center';
+      ctx.letterSpacing = '2px';
+      ctx.fillText('SCAN QR TO VIEW MY PROFILE', W / 2, qrSecY + 36);
+      ctx.letterSpacing = '0px';
 
-      ctx.fillStyle = '#ffffff';
+      // QR white card
+      const qrSize  = 260;
+      const qrPad   = 18;
+      const qrCardW = qrSize + qrPad * 2;
+      const qrCardX = (W - qrCardW) / 2;
+      const qrCardY = qrSecY + 52;
+
       ctx.save();
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.roundRect(qrX - padding, qrY - padding, qrSize + padding * 2, qrSize + padding * 2, 18);
-      ctx.shadowColor = 'rgba(212,175,55,0.3)';
-      ctx.shadowBlur  = 30;
+      ctx.roundRect(qrCardX, qrCardY, qrCardW, qrCardW, 22);
+      ctx.shadowColor = `rgba(212,175,55,0.25)`;
+      ctx.shadowBlur  = 40;
       ctx.fill();
       ctx.restore();
 
-      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+      ctx.drawImage(qrImg, qrCardX + qrPad, qrCardY + qrPad, qrSize, qrSize);
       URL.revokeObjectURL(svgUrl);
 
-      // "Scan QR to view my profile" label
-      const scanY = qrY + qrSize + padding * 2 + 28;
-      ctx.font = 'bold 16px Arial, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.textAlign = 'center';
-      ctx.fillText('SCAN QR TO VIEW MY PROFILE', W / 2, scanY);
+      // Indigo divider between QR and footer
+      const footerDiv = qrSecY + qrSecH - 1;
+      const footDivG = ctx.createLinearGradient(40, footerDiv, W - 40, footerDiv);
+      footDivG.addColorStop(0,   'transparent');
+      footDivG.addColorStop(0.2, indigo + '99');
+      footDivG.addColorStop(0.8, indigo + '99');
+      footDivG.addColorStop(1,   'transparent');
+      ctx.strokeStyle = footDivG;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(40, footerDiv); ctx.lineTo(W - 40, footerDiv); ctx.stroke();
 
-      // Advisor name (large)
-      ctx.font = 'bold 32px Arial, sans-serif';
+      // ── FOOTER SECTION (bottom 30%) ────────────────────────────────────
+      const footerY = qrSecY + qrSecH;
+      const footerH = H - footerY;
+      const footBg = ctx.createLinearGradient(0, footerY, 0, H);
+      footBg.addColorStop(0, navyLt);
+      footBg.addColorStop(1, '#0a1428');
+      ctx.fillStyle = footBg;
+      ctx.fillRect(0, footerY, W, footerH);
+
+      // Advisor name — large
+      const nameCY = footerY + footerH * 0.32;
+      ctx.font = 'bold 40px Arial, sans-serif';
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(advisorName, W / 2, scanY + 48);
-
-      // "Financial Advisor" subtitle
-      ctx.font = '15px Arial, sans-serif';
-      ctx.fillStyle = '#D4AF37';
-      ctx.fillText('Financial Advisor · BrokerSaab', W / 2, scanY + 72);
-
-      // Profile URL (small)
-      ctx.font = '11px Arial, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.fillText(profileUrl, W / 2, scanY + 98);
-
-      // Bottom badge
-      const badgeY = H - 50;
-      ctx.font = 'bold 11px Arial, sans-serif';
-      ctx.fillStyle = 'rgba(212,175,55,0.6)';
       ctx.textAlign = 'center';
-      ctx.fillText('Verified by BrokerSaab  ·  brokersaab.in', W / 2, badgeY);
+      ctx.fillText(advisorName, W / 2, nameCY);
 
-      // Corner decorations (golden dots)
-      const dotR = 5;
-      const dotPad = 20;
-      ctx.fillStyle = '#D4AF37';
-      [[dotPad, dotPad],[W - dotPad, dotPad],[dotPad, H - dotPad],[W - dotPad, H - dotPad]].forEach(([cx, cy]) => {
+      // Gold underline beneath name
+      ctx.strokeStyle = gold;
+      ctx.lineWidth = 2;
+      const nameW = ctx.measureText(advisorName).width;
+      ctx.beginPath();
+      ctx.moveTo(W / 2 - nameW / 2, nameCY + 8);
+      ctx.lineTo(W / 2 + nameW / 2, nameCY + 8);
+      ctx.stroke();
+
+      // "Certified Financial Advisor"
+      ctx.font = '16px Arial, sans-serif';
+      ctx.fillStyle = gold;
+      ctx.fillText('Certified Financial Advisor', W / 2, nameCY + 38);
+
+      // Profile URL
+      ctx.font = '11px Arial, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      ctx.fillText(profileUrl, W / 2, nameCY + 65);
+
+      // "Verified by BrokerSaab" badge row at very bottom
+      const vBadgeY = H - 38;
+      ctx.font = 'bold 10px Arial, sans-serif';
+      ctx.fillStyle = 'rgba(212,175,55,0.5)';
+      ctx.fillText('✦  Verified by BrokerSaab  ·  brokersaab.in  ✦', W / 2, vBadgeY);
+
+      // Bottom gold stripe
+      ctx.fillStyle = topGold;
+      ctx.fillRect(0, H - 8, W, 8);
+
+      // Corner golden dots
+      const dotR = 5, dp = 18;
+      ctx.fillStyle = gold;
+      [[dp, dp],[W - dp, dp],[dp, H - dp],[W - dp, H - dp]].forEach(([cx, cy]) => {
         ctx.beginPath(); ctx.arc(cx, cy, dotR, 0, Math.PI * 2); ctx.fill();
       });
 
-      // 4. Export canvas to image, then wrap in PDF via jsPDF
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      // ── 4. Canvas → PDF ────────────────────────────────────────────────
+      const imgData = canvas.toDataURL('image/jpeg', 0.96);
       const { jsPDF } = await import('jspdf');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
       pdf.addImage(imgData, 'JPEG', 0, 0, 595, 842);
@@ -928,88 +979,117 @@ export default function AdvisorDashboard() {
       }}
     />
 
-    {/* QR Code Modal */}
+    {/* QR Code Modal — compact to fit 13" laptop screen */}
     {showQR && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-3"
+        style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
         onClick={() => setShowQR(false)}>
-        <div className="relative w-full max-w-xs rounded-3xl overflow-hidden shadow-2xl"
-          style={{ background: 'linear-gradient(135deg,#0B1F3A 0%,#1a1040 100%)', border: '1px solid rgba(212,175,55,0.25)' }}
+        <div
+          className="relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+          style={{
+            background: 'linear-gradient(160deg,#0B1F3A 0%,#0F2B4A 50%,#0a1428 100%)',
+            border: '1px solid rgba(212,175,55,0.3)',
+            maxHeight: 'calc(100vh - 24px)',
+          }}
           onClick={e => e.stopPropagation()}>
 
           {/* Close */}
           <button onClick={() => setShowQR(false)}
-            className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors z-10">
-            <X size={18} />
+            className="absolute top-3 right-3 text-white/30 hover:text-white transition-colors z-10 w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10">
+            <X size={15} />
           </button>
 
-          {/* Header */}
-          <div className="px-6 pt-6 pb-4 text-center" style={{ borderBottom: '1px solid rgba(212,175,55,0.12)' }}>
-            <div className="w-10 h-10 rounded-2xl mx-auto mb-3 flex items-center justify-center"
+          {/* Top gold stripe */}
+          <div className="h-1 w-full shrink-0"
+            style={{ background: 'linear-gradient(90deg,#D4AF37,#F0CC60,#D4AF37)' }} />
+
+          {/* Header — logo + name + tagline on one compact row */}
+          <div className="px-5 pt-4 pb-3 flex items-center gap-3 shrink-0"
+            style={{ borderBottom: '1px solid rgba(212,175,55,0.1)' }}>
+            <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center"
               style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)' }}>
-              <QrCode size={20} className="text-slate-900" />
+              <QrCode size={16} className="text-slate-900" />
             </div>
-            <p className="text-sm font-black text-white">My Profile QR Code</p>
-            <p className="text-[11px] text-white/40 mt-0.5">Clients scan this to view your profile</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-white leading-tight">Profile QR Code</p>
+              <p className="text-[10px] text-white/40 truncate">Share with clients to view your profile</p>
+            </div>
           </div>
 
-          {/* QR */}
-          <div className="flex justify-center py-6 px-6">
-            {advisorPublicId ? (
-              <div ref={qrSvgRef} className="p-4 bg-white rounded-2xl shadow-lg">
-                <QRCode
-                  value={`${typeof window !== 'undefined' ? window.location.origin : 'https://frontend-tellar.vercel.app'}/advisors/${advisorPublicId}`}
-                  size={200}
-                  bgColor="#ffffff"
-                  fgColor="#0B1F3A"
-                  level="M"
-                />
-              </div>
-            ) : (
-              <div className="w-[232px] h-[232px] rounded-2xl flex items-center justify-center bg-white/5">
-                <Loader2 size={24} className="animate-spin text-white/30" />
+          {/* Scrollable body */}
+          <div className="overflow-y-auto flex-1">
+            {/* Advisor name */}
+            <div className="px-5 pt-3 pb-1 text-center">
+              <p className="text-xs font-bold text-amber-400 truncate">{user?.fullName}</p>
+            </div>
+
+            {/* QR code */}
+            <div className="flex justify-center px-5 py-3">
+              {advisorPublicId ? (
+                <div ref={qrSvgRef} className="p-3 bg-white rounded-xl shadow-lg inline-block">
+                  <QRCode
+                    value={`${typeof window !== 'undefined' ? window.location.origin : 'https://frontend-tellar.vercel.app'}/advisors/${advisorPublicId}`}
+                    size={160}
+                    bgColor="#ffffff"
+                    fgColor="#0B1F3A"
+                    level="M"
+                  />
+                </div>
+              ) : (
+                <div className="w-[184px] h-[184px] rounded-xl flex items-center justify-center bg-white/5">
+                  <Loader2 size={22} className="animate-spin text-white/30" />
+                </div>
+              )}
+            </div>
+
+            <p className="text-[10px] text-white/35 text-center tracking-widest mb-3">
+              SCAN TO VIEW MY PROFILE
+            </p>
+
+            {/* URL + copy + download */}
+            {advisorPublicId && (
+              <div className="px-5 pb-5 space-y-2.5">
+                {/* URL row */}
+                <div className="flex items-center gap-2 rounded-xl px-3 py-2"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <p className="flex-1 text-[9px] text-white/40 truncate font-mono">
+                    {`${typeof window !== 'undefined' ? window.location.origin : 'https://frontend-tellar.vercel.app'}/advisors/${advisorPublicId}`}
+                  </p>
+                  <button
+                    onClick={() => {
+                      const url = `${window.location.origin}/advisors/${advisorPublicId}`;
+                      navigator.clipboard.writeText(url).then(() => {
+                        setQrCopied(true);
+                        setTimeout(() => setQrCopied(false), 2000);
+                      });
+                    }}
+                    className="shrink-0 text-white/35 hover:text-amber-400 transition-colors">
+                    {qrCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                  </button>
+                </div>
+                {qrCopied && <p className="text-[10px] text-emerald-400 text-center -mt-1">Link copied!</p>}
+
+                {/* Download PDF */}
+                <button
+                  onClick={downloadQRPdf}
+                  disabled={pdfLoading}
+                  className="w-full py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-wait"
+                  style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 4px 16px rgba(212,175,55,0.25)' }}>
+                  {pdfLoading
+                    ? <><Loader2 size={14} className="animate-spin" /> Generating…</>
+                    : <><Download size={14} /> Download Branded PDF Card</>
+                  }
+                </button>
+                <p className="text-[9px] text-white/20 text-center">
+                  Professional card · Share with clients
+                </p>
               </div>
             )}
           </div>
 
-          {/* URL + copy + download */}
-          {advisorPublicId && (
-            <div className="px-6 pb-6 space-y-3">
-              <div className="flex items-center gap-2 rounded-xl px-3 py-2.5"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <p className="flex-1 text-[10px] text-white/50 truncate font-mono">
-                  {`${typeof window !== 'undefined' ? window.location.origin : 'https://frontend-tellar.vercel.app'}/advisors/${advisorPublicId}`}
-                </p>
-                <button
-                  onClick={() => {
-                    const url = `${window.location.origin}/advisors/${advisorPublicId}`;
-                    navigator.clipboard.writeText(url).then(() => {
-                      setQrCopied(true);
-                      setTimeout(() => setQrCopied(false), 2000);
-                    });
-                  }}
-                  className="shrink-0 text-white/40 hover:text-amber-400 transition-colors">
-                  {qrCopied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                </button>
-              </div>
-              {qrCopied && <p className="text-[11px] text-emerald-400 text-center">Link copied!</p>}
-
-              {/* Download PDF button */}
-              <button
-                onClick={downloadQRPdf}
-                disabled={pdfLoading}
-                className="w-full py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-wait"
-                style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 6px 20px rgba(212,175,55,0.3)' }}>
-                {pdfLoading
-                  ? <><Loader2 size={15} className="animate-spin" /> Generating PDF…</>
-                  : <><Download size={15} /> Download Branded PDF Card</>
-                }
-              </button>
-              <p className="text-[10px] text-white/25 text-center">
-                Share this card with clients · They scan to view your profile
-              </p>
-            </div>
-          )}
+          {/* Bottom gold stripe */}
+          <div className="h-1 w-full shrink-0"
+            style={{ background: 'linear-gradient(90deg,#D4AF37,#F0CC60,#D4AF37)' }} />
         </div>
       </div>
     )}
