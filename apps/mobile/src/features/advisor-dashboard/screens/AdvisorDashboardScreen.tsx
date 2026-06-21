@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
-  TouchableOpacity, Alert
+  TouchableOpacity, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -79,6 +79,23 @@ export const AdvisorDashboardScreen: React.FC<Props> = ({ navigation }) => {
           <StatCard label="Accepted"  value={accepted}  color="#818cf8" />
           <StatCard label="Completed" value={completed} color="#34d399" />
         </View>
+
+        {/* QR Code card */}
+        <TouchableOpacity
+          style={s.qrCard}
+          onPress={() => navigation.navigate('AdvisorQRCode')}
+          activeOpacity={0.88}
+        >
+          <View style={s.qrCardLeft}>
+            <Text style={s.qrCardIcon}>⬛</Text>
+            <Text style={s.qrCardIconSub}>QR</Text>
+          </View>
+          <View style={s.qrCardBody}>
+            <Text style={s.qrCardTitle}>My Profile QR Code</Text>
+            <Text style={s.qrCardSub}>Share with clients · Download premium PDF card</Text>
+          </View>
+          <Text style={s.qrCardArrow}>›</Text>
+        </TouchableOpacity>
 
         {/* Needs confirm alert */}
         {needingConfirm.length > 0 && (
@@ -230,4 +247,33 @@ const s = StyleSheet.create({
   sendQuoteText:      { color: '#0B1F3A', fontWeight: '800', fontSize: 12 },
   bookingCard:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: Palette.card, borderRadius: 10, padding: Spacing.md, borderWidth: 1, borderColor: Palette.border },
   bookingNum:         { ...Typography.body, fontWeight: '600' },
+
+  // QR card
+  qrCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: '#0B1F3A',
+    borderRadius: 14,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(212,175,55,0.35)',
+  },
+  qrCardLeft: {
+    width: 60, height: 60,
+    backgroundColor: 'rgba(212,175,55,0.12)',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(212,175,55,0.4)',
+    flexShrink: 0,
+    gap: 2,
+  },
+  qrCardIcon: { fontSize: 22 },
+  qrCardIconSub: { fontSize: 8, fontWeight: '900', color: '#D4AF37', letterSpacing: 1.5 },
+  qrCardBody: { flex: 1, gap: 4 },
+  qrCardTitle: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
+  qrCardSub: { fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 15 },
+  qrCardArrow: { color: '#D4AF37', fontSize: 24, fontWeight: '300' },
 });

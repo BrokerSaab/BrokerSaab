@@ -11,6 +11,7 @@ import {
 import { Palette } from '../theme';
 
 import { AdvisorDashboardScreen } from '../../features/advisor-dashboard/screens/AdvisorDashboardScreen';
+import { AdvisorQRScreen } from '../../features/advisor-dashboard/screens/AdvisorQRScreen';
 import { BookingDetailScreen } from '../../features/bookings/screens/BookingDetailScreen';
 import { ChatScreen } from '../../features/bookings/screens/ChatScreen';
 import { AdvisorProfileEditScreen } from '../../features/advisor-dashboard/screens/AdvisorProfileEditScreen';
@@ -40,6 +41,7 @@ const DashNavigator = () => (
     <DashStack.Screen name="SubmitQuote" component={SubmitQuoteScreen} options={({ route }) => ({ title: `Quote for ${route.params.clientName}` })} />
     <DashStack.Screen name="MyTickets" component={MyTicketsScreen} options={{ title: 'Work Tickets' }} />
     <DashStack.Screen name="TicketDetail" component={TicketDetailScreen} options={{ title: 'Work Ticket' }} />
+    <DashStack.Screen name="AdvisorQRCode" component={AdvisorQRScreen} options={{ title: 'My QR Code' }} />
   </DashStack.Navigator>
 );
 

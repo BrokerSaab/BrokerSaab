@@ -72,6 +72,7 @@ export type AdvisorDashboardStackParamList = {
   };
   MyTickets: undefined;
   TicketDetail: { ticketId: string };
+  AdvisorQRCode: undefined;
 };
 
 export type AdvisorProfileStackParamList = {
