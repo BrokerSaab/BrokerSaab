@@ -189,15 +189,13 @@ export default function AdvisorDashboard() {
         const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = svgUrl;
       });
 
-      // ── 2. BrokerSaab logo ─────────────────────────────────────────────
+      // ── 2. Logo ────────────────────────────────────────────────────────
       const logoImg = await new Promise<HTMLImageElement | null>(res => {
         const img = new Image();
-        img.onload  = () => res(img);
-        img.onerror = () => res(null);
-        img.src = '/logo.png';
+        img.onload = () => res(img); img.onerror = () => res(null); img.src = '/logo.png';
       });
 
-      // ── 3. Canvas — A4 (595 × 842 pt), drawn at 2× for sharpness ──────
+      // ── 3. Canvas — A4 @ 2× for crisp text ────────────────────────────
       const W = 595, H = 842;
       const canvas = document.createElement('canvas');
       canvas.width  = W * 2;
@@ -205,202 +203,285 @@ export default function AdvisorDashboard() {
       const ctx = canvas.getContext('2d')!;
       ctx.scale(2, 2);
 
-      const gold   = '#D4AF37';
-      const goldLt = '#F0CC60';
-      const navy   = '#0B1F3A';
-      const navyMd = '#0F2B4A';
-      const navyLt = '#142e52';
-      const indigo = '#4F46E5';
+      // Colour palette
+      const navy    = '#0B1F3A';
+      const navyDk  = '#071526';
+      const gold    = '#D4AF37';
+      const goldLt  = '#F0CC60';
+      const indigoBl = '#4B6CB7';  // steel-blue matching brand tagline colour
 
-      // ── HERO SECTION (top 30%) ─────────────────────────────────────────
-      const heroH = 255;
-      const heroBg = ctx.createLinearGradient(0, 0, W, heroH);
+      // ══════════════════════════════════════════════════════════════════
+      // SECTION 1 — HERO  (0 → 210)  dark navy, logo + name + tagline
+      // ══════════════════════════════════════════════════════════════════
+      const heroH = 210;
+
+      // Background gradient
+      const heroBg = ctx.createLinearGradient(0, 0, 0, heroH);
       heroBg.addColorStop(0, navy);
-      heroBg.addColorStop(1, navyMd);
+      heroBg.addColorStop(1, '#0d2240');
       ctx.fillStyle = heroBg;
       ctx.fillRect(0, 0, W, heroH);
 
-      // Subtle dot-grid overlay in hero
-      ctx.globalAlpha = 0.06;
+      // Subtle dot-grid overlay
+      ctx.globalAlpha = 0.055;
       ctx.fillStyle = '#ffffff';
-      for (let gx = 20; gx < W; gx += 28) {
-        for (let gy = 20; gy < heroH; gy += 28) {
-          ctx.beginPath(); ctx.arc(gx, gy, 1, 0, Math.PI * 2); ctx.fill();
+      for (let gx = 20; gx < W; gx += 26) {
+        for (let gy = 20; gy < heroH; gy += 26) {
+          ctx.beginPath(); ctx.arc(gx, gy, 0.9, 0, Math.PI * 2); ctx.fill();
         }
       }
       ctx.globalAlpha = 1;
 
-      // Top gold stripe
-      const topGold = ctx.createLinearGradient(0, 0, W, 0);
-      topGold.addColorStop(0, gold); topGold.addColorStop(0.5, goldLt); topGold.addColorStop(1, gold);
-      ctx.fillStyle = topGold;
-      ctx.fillRect(0, 0, W, 8);
+      // Gold top stripe (6px)
+      const goldGrad = ctx.createLinearGradient(0, 0, W, 0);
+      goldGrad.addColorStop(0, gold); goldGrad.addColorStop(0.5, goldLt); goldGrad.addColorStop(1, gold);
+      ctx.fillStyle = goldGrad;
+      ctx.fillRect(0, 0, W, 6);
 
-      // Left / Right indigo side bars
-      ctx.fillStyle = indigo;
-      ctx.fillRect(0, 8, 5, H - 16);
-      ctx.fillRect(W - 5, 8, 5, H - 16);
+      // Indigo left / right side bars (full height)
+      ctx.fillStyle = indigoBl;
+      ctx.fillRect(0, 6, 5, H - 12);
+      ctx.fillRect(W - 5, 6, 5, H - 12);
 
-      // ── LOGO + BRAND NAME on one line ──────────────────────────────────
-      const logoSize = 52;
-      const brandFont = 'bold 34px Arial, sans-serif';
-      ctx.font = brandFont;
-      const brandW = ctx.measureText('BrokerSaab').width;
-      const gap    = 16;
-      const rowW   = logoSize + gap + brandW;
-      const rowX   = (W - rowW) / 2;
-      const rowCY  = 130; // vertical centre of the logo+text row
+      // Logo + brand name row — centred in hero
+      const logoSz  = 56;
+      const brandFs = 36;
+      ctx.font = `bold ${brandFs}px Arial, sans-serif`;
+      const brokerW = ctx.measureText('Broker').width;
+      const saabW   = ctx.measureText('Saab').width;
+      const gap     = 18;
+      const rowW    = logoSz + gap + brokerW + saabW;
+      const rowX    = (W - rowW) / 2;
+      const rowCY   = heroH / 2 - 14;   // centre slightly above middle to leave room for tagline
 
-      // Logo — white rounded rectangle background
+      // Logo: white rounded-rect background then image
       if (logoImg) {
         ctx.save();
+        ctx.shadowColor = 'rgba(212,175,55,0.4)';
+        ctx.shadowBlur  = 16;
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.roundRect(rowX, rowCY - logoSize / 2, logoSize, logoSize, 14);
-        ctx.shadowColor = 'rgba(212,175,55,0.35)';
-        ctx.shadowBlur  = 18;
+        ctx.roundRect(rowX, rowCY - logoSz / 2, logoSz, logoSz, 14);
         ctx.fill();
         ctx.restore();
         ctx.save();
         ctx.beginPath();
-        ctx.roundRect(rowX, rowCY - logoSize / 2, logoSize, logoSize, 14);
+        ctx.roundRect(rowX, rowCY - logoSz / 2, logoSz, logoSz, 14);
         ctx.clip();
-        ctx.drawImage(logoImg, rowX, rowCY - logoSize / 2, logoSize, logoSize);
+        ctx.drawImage(logoImg, rowX, rowCY - logoSz / 2, logoSz, logoSz);
         ctx.restore();
       } else {
-        ctx.fillStyle = gold;
         ctx.save();
+        ctx.fillStyle = gold;
         ctx.beginPath();
-        ctx.roundRect(rowX, rowCY - logoSize / 2, logoSize, logoSize, 14);
+        ctx.roundRect(rowX, rowCY - logoSz / 2, logoSz, logoSz, 14);
         ctx.fill();
         ctx.restore();
-        ctx.font = 'bold 22px Arial';
+        ctx.font = `bold 24px Arial`;
         ctx.fillStyle = navy;
         ctx.textAlign = 'center';
-        ctx.fillText('B', rowX + logoSize / 2, rowCY + 8);
+        ctx.fillText('B', rowX + logoSz / 2, rowCY + 9);
       }
 
-      // "BrokerSaab" text right of logo
-      ctx.font = brandFont;
-      ctx.fillStyle = gold;
+      // "Broker" in white, "Saab" in gold — on same baseline
+      const textX  = rowX + logoSz + gap;
+      const textBY = rowCY + brandFs * 0.36;  // baseline offset ≈ 36% of font size
+      ctx.font = `bold ${brandFs}px Arial, sans-serif`;
       ctx.textAlign = 'left';
-      ctx.fillText('BrokerSaab', rowX + logoSize + gap, rowCY + 12);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('Broker', textX, textBY);
+      ctx.fillStyle = gold;
+      ctx.fillText('Saab', textX + brokerW, textBY);
 
-      // Tagline centred below
-      ctx.font = '15px Arial, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      // Tagline — "TRUSTED ADVISORY PLATFORM" in steel-blue, uppercase, letter-spaced
+      ctx.font = 'bold 13px Arial, sans-serif';
+      ctx.fillStyle = '#7BAFD4';   // light steel-blue matching screenshot
       ctx.textAlign = 'center';
-      ctx.fillText('Trusted Advisory Platform', W / 2, rowCY + logoSize / 2 + 28);
+      // Simulate letter-spacing by manual offset
+      const tagText = 'TRUSTED ADVISORY PLATFORM';
+      const tagSpacing = 3.5;
+      ctx.font = 'bold 12.5px Arial, sans-serif';
+      let tagX = W / 2 - (ctx.measureText(tagText).width + tagSpacing * (tagText.length - 1)) / 2;
+      const tagY = rowCY + logoSz / 2 + 24;
+      for (const ch of tagText) {
+        ctx.fillText(ch, tagX, tagY);
+        tagX += ctx.measureText(ch).width + tagSpacing;
+      }
 
-      // Gold fading divider at bottom of hero
-      const heroDiv = heroH - 1;
-      const divG = ctx.createLinearGradient(40, heroDiv, W - 40, heroDiv);
-      divG.addColorStop(0,   'transparent');
-      divG.addColorStop(0.2, gold);
-      divG.addColorStop(0.8, gold);
-      divG.addColorStop(1,   'transparent');
-      ctx.strokeStyle = divG;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(40, heroDiv); ctx.lineTo(W - 40, heroDiv); ctx.stroke();
+      // Hero bottom gold line
+      const divY1 = heroH - 0.5;
+      const dg1 = ctx.createLinearGradient(30, divY1, W - 30, divY1);
+      dg1.addColorStop(0, 'transparent'); dg1.addColorStop(0.15, gold);
+      dg1.addColorStop(0.85, gold);       dg1.addColorStop(1, 'transparent');
+      ctx.strokeStyle = dg1; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(30, divY1); ctx.lineTo(W - 30, divY1); ctx.stroke();
 
-      // ── QR SECTION (middle 40%) ────────────────────────────────────────
+      // ══════════════════════════════════════════════════════════════════
+      // SECTION 2 — QR CODE  (210 → 660)  pure white background
+      // ══════════════════════════════════════════════════════════════════
       const qrSecY = heroH;
-      const qrSecH = 360;
-      const qrBg = ctx.createLinearGradient(0, qrSecY, 0, qrSecY + qrSecH);
-      qrBg.addColorStop(0, navyMd);
-      qrBg.addColorStop(1, navyLt);
-      ctx.fillStyle = qrBg;
+      const qrSecH = 450;
+
+      ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, qrSecY, W, qrSecH);
 
-      // "SCAN QR TO VIEW MY PROFILE" label above QR
-      ctx.font = 'bold 12px Arial, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      // "SCAN QR TO VIEW MY PROFILE" — dark navy, clearly visible on white
+      ctx.font = 'bold 11.5px Arial, sans-serif';
+      ctx.fillStyle = '#1E3A5F';
       ctx.textAlign = 'center';
-      ctx.letterSpacing = '2px';
-      ctx.fillText('SCAN QR TO VIEW MY PROFILE', W / 2, qrSecY + 36);
-      ctx.letterSpacing = '0px';
+      let labelX = W / 2 - (ctx.measureText('SCAN QR TO VIEW MY PROFILE').width + 3 * 26) / 2;
+      const labelY = qrSecY + 38;
+      const labelText = 'SCAN QR TO VIEW MY PROFILE';
+      const labelSp   = 3.2;
+      labelX = W / 2 - (ctx.measureText(labelText).width + labelSp * (labelText.length - 1)) / 2;
+      for (const ch of labelText) {
+        ctx.fillStyle = '#1E3A5F';
+        ctx.fillText(ch, labelX, labelY);
+        labelX += ctx.measureText(ch).width + labelSp;
+      }
 
-      // QR white card
-      const qrSize  = 260;
-      const qrPad   = 18;
-      const qrCardW = qrSize + qrPad * 2;
-      const qrCardX = (W - qrCardW) / 2;
-      const qrCardY = qrSecY + 52;
-
-      ctx.save();
-      ctx.fillStyle = '#ffffff';
+      // Thin indigo underline beneath label
+      const luW = 180;
+      ctx.strokeStyle = indigoBl;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.roundRect(qrCardX, qrCardY, qrCardW, qrCardW, 22);
-      ctx.shadowColor = `rgba(212,175,55,0.25)`;
-      ctx.shadowBlur  = 40;
+      ctx.moveTo(W / 2 - luW / 2, labelY + 7);
+      ctx.lineTo(W / 2 + luW / 2, labelY + 7);
+      ctx.stroke();
+
+      // QR code — light border card on white
+      const qrSize = 270;
+      const qrPad  = 16;
+      const qrCW   = qrSize + qrPad * 2;
+      const qrCX   = (W - qrCW) / 2;
+      const qrCY   = qrSecY + 60;
+
+      // Card: very light shadow + thin border visible on white background
+      ctx.save();
+      ctx.shadowColor = 'rgba(11,31,58,0.12)';
+      ctx.shadowBlur  = 22;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 4;
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#E5EAF0';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(qrCX, qrCY, qrCW, qrCW, 20);
       ctx.fill();
+      ctx.stroke();
       ctx.restore();
 
-      ctx.drawImage(qrImg, qrCardX + qrPad, qrCardY + qrPad, qrSize, qrSize);
+      // QR image drawn sharply inside card
+      ctx.drawImage(qrImg, qrCX + qrPad, qrCY + qrPad, qrSize, qrSize);
       URL.revokeObjectURL(svgUrl);
 
-      // Indigo divider between QR and footer
-      const footerDiv = qrSecY + qrSecH - 1;
-      const footDivG = ctx.createLinearGradient(40, footerDiv, W - 40, footerDiv);
-      footDivG.addColorStop(0,   'transparent');
-      footDivG.addColorStop(0.2, indigo + '99');
-      footDivG.addColorStop(0.8, indigo + '99');
-      footDivG.addColorStop(1,   'transparent');
-      ctx.strokeStyle = footDivG;
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(40, footerDiv); ctx.lineTo(W - 40, footerDiv); ctx.stroke();
+      // Advisor name below QR — dark navy, large, clearly visible
+      const nameY = qrCY + qrCW + 34;
+      ctx.font = 'bold 32px Arial, sans-serif';
+      ctx.fillStyle = '#0B1F3A';
+      ctx.textAlign = 'center';
+      ctx.fillText(advisorName, W / 2, nameY);
 
-      // ── FOOTER SECTION (bottom 30%) ────────────────────────────────────
+      // Gold underline under name
+      ctx.strokeStyle = gold;
+      ctx.lineWidth = 2.5;
+      const nw = ctx.measureText(advisorName).width;
+      ctx.beginPath();
+      ctx.moveTo(W / 2 - nw / 2, nameY + 7);
+      ctx.lineTo(W / 2 + nw / 2, nameY + 7);
+      ctx.stroke();
+
+      // "Certified Financial Advisor" subtitle — indigo blue, clearly visible
+      ctx.font = '14px Arial, sans-serif';
+      ctx.fillStyle = indigoBl;
+      ctx.fillText('Certified Financial Advisor  ·  BrokerSaab', W / 2, nameY + 32);
+
+      // Profile URL — medium gray, clearly readable
+      ctx.font = '10.5px Arial, sans-serif';
+      ctx.fillStyle = '#7B8EA8';
+      ctx.fillText(profileUrl, W / 2, nameY + 56);
+
+      // Thin indigo line separating QR section from footer
+      const divY2 = qrSecY + qrSecH - 0.5;
+      const dg2 = ctx.createLinearGradient(30, divY2, W - 30, divY2);
+      dg2.addColorStop(0, 'transparent'); dg2.addColorStop(0.15, indigoBl + 'aa');
+      dg2.addColorStop(0.85, indigoBl + 'aa'); dg2.addColorStop(1, 'transparent');
+      ctx.strokeStyle = dg2; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(30, divY2); ctx.lineTo(W - 30, divY2); ctx.stroke();
+
+      // ══════════════════════════════════════════════════════════════════
+      // SECTION 3 — FOOTER  (660 → 842)  dark navy
+      // ══════════════════════════════════════════════════════════════════
       const footerY = qrSecY + qrSecH;
       const footerH = H - footerY;
+
       const footBg = ctx.createLinearGradient(0, footerY, 0, H);
-      footBg.addColorStop(0, navyLt);
-      footBg.addColorStop(1, '#0a1428');
+      footBg.addColorStop(0, '#0d2240');
+      footBg.addColorStop(1, navyDk);
       ctx.fillStyle = footBg;
       ctx.fillRect(0, footerY, W, footerH);
 
-      // Advisor name — large
-      const nameCY = footerY + footerH * 0.32;
-      ctx.font = 'bold 40px Arial, sans-serif';
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.fillText(advisorName, W / 2, nameCY);
-
-      // Gold underline beneath name
-      ctx.strokeStyle = gold;
-      ctx.lineWidth = 2;
-      const nameW = ctx.measureText(advisorName).width;
-      ctx.beginPath();
-      ctx.moveTo(W / 2 - nameW / 2, nameCY + 8);
-      ctx.lineTo(W / 2 + nameW / 2, nameCY + 8);
-      ctx.stroke();
-
-      // "Certified Financial Advisor"
-      ctx.font = '16px Arial, sans-serif';
+      // "Verified by BrokerSaab" with dot separators — gold, clearly visible
+      const vY = footerY + footerH * 0.42;
+      ctx.font = 'bold 14px Arial, sans-serif';
       ctx.fillStyle = gold;
-      ctx.fillText('Certified Financial Advisor', W / 2, nameCY + 38);
+      ctx.textAlign = 'center';
+      ctx.fillText('✦  Verified by BrokerSaab  ✦', W / 2, vY);
 
-      // Profile URL
+      // Website
       ctx.font = '11px Arial, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.28)';
-      ctx.fillText(profileUrl, W / 2, nameCY + 65);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fillText('brokersaab.in  ·  Trusted Advisory Platform', W / 2, vY + 26);
 
-      // "Verified by BrokerSaab" badge row at very bottom
-      const vBadgeY = H - 38;
-      ctx.font = 'bold 10px Arial, sans-serif';
-      ctx.fillStyle = 'rgba(212,175,55,0.5)';
-      ctx.fillText('✦  Verified by BrokerSaab  ·  brokersaab.in  ✦', W / 2, vBadgeY);
-
-      // Bottom gold stripe
-      ctx.fillStyle = topGold;
-      ctx.fillRect(0, H - 8, W, 8);
+      // Gold bottom stripe (6px)
+      ctx.fillStyle = goldGrad;
+      ctx.fillRect(0, H - 6, W, 6);
 
       // Corner golden dots
-      const dotR = 5, dp = 18;
+      const dr = 4, dp2 = 16;
       ctx.fillStyle = gold;
-      [[dp, dp],[W - dp, dp],[dp, H - dp],[W - dp, H - dp]].forEach(([cx, cy]) => {
-        ctx.beginPath(); ctx.arc(cx, cy, dotR, 0, Math.PI * 2); ctx.fill();
+      [[dp2, dp2],[W - dp2, dp2],[dp2, H - dp2],[W - dp2, H - dp2]].forEach(([cx, cy]) => {
+        ctx.beginPath(); ctx.arc(cx, cy, dr, 0, Math.PI * 2); ctx.fill();
       });
+
+      // ══════════════════════════════════════════════════════════════════
+      // WATERMARK — diagonal 3D repeating "BrokerSaab" (barely visible)
+      // ══════════════════════════════════════════════════════════════════
+      ctx.save();
+      ctx.translate(W / 2, H / 2);
+      ctx.rotate(-Math.PI / 4);   // 45° diagonal
+
+      const wmFont = 'bold 22px Arial, sans-serif';
+      const wmText = 'BrokerSaab';
+      ctx.font = wmFont;
+      const wmW = ctx.measureText(wmText).width + 60;  // spacing between repeats
+      const wmH = 80;                                    // row spacing
+      const cols = Math.ceil((W + H) / wmW) + 2;
+      const rows = Math.ceil((W + H) / wmH) + 2;
+      const startX = -cols * wmW / 2;
+      const startY = -rows * wmH / 2;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const wx = startX + c * wmW;
+          const wy = startY + r * wmH;
+
+          // 3D shadow layer — offset 2px, very dark navy
+          ctx.globalAlpha = 0.022;
+          ctx.fillStyle = '#000000';
+          ctx.font = wmFont;
+          ctx.textAlign = 'left';
+          ctx.fillText(wmText, wx + 2, wy + 2);
+
+          // Main watermark text — very light navy
+          ctx.globalAlpha = 0.032;
+          ctx.fillStyle = navy;
+          ctx.fillText(wmText, wx, wy);
+        }
+      }
+
+      ctx.restore();
+      ctx.globalAlpha = 1;
 
       // ── 4. Canvas → PDF ────────────────────────────────────────────────
       const imgData = canvas.toDataURL('image/jpeg', 0.96);
