@@ -9,6 +9,53 @@ import { exportToExcel } from '../utils/excelExport';
 
 const router = Router();
 
+// ── Period → date range helper ────────────────────────────────────────────────
+function periodToRange(
+  period: string,
+  from?: string,
+  to?: string,
+  month?: string
+): { gte?: Date; lte?: Date } | null {
+  const now = new Date();
+  if (period === 'TODAY') {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    return { gte: start };
+  }
+  if (period === 'THIS_WEEK') {
+    const start = new Date(now);
+    const day = now.getDay();
+    start.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+    start.setHours(0, 0, 0, 0);
+    return { gte: start };
+  }
+  if (period === 'THIS_MONTH') {
+    return { gte: new Date(now.getFullYear(), now.getMonth(), 1) };
+  }
+  if (period === 'THIS_QUARTER') {
+    const q = Math.floor(now.getMonth() / 3);
+    return { gte: new Date(now.getFullYear(), q * 3, 1) };
+  }
+  if (period === 'THIS_YEAR') {
+    return { gte: new Date(now.getFullYear(), 0, 1) };
+  }
+  if (period === 'LAST_MONTH') {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end   = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { gte: start, lte: end };
+  }
+  if (period === 'CUSTOM' && from) {
+    const result: { gte?: Date; lte?: Date } = { gte: new Date(from) };
+    if (to) result.lte = new Date(to + 'T23:59:59.999Z');
+    return result;
+  }
+  if (month) {
+    const [y, m] = month.split('-').map(Number);
+    return { gte: new Date(y, m - 1, 1), lte: new Date(y, m, 1) };
+  }
+  return null;
+}
+
 const SUPER_ADMIN_ONLY = [authenticateJWT, requireRole([Role.SUPER_ADMIN])];
 const ADMIN_GUARD      = [authenticateJWT, requireRole([Role.SUPER_ADMIN, Role.SUB_ADMIN])];
 
@@ -284,7 +331,8 @@ router.get(
  */
 router.get('/advisors', ...ADMIN_GUARD, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status, type, state, search, page = '1', limit = '50' } = req.query as Record<string, string>;
+    const { status, type, state, search, page = '1', limit = '50',
+            minReceived = '', joinPeriod = '', joinFrom = '', joinTo = '', joinMonth = '' } = req.query as Record<string, string>;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where: any = {};
@@ -301,13 +349,29 @@ router.get('/advisors', ...ADMIN_GUARD, async (req: Request, res: Response): Pro
       ];
     }
 
+    // Join-date period filter
+    const joinDateRange = periodToRange(joinPeriod, joinFrom || undefined, joinTo || undefined, joinMonth || undefined);
+    if (joinDateRange) where.createdAt = joinDateRange;
+
+    // minReceived: advisors who have been unlocked by >= N users
+    if (minReceived && parseInt(minReceived) > 0) {
+      const groups = await prisma.contactUnlock.groupBy({
+        by: ['advisorId'],
+        _count: { advisorId: true },
+        having: { advisorId: { _count: { gte: parseInt(minReceived) } } },
+      });
+      const qualifiedIds = groups.map((g: any) => g.advisorId);
+      where.id = { in: qualifiedIds };
+    }
+
     const [advisors, total] = await prisma.$transaction([
       prisma.advisor.findMany({
         where,
         include: {
           documents: true,
           subscriptions: { orderBy: { createdAt: 'desc' }, take: 1 },
-          assignedSubAdmin: { select: { id: true, fullName: true, email: true } }
+          assignedSubAdmin: { select: { id: true, fullName: true, email: true } },
+          _count: { select: { contactUnlocks: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -327,10 +391,17 @@ router.get('/advisors', ...ADMIN_GUARD, async (req: Request, res: Response): Pro
  */
 router.get('/users', ...ADMIN_GUARD, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { state, search, page = '1', limit = '50' } = req.query as Record<string, string>;
+    const { state, search, page = '1', limit = '50',
+            minConnections = '', maxConnections = '',
+            joinPeriod = '', joinFrom = '', joinTo = '', joinMonth = '' } = req.query as Record<string, string>;
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const where: any = { role: Role.CLIENT };
     if (state) where.state = { contains: state, mode: 'insensitive' };
+
+    // Join-date period filter
+    const joinDateRange = periodToRange(joinPeriod, joinFrom || undefined, joinTo || undefined, joinMonth || undefined);
+    if (joinDateRange) where.createdAt = joinDateRange;
+
     if (search) {
       const seqMatch = search.match(/BSU-?(\d+)/i);
       where.OR = [
@@ -341,11 +412,31 @@ router.get('/users', ...ADMIN_GUARD, async (req: Request, res: Response): Promis
       ];
     }
 
+    // Connection count filters — users who have unlocked >= minConnections advisors
+    const minConn = parseInt(minConnections) || 0;
+    const maxConn = parseInt(maxConnections) || 0;
+    if (minConn > 0 || maxConn > 0) {
+      const groups = await prisma.contactUnlock.groupBy({
+        by: ['userId'],
+        _count: { userId: true },
+        having: {
+          userId: {
+            _count: {
+              ...(minConn > 0 ? { gte: minConn } : {}),
+              ...(maxConn > 0 ? { lte: maxConn } : {}),
+            },
+          },
+        },
+      });
+      const qualifiedIds = groups.map((g: any) => g.userId);
+      where.id = { in: qualifiedIds };
+    }
+
     const [users, total] = await prisma.$transaction([
       prisma.user.findMany({
         where,
         include: {
-          _count: { select: { bookings: true } },
+          _count: { select: { bookings: true, contactUnlocks: true } },
           auditLogs: { orderBy: { createdAt: 'desc' }, take: 1, where: { action: 'LOGIN' } },
         },
         orderBy: { createdAt: 'desc' },
@@ -456,19 +547,27 @@ router.get('/contact-subscriptions', ...ADMIN_GUARD, async (req: Request, res: R
  */
 router.get('/contact-unlocks', ...ADMIN_GUARD, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { search = '', page = '1', limit = '50' } = req.query as Record<string, string>;
+    const { search = '', page = '1', limit = '50',
+            period = '', from = '', to = '', month = '',
+            advisorId = '', isFree = '' } = req.query as Record<string, string>;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where: any = {};
     if (search.trim()) {
       where.OR = [
-        { user:   { fullName:   { contains: search.trim(), mode: 'insensitive' } } },
-        { user:   { phoneNumber:{ contains: search.trim(), mode: 'insensitive' } } },
-        { advisor:{ fullName:   { contains: search.trim(), mode: 'insensitive' } } },
+        { user:   { fullName:    { contains: search.trim(), mode: 'insensitive' } } },
+        { user:   { phoneNumber: { contains: search.trim(), mode: 'insensitive' } } },
+        { advisor:{ fullName:    { contains: search.trim(), mode: 'insensitive' } } },
       ];
     }
+    if (advisorId) where.advisorId = advisorId;
+    if (isFree === 'true')  where.isFree = true;
+    if (isFree === 'false') where.isFree = false;
 
-    const [unlocks, total] = await prisma.$transaction([
+    const dateRange = periodToRange(period, from || undefined, to || undefined, month || undefined);
+    if (dateRange) where.createdAt = dateRange;
+
+    const [unlocks, total, freeCount, uniqueUsers, uniqueAdvisors] = await prisma.$transaction([
       prisma.contactUnlock.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -486,10 +585,20 @@ router.get('/contact-unlocks', ...ADMIN_GUARD, async (req: Request, res: Respons
         },
       }),
       prisma.contactUnlock.count({ where }),
+      prisma.contactUnlock.count({ where: { ...where, isFree: true } }),
+      prisma.contactUnlock.findMany({ where, select: { userId: true }, distinct: ['userId'] }),
+      prisma.contactUnlock.findMany({ where, select: { advisorId: true }, distinct: ['advisorId'] }),
     ]);
 
     res.json({
       success: true,
+      summary: {
+        total,
+        uniqueUsers: uniqueUsers.length,
+        uniqueAdvisors: uniqueAdvisors.length,
+        freeConnections: freeCount,
+        paidConnections: total - freeCount,
+      },
       data: unlocks.map((u) => ({
         id: u.id,
         unlockedAt: u.createdAt,
@@ -507,6 +616,77 @@ router.get('/contact-unlocks', ...ADMIN_GUARD, async (req: Request, res: Respons
   } catch (err) {
     console.error('[admin/contact-unlocks]', err);
     res.status(500).json({ success: false, message: 'Failed to fetch contact unlocks' });
+  }
+});
+
+/**
+ * GET /admin/analytics/connections — aggregated connection trend + top advisors/users
+ */
+router.get('/analytics/connections', ...ADMIN_GUARD, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { period = 'THIS_YEAR', from = '', to = '', month = '', groupBy = 'MONTH' } = req.query as Record<string, string>;
+    const dateRange = periodToRange(period, from || undefined, to || undefined, month || undefined);
+    const where: any = {};
+    if (dateRange) where.createdAt = dateRange;
+
+    const [allUnlocks, topAdvisorsRaw, topUsersRaw] = await Promise.all([
+      prisma.contactUnlock.findMany({ where, select: { createdAt: true }, orderBy: { createdAt: 'asc' } }),
+      prisma.contactUnlock.groupBy({
+        by: ['advisorId'], where, _count: { advisorId: true },
+        orderBy: { _count: { advisorId: 'desc' } }, take: 5,
+      }),
+      prisma.contactUnlock.groupBy({
+        by: ['userId'], where, _count: { userId: true },
+        orderBy: { _count: { userId: 'desc' } }, take: 5,
+      }),
+    ]);
+
+    // Build trend grouped by DAY / WEEK / MONTH
+    const trendMap: Record<string, number> = {};
+    for (const u of allUnlocks) {
+      const d = new Date(u.createdAt);
+      let key: string;
+      if (groupBy === 'DAY') {
+        key = d.toISOString().slice(0, 10);
+      } else if (groupBy === 'WEEK') {
+        const s = new Date(d);
+        s.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
+        key = s.toISOString().slice(0, 10);
+      } else {
+        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      }
+      trendMap[key] = (trendMap[key] || 0) + 1;
+    }
+    const trend = Object.entries(trendMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([label, count]) => ({ label, count }));
+
+    // Enrich top advisors with names
+    const advIds = topAdvisorsRaw.map((a: any) => a.advisorId);
+    const advDetails = await prisma.advisor.findMany({
+      where: { id: { in: advIds } },
+      select: { id: true, fullName: true, location: true, state: true },
+    });
+    const topAdvisors = topAdvisorsRaw.map((a: any) => {
+      const d = advDetails.find((x: any) => x.id === a.advisorId);
+      return { advisorId: a.advisorId, fullName: d?.fullName ?? '—', location: d?.location ?? '', connectionCount: a._count.advisorId };
+    });
+
+    // Enrich top users with names
+    const usrIds = topUsersRaw.map((u: any) => u.userId);
+    const usrDetails = await prisma.user.findMany({
+      where: { id: { in: usrIds } },
+      select: { id: true, fullName: true, phoneNumber: true },
+    });
+    const topUsers = topUsersRaw.map((u: any) => {
+      const d = usrDetails.find((x: any) => x.id === u.userId);
+      return { userId: u.userId, fullName: d?.fullName ?? '—', phoneNumber: d?.phoneNumber ?? '', connectionCount: u._count.userId };
+    });
+
+    res.json({ success: true, trend, topAdvisors, topUsers });
+  } catch (err) {
+    console.error('[admin/analytics/connections]', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch connection analytics' });
   }
 });
 

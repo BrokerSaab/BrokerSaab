@@ -310,6 +310,38 @@ export default function AdminSuitePage() {
   const [contactUnlocksSearch, setContactUnlocksSearch]   = useState('');
   const [contactUnlocksTotal, setContactUnlocksTotal]     = useState(0);
 
+  // ── Connection-filter state ─────────────────────────────────────────────
+  // Contact-Unlocks tab filters
+  const [cuPeriod, setCuPeriod]       = useState('ALL');
+  const [cuFrom,   setCuFrom]         = useState('');
+  const [cuTo,     setCuTo]           = useState('');
+  const [cuMonth,  setCuMonth]        = useState('');
+  const [cuYear,   setCuYear]         = useState(new Date().getFullYear().toString());
+  const [cuIsFree, setCuIsFree]       = useState('ALL');
+  const [cuSummary, setCuSummary]     = useState<{ total: number; uniqueUsers: number; uniqueAdvisors: number; freeConnections: number; paidConnections: number } | null>(null);
+
+  // Analytics
+  const [connAnalytics, setConnAnalytics] = useState<{
+    trend: { label: string; count: number }[];
+    topAdvisors: { advisorId: string; fullName: string; location: string; connectionCount: number }[];
+    topUsers: { userId: string; fullName: string; phoneNumber: string; connectionCount: number }[];
+  } | null>(null);
+  const [connAnalyticsPeriod, setConnAnalyticsPeriod] = useState('THIS_YEAR');
+  const [connGroupBy,         setConnGroupBy]         = useState('MONTH');
+  const [showAnalytics,       setShowAnalytics]       = useState(false);
+
+  // Users tab filters
+  const [userMinConn,   setUserMinConn]   = useState('');
+  const [userJoinPeriod, setUserJoinPeriod] = useState('ALL');
+  const [userJoinMonth,  setUserJoinMonth]  = useState('');
+  const [userJoinYear,   setUserJoinYear]   = useState(new Date().getFullYear().toString());
+
+  // Advisors tab filters
+  const [advMinReceived,  setAdvMinReceived]  = useState('');
+  const [advJoinPeriod,   setAdvJoinPeriod]   = useState('ALL');
+  const [advJoinMonth,    setAdvJoinMonth]    = useState('');
+  const [advJoinYear,     setAdvJoinYear]     = useState(new Date().getFullYear().toString());
+
   // Bookings tab
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
@@ -359,12 +391,12 @@ export default function AdminSuitePage() {
   const [crReviewing, setCrReviewing] = useState<string | null>(null);
   const [pendingCrCount, setPendingCrCount] = useState(0);
 
-  const token = () => (typeof localStorage !== 'undefined' ? localStorage.getItem('accessToken') || '' : '');
+  const token = () => (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('accessToken') || '' : '');
 
   useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
+    if (typeof sessionStorage !== 'undefined') {
       try {
-        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        const u = JSON.parse(sessionStorage.getItem('user') || '{}');
         if (u?.role) setAdminRole(u.role);
       } catch { /* keep default */ }
     }
@@ -394,11 +426,15 @@ export default function AdminSuitePage() {
       if (advisorStatusFilter !== 'ALL') params.set('status', advisorStatusFilter);
       if (advisorTypeFilter !== 'ALL') params.set('type', advisorTypeFilter);
       if (advisorSearch.trim()) params.set('search', advisorSearch.trim());
+      if (advMinReceived) params.set('minReceived', advMinReceived);
+      if (advJoinPeriod && advJoinPeriod !== 'ALL') params.set('joinPeriod', advJoinPeriod);
+      if (advJoinPeriod === 'MONTH' && advJoinMonth && advJoinYear)
+        params.set('joinMonth', `${advJoinYear}-${advJoinMonth}`);
       const r = await fetch(`${API}/admin/advisors?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
       const d = await r.json();
       if (d.success) { setAdvisors(d.data); setSelectedAdv(d.data[0] ?? null); }
     } catch { /* empty */ } finally { setAdvisorsLoading(false); }
-  }, [advisorStatusFilter, advisorTypeFilter, advisorSearch, isSuperAdmin]);
+  }, [advisorStatusFilter, advisorTypeFilter, advisorSearch, isSuperAdmin, advMinReceived, advJoinPeriod, advJoinMonth, advJoinYear]);
 
   const fetchSubAdmins = useCallback(async () => {
     if (!isSuperAdmin) return;
@@ -422,12 +458,16 @@ export default function AdminSuitePage() {
     setUsersLoading(true);
     try {
       const params = new URLSearchParams({ limit: '50' });
-      if (userSearch.trim()) params.set('search', userSearch.trim());
+      if (userSearch.trim())          params.set('search', userSearch.trim());
+      if (userMinConn)                params.set('minConnections', userMinConn);
+      if (userJoinPeriod && userJoinPeriod !== 'ALL') params.set('joinPeriod', userJoinPeriod);
+      if (userJoinPeriod === 'MONTH' && userJoinMonth && userJoinYear)
+        params.set('joinMonth', `${userJoinYear}-${userJoinMonth}`);
       const r = await fetch(`${API}/admin/users?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
       const d = await r.json();
       if (d.success) setUsers(d.data);
     } catch { /* empty */ } finally { setUsersLoading(false); }
-  }, [userSearch]);
+  }, [userSearch, userMinConn, userJoinPeriod, userJoinMonth, userJoinYear]);
 
   const fetchAdvChangeRequests = async (advisorId: string) => {
     try {
@@ -470,6 +510,13 @@ export default function AdminSuitePage() {
       if (!body.aadhaarNumber?.trim()) delete body.aadhaarNumber;
       body.experienceYears = parseInt(editForm.experienceYears) || 0;
       body.consultationFee = parseFloat(editForm.consultationFee) || 0;
+      // Sub-admins cannot modify sensitive identity fields
+      if (!isSuperAdmin) {
+        delete body.fullName;
+        delete body.phoneNumber;
+        delete body.aadhaarNumber;
+        delete body.licenseNumber;
+      }
       const r = await fetch(`${API}/admin/advisors/${editAdvisor.id}/edit`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
@@ -622,11 +669,31 @@ export default function AdminSuitePage() {
     try {
       const params = new URLSearchParams({ limit: '100' });
       if (contactUnlocksSearch.trim()) params.set('search', contactUnlocksSearch.trim());
+      if (cuPeriod && cuPeriod !== 'ALL')   params.set('period', cuPeriod);
+      if (cuPeriod === 'CUSTOM' && cuFrom)  params.set('from', cuFrom);
+      if (cuPeriod === 'CUSTOM' && cuTo)    params.set('to', cuTo);
+      if (cuPeriod === 'MONTH' && cuMonth && cuYear) params.set('month', `${cuYear}-${cuMonth}`);
+      if (cuIsFree !== 'ALL') params.set('isFree', cuIsFree === 'FREE' ? 'true' : 'false');
       const r = await fetch(`${API}/admin/contact-unlocks?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
       const d = await r.json();
-      if (d.success) { setContactUnlocks(d.data); setContactUnlocksTotal(d.total); }
+      if (d.success) {
+        setContactUnlocks(d.data);
+        setContactUnlocksTotal(d.total);
+        if (d.summary) setCuSummary(d.summary);
+      }
     } catch { /* empty */ } finally { setContactUnlocksLoading(false); }
-  }, [contactUnlocksSearch]);
+  }, [contactUnlocksSearch, cuPeriod, cuFrom, cuTo, cuMonth, cuYear, cuIsFree]);
+
+  const fetchConnAnalytics = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({ period: connAnalyticsPeriod, groupBy: connGroupBy });
+      const r = await fetch(`${API}/admin/analytics/connections?${params}`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.success) setConnAnalytics(d);
+    } catch { /* empty */ }
+  }, [connAnalyticsPeriod, connGroupBy]);
+
+  useEffect(() => { if (showAnalytics) fetchConnAnalytics(); }, [showAnalytics, fetchConnAnalytics]);
 
   const updateTicketStatus = useCallback(async (id: string, status: string) => {
     if (status === 'CLOSED') { openClosingModal(id); return; }
@@ -1115,6 +1182,39 @@ export default function AdminSuitePage() {
             </div>
           )}
 
+          {/* Advisor connection filters */}
+          {isSuperAdmin && (
+            <div className="flex flex-wrap gap-2 items-center bg-white rounded-xl border border-slate-200 p-3">
+              <span className="text-[10px] font-bold text-slate-400 uppercase shrink-0">Clients Reached:</span>
+              {([['','All'],['1','1+'],['10','10+'],['50','50+'],['100','100+']] as const).map(([v,l]) => (
+                <button key={v} onClick={() => setAdvMinReceived(v)}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${advMinReceived === v ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-indigo-50'}`}>
+                  {l}
+                </button>
+              ))}
+              <span className="text-[10px] font-bold text-slate-400 uppercase ml-2 shrink-0">Joined:</span>
+              {([['ALL','All'],['THIS_MONTH','This Month'],['THIS_QUARTER','Quarter'],['THIS_YEAR','This Year'],['MONTH','Month↓']] as const).map(([v,l]) => (
+                <button key={v} onClick={() => setAdvJoinPeriod(v)}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${advJoinPeriod === v ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-emerald-50'}`}>
+                  {l}
+                </button>
+              ))}
+              {advJoinPeriod === 'MONTH' && (
+                <>
+                  <select value={advJoinMonth} onChange={e => setAdvJoinMonth(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white outline-none text-slate-700">
+                    <option value="">Month</option>
+                    {['01','02','03','04','05','06','07','08','09','10','11','12'].map((m,i) => (
+                      <option key={m} value={m}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i]}</option>
+                    ))}
+                  </select>
+                  <select value={advJoinYear} onChange={e => setAdvJoinYear(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white outline-none text-slate-700">
+                    {[2024,2025,2026].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Search bar — visible for both roles */}
           <div className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm">
             <Search size={14} className="text-slate-400 shrink-0" />
@@ -1207,8 +1307,8 @@ export default function AdminSuitePage() {
                           <h3 className="text-lg font-bold text-slate-800">{selectedAdv.fullName}</h3>
                           <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">{genDisplayId('advisor', selectedAdv.seqId)}</span>
                         </div>
-                        <p className="text-xs text-slate-400">{selectedAdv.location} · {selectedAdv.experienceYears}y exp · ₹{selectedAdv.consultationFee}/session</p>
-                        <p className="text-[11px] text-slate-500 font-mono">{selectedAdv.email} · {selectedAdv.phoneNumber}</p>
+                        <p className="text-xs text-slate-400">{selectedAdv.location} Â· {selectedAdv.experienceYears}y exp Â· ₹{selectedAdv.consultationFee}/session</p>
+                        <p className="text-[11px] text-slate-500 font-mono">{selectedAdv.email} Â· {selectedAdv.phoneNumber}</p>
                         {selectedAdv.aadhaarLast4 && <p className="text-[11px] text-slate-500">Aadhaar: ****{selectedAdv.aadhaarLast4}</p>}
                         {selectedAdv.licenseNumber && <p className="text-[11px] text-slate-500">License: {selectedAdv.licenseNumber}</p>}
                         {selectedAdv.gstNumber && <p className="text-[11px] text-slate-500">GST: {selectedAdv.gstNumber}</p>}
@@ -1319,7 +1419,7 @@ export default function AdminSuitePage() {
                               </div>
                               <span className="text-[10px] text-slate-600 font-medium leading-tight">{doc.documentType.replace(/_/g, ' ')}</span>
                               <span className={`text-[9px] px-1.5 py-0.5 rounded text-center font-semibold ${doc.verified ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-amber-50 text-amber-600 border border-amber-200'}`}>
-                                {doc.verified ? '✓ Verified' : '⏳ Pending'}
+                                {doc.verified ? 'âœ“ Verified' : 'â³ Pending'}
                               </span>
                               <div className="flex gap-1">
                                 <a href={fileUrl} target="_blank" rel="noreferrer"
@@ -1393,19 +1493,50 @@ export default function AdminSuitePage() {
             </div>
           </div>
 
-          {/* User search bar */}
-          <div className="flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm">
-            <Search size={14} className="text-slate-400 shrink-0" />
-            <input
-              type="text"
-              placeholder="Search by name, phone, email or BSU-000001…"
-              value={userSearch}
-              onChange={e => setUserSearch(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && fetchUsers()}
-              className="flex-1 text-xs outline-none text-slate-700 placeholder:text-slate-400 bg-transparent"
-            />
-            {userSearch && <button onClick={() => setUserSearch('')} className="text-slate-300 hover:text-slate-500 text-xs">✕</button>}
-            <button onClick={fetchUsers} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 px-2 py-1 rounded-lg hover:bg-indigo-50 transition-all">Search</button>
+          {/* User filters */}
+          <div className="bg-white rounded-xl border border-slate-200 p-3 space-y-3">
+            {/* Search */}
+            <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2">
+              <Search size={14} className="text-slate-400 shrink-0" />
+              <input type="text" placeholder="Search by name, phone, email or BSU-000001…" value={userSearch}
+                onChange={e => setUserSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && fetchUsers()}
+                className="flex-1 text-xs outline-none text-slate-700 placeholder:text-slate-400 bg-transparent" />
+              {userSearch && <button onClick={() => setUserSearch('')} className="text-slate-300 hover:text-slate-500 text-xs">✕</button>}
+            </div>
+            {/* Connection count filter */}
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Connections Made:</span>
+              {([['','All'],['1','1+'],['5','5+'],['10','10+'],['20','20+'],['50','50+']] as const).map(([v,l]) => (
+                <button key={v} onClick={() => setUserMinConn(v)}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${userMinConn === v ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-indigo-50'}`}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            {/* Joined period */}
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Joined:</span>
+              {([['ALL','All Time'],['TODAY','Today'],['THIS_WEEK','This Week'],['THIS_MONTH','This Month'],['THIS_QUARTER','This Quarter'],['THIS_YEAR','This Year'],['MONTH','Pick Month']] as const).map(([v,l]) => (
+                <button key={v} onClick={() => setUserJoinPeriod(v)}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${userJoinPeriod === v ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-emerald-50'}`}>
+                  {l}
+                </button>
+              ))}
+              {userJoinPeriod === 'MONTH' && (
+                <>
+                  <select value={userJoinMonth} onChange={e => setUserJoinMonth(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white outline-none text-slate-700">
+                    <option value="">Month</option>
+                    {['01','02','03','04','05','06','07','08','09','10','11','12'].map((m,i) => (
+                      <option key={m} value={m}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i]}</option>
+                    ))}
+                  </select>
+                  <select value={userJoinYear} onChange={e => setUserJoinYear(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white outline-none text-slate-700">
+                    {[2024,2025,2026].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </>
+              )}
+              <button onClick={fetchUsers} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-all">Apply</button>
+            </div>
           </div>
 
           {usersLoading ? (
@@ -1414,7 +1545,7 @@ export default function AdminSuitePage() {
             <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
               <table className="w-full text-xs text-slate-700">
                 <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
-                  {['ID', 'Name', 'Phone', 'Email', 'State', 'Bookings', 'Joined'].map(h => (
+                  {['ID', 'Name', 'Phone', 'Email', 'State', 'Advisor Contacts', 'Bookings', 'Joined'].map(h => (
                     <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-[10px]">{h}</th>
                   ))}
                 </tr></thead>
@@ -1428,6 +1559,11 @@ export default function AdminSuitePage() {
                       <td className="px-4 py-3 font-mono">{u.phoneNumber}</td>
                       <td className="px-4 py-3 text-slate-400">{u.email || '—'}</td>
                       <td className="px-4 py-3">{u.state || '—'}</td>
+                      <td className="px-4 py-3 text-center">
+                        {(u._count as any)?.contactUnlocks != null
+                          ? <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(u._count as any).contactUnlocks > 0 ? 'bg-indigo-50 text-indigo-600 border border-indigo-200' : 'text-slate-400'}`}>{(u._count as any).contactUnlocks}</span>
+                          : '—'}
+                      </td>
                       <td className="px-4 py-3 text-center">{u._count?.bookings ?? 0}</td>
                       <td className="px-4 py-3 text-slate-500">{new Date(u.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                     </tr>
@@ -1492,7 +1628,7 @@ export default function AdminSuitePage() {
                             <td className="px-4 py-3 font-medium">{snap?.fullName || '—'}</td>
                             <td className="px-4 py-3 text-slate-400">{snap?.email || '—'}</td>
                             <td className="px-4 py-3">{snap?.state || '—'}</td>
-                            <td className="px-4 py-3">{s.currentStep}/8 · <span className="text-slate-400">{s.stepLabel}</span></td>
+                            <td className="px-4 py-3">{s.currentStep}/8 Â· <span className="text-slate-400">{s.stepLabel}</span></td>
                             <td className="px-4 py-3 text-slate-500">{new Date(s.lastActiveAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
                             <td className="px-4 py-3 text-center">{s.advisorId ? <CheckCircle size={13} className="text-emerald-400 mx-auto" /> : <XCircle size={13} className="text-red-400 mx-auto" />}</td>
                             <td className="px-4 py-3">
@@ -1650,29 +1786,186 @@ export default function AdminSuitePage() {
       {/* ── CONTACT UNLOCKS ── */}
       {activeTab === 'contact-unlocks' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
+          {/* Header */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h2 className="text-sm font-bold text-slate-800">Advisor Contact Unlocks</h2>
               <p className="text-xs text-slate-500 mt-0.5">Every advisor contact revealed by a user — {contactUnlocksTotal} total</p>
             </div>
             <div className="flex gap-2 items-center">
-              {/* Search */}
-              <div className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-500">
-                <Search size={13} />
-                <input
-                  type="text"
-                  placeholder="Search user or advisor…"
-                  value={contactUnlocksSearch}
-                  onChange={e => setContactUnlocksSearch(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && fetchContactUnlocks()}
-                  className="outline-none bg-transparent w-44 placeholder-slate-400 text-slate-700"
-                />
-              </div>
+              <button onClick={() => { setShowAnalytics(p => !p); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${showAnalytics ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-300 hover:bg-indigo-50'}`}>
+                <BarChart2 size={13} /> {showAnalytics ? 'Hide Analytics' : 'Analytics'}
+              </button>
               <button onClick={fetchContactUnlocks} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 transition-colors">
                 <RefreshCw size={13} /> Refresh
               </button>
             </div>
           </div>
+
+          {/* Analytics panel */}
+          {showAnalytics && (
+            <div className="bg-white rounded-xl border border-indigo-100 p-4 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Connection Analytics</p>
+                <div className="flex gap-2 flex-wrap">
+                  {(['THIS_WEEK','THIS_MONTH','THIS_QUARTER','THIS_YEAR'] as const).map(p => (
+                    <button key={p} onClick={() => { setConnAnalyticsPeriod(p); }}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${connAnalyticsPeriod === p ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-indigo-50'}`}>
+                      {p.replace('THIS_','').replace('_',' ')}
+                    </button>
+                  ))}
+                  <select value={connGroupBy} onChange={e => setConnGroupBy(e.target.value)} className="text-[10px] border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 outline-none">
+                    <option value="DAY">By Day</option>
+                    <option value="WEEK">By Week</option>
+                    <option value="MONTH">By Month</option>
+                  </select>
+                  <button onClick={fetchConnAnalytics} className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-600 text-white hover:bg-indigo-700">Go</button>
+                </div>
+              </div>
+              {connAnalytics && (
+                <>
+                  {/* Trend bars */}
+                  {connAnalytics.trend.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase">Connection Trend</p>
+                      <div className="flex items-end gap-1 h-20">
+                        {(() => {
+                          const max = Math.max(...connAnalytics.trend.map(t => t.count), 1);
+                          return connAnalytics.trend.map(t => (
+                            <div key={t.label} className="flex-1 flex flex-col items-center gap-0.5 group relative" title={`${t.label}: ${t.count}`}>
+                              <div className="w-full rounded-t-sm bg-indigo-500 hover:bg-indigo-600 transition-all" style={{ height: `${Math.max(4, (t.count / max) * 64)}px` }} />
+                              {connAnalytics.trend.length <= 12 && <span className="text-[8px] text-slate-400 truncate w-full text-center">{t.label.slice(-5)}</span>}
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Top advisors */}
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-600 uppercase mb-2">Top Advisors by Connections</p>
+                      <div className="space-y-1.5">
+                        {connAnalytics.topAdvisors.map((a, i) => (
+                          <div key={a.advisorId} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black text-indigo-400">#{i+1}</span>
+                              <div>
+                                <p className="text-xs font-semibold text-slate-700">{a.fullName}</p>
+                                {a.location && <p className="text-[9px] text-slate-400">{a.location}</p>}
+                              </div>
+                            </div>
+                            <span className="text-xs font-black text-indigo-600">{a.connectionCount}</span>
+                          </div>
+                        ))}
+                        {connAnalytics.topAdvisors.length === 0 && <p className="text-[10px] text-slate-400">No data</p>}
+                      </div>
+                    </div>
+                    {/* Top users */}
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-600 uppercase mb-2">Top Users by Connections Made</p>
+                      <div className="space-y-1.5">
+                        {connAnalytics.topUsers.map((u, i) => (
+                          <div key={u.userId} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black text-emerald-400">#{i+1}</span>
+                              <div>
+                                <p className="text-xs font-semibold text-slate-700">{u.fullName || '—'}</p>
+                                <p className="text-[9px] text-slate-400 font-mono">{u.phoneNumber}</p>
+                              </div>
+                            </div>
+                            <span className="text-xs font-black text-emerald-600">{u.connectionCount}</span>
+                          </div>
+                        ))}
+                        {connAnalytics.topUsers.length === 0 && <p className="text-[10px] text-slate-400">No data</p>}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Filter bar */}
+          <div className="bg-white rounded-xl border border-slate-200 p-3 space-y-3">
+            {/* Period presets */}
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Period:</span>
+              {([
+                ['ALL','All Time'],['TODAY','Today'],['THIS_WEEK','This Week'],
+                ['THIS_MONTH','This Month'],['LAST_MONTH','Last Month'],
+                ['THIS_QUARTER','This Quarter'],['THIS_YEAR','This Year'],['MONTH','Pick Month'],['CUSTOM','Custom']
+              ] as const).map(([v,l]) => (
+                <button key={v} onClick={() => setCuPeriod(v)}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${cuPeriod === v ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}>
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            {/* Month picker */}
+            {cuPeriod === 'MONTH' && (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Month:</span>
+                <select value={cuMonth} onChange={e => setCuMonth(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-700 outline-none">
+                  <option value="">Select month</option>
+                  {['01','02','03','04','05','06','07','08','09','10','11','12'].map((m, i) => (
+                    <option key={m} value={m}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i]}</option>
+                  ))}
+                </select>
+                <select value={cuYear} onChange={e => setCuYear(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-700 outline-none">
+                  {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+            )}
+
+            {/* Custom date range */}
+            {cuPeriod === 'CUSTOM' && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold text-slate-400 uppercase">From:</span>
+                <input type="date" value={cuFrom} onChange={e => setCuFrom(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 outline-none" />
+                <span className="text-[10px] font-bold text-slate-400">To:</span>
+                <input type="date" value={cuTo} onChange={e => setCuTo(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 outline-none" />
+              </div>
+            )}
+
+            {/* Type + search row */}
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Type:</span>
+              {([['ALL','All'],['FREE','Free Only'],['PAID','Paid Only']] as const).map(([v,l]) => (
+                <button key={v} onClick={() => setCuIsFree(v)}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${cuIsFree === v ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-amber-50'}`}>
+                  {l}
+                </button>
+              ))}
+              <div className="flex-1 min-w-[200px] flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-1.5 bg-white">
+                <Search size={12} className="text-slate-400 shrink-0" />
+                <input type="text" placeholder="Search user or advisor…" value={contactUnlocksSearch}
+                  onChange={e => setContactUnlocksSearch(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && fetchContactUnlocks()}
+                  className="flex-1 text-xs outline-none text-slate-700 placeholder:text-slate-400 bg-transparent" />
+              </div>
+              <button onClick={fetchContactUnlocks} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-all">Apply</button>
+            </div>
+          </div>
+
+          {/* Summary cards */}
+          {cuSummary && (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                { label: 'Total', value: cuSummary.total, color: 'text-indigo-600', bg: 'bg-indigo-50 border-indigo-100' },
+                { label: 'Unique Users', value: cuSummary.uniqueUsers, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-100' },
+                { label: 'Unique Advisors', value: cuSummary.uniqueAdvisors, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-100' },
+                { label: 'Paid', value: cuSummary.paidConnections, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200' },
+                { label: 'Free', value: cuSummary.freeConnections, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-100' },
+              ].map(c => (
+                <div key={c.label} className={`rounded-xl border px-4 py-3 ${c.bg}`}>
+                  <p className={`text-xl font-black ${c.color}`}>{c.value}</p>
+                  <p className="text-[10px] text-slate-500 font-semibold uppercase mt-0.5">{c.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
 
           {contactUnlocksLoading ? (
             <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 size={22} className="animate-spin mr-3" /> Loading…</div>
@@ -1716,7 +2009,7 @@ export default function AdminSuitePage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${u.isFree ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
-                          {u.isFree ? '🎁 Free' : 'Credit'}
+                          {u.isFree ? 'ðŸŽ Free' : 'Credit'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
@@ -1771,7 +2064,7 @@ export default function AdminSuitePage() {
                     <p className="text-sm font-semibold text-white">{b.client?.fullName ?? 'Client'} → {b.advisor?.fullName ?? 'Advisor'}</p>
                     <div className="flex gap-3 text-xs text-slate-400">
                       <span className="flex items-center gap-1"><Calendar size={11} className="text-gold-500/60" />{new Date(b.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                      <span className="flex items-center gap-1"><Clock size={11} className="text-gold-500/60" />{b.startTime} – {b.endTime}</span>
+                      <span className="flex items-center gap-1"><Clock size={11} className="text-gold-500/60" />{b.startTime} â€“ {b.endTime}</span>
                       <span className="text-gold-400 font-bold">₹{b.totalFee}</span>
                     </div>
                   </div>
@@ -1843,7 +2136,7 @@ export default function AdminSuitePage() {
                       </div>
                       <p className="text-[11px] text-slate-400 truncate">{ticket.user.fullName || ticket.user.phoneNumber}</p>
                       {ticket.assignedToAdmin && (
-                        <p className="text-[10px] text-slate-400 mt-0.5">↳ {ticket.assignedToAdmin.fullName}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">â†³ {ticket.assignedToAdmin.fullName}</p>
                       )}
                     </div>
                   );
@@ -1860,8 +2153,8 @@ export default function AdminSuitePage() {
                       <h3 className="text-base font-bold text-slate-800 mt-0.5">{selectedTicket.subject}</h3>
                       <p className="text-xs text-slate-400 mt-0.5">
                         From: <strong className="text-slate-600">{selectedTicket.user.fullName || 'User'}</strong>
-                        {' · '}{selectedTicket.user.phoneNumber}
-                        {selectedTicket.user.email && <> · {selectedTicket.user.email}</>}
+                        {' Â· '}{selectedTicket.user.phoneNumber}
+                        {selectedTicket.user.email && <> Â· {selectedTicket.user.email}</>}
                         {selectedTicket.user.role && <span className="ml-1 text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{selectedTicket.user.role}</span>}
                       </p>
                     </div>
@@ -1944,7 +2237,7 @@ export default function AdminSuitePage() {
                               : s === 'RESOLVED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
                               : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
                             }`}>
-                            {s === 'IN_PROGRESS' ? '🔄 In Progress' : s === 'RESOLVED' ? '✅ Resolved' : '🔒 Close Ticket'}
+                            {s === 'IN_PROGRESS' ? 'ðŸ"„ In Progress' : s === 'RESOLVED' ? 'âœ… Resolved' : 'ðŸ"’ Close Ticket'}
                           </button>
                         ))}
                       </div>
@@ -1973,7 +2266,7 @@ export default function AdminSuitePage() {
                                 <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{act.note}</p>
                               )}
                               <p className="text-[10px] text-slate-400 mt-0.5">
-                                {act.performedByName} · {new Date(act.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                {act.performedByName} Â· {new Date(act.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                               </p>
                             </div>
                           </div>
@@ -1984,7 +2277,7 @@ export default function AdminSuitePage() {
                 </div>
               ) : (
                 <div className="hidden lg:col-span-3 lg:flex items-center justify-center bg-white rounded-2xl border border-dashed border-slate-200 h-64 text-slate-300 text-sm">
-                  ← Click a ticket to view details
+                  â† Click a ticket to view details
                 </div>
               )}
             </div>
@@ -2017,7 +2310,7 @@ export default function AdminSuitePage() {
                     disabled={!closingNoteText.trim() || closingSubmitting}
                     className="px-5 py-2 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {closingSubmitting ? <><Loader2 size={13} className="animate-spin" /> Closing…</> : <>🔒 Close Ticket</>}
+                    {closingSubmitting ? <><Loader2 size={13} className="animate-spin" /> Closing…</> : <>ðŸ"’ Close Ticket</>}
                   </button>
                 </div>
               </div>
@@ -2227,7 +2520,7 @@ export default function AdminSuitePage() {
                     </div>
                     {pending > 0 && (
                       <p className="text-[10px] text-amber-600 mt-2 font-medium">
-                        ⏳ {pending} advisor{pending > 1 ? 's' : ''} in pipeline
+                        â³ {pending} advisor{pending > 1 ? 's' : ''} in pipeline
                       </p>
                     )}
                   </div>
@@ -2262,7 +2555,7 @@ export default function AdminSuitePage() {
                   <tr key={i} className="border-t border-slate-100">
                     <td className="px-3 py-2 text-slate-700">{e.fullName}</td>
                     <td className="px-3 py-2 text-slate-500">{e.email}</td>
-                    <td className="px-3 py-2 font-mono text-slate-400">{'•'.repeat(Math.min(e.password.length, 12))}</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">{'â€¢'.repeat(Math.min(e.password.length, 12))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -2407,18 +2700,18 @@ export default function AdminSuitePage() {
 
     {/* ── ADMIN EDIT ADVISOR MODAL ── */}
     {editModalOpen && editAdvisor && (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4 py-6 overflow-y-auto">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 px-4 py-3 overflow-y-auto">
         <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-2xl my-auto">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
             <div>
               <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Edit3 size={15} className="text-indigo-600" /> Edit Advisor Details</h3>
-              <p className="text-[10px] text-slate-400 mt-0.5">{editAdvisor.fullName} · {genDisplayId('advisor', editAdvisor.seqId)} · Changes apply immediately</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{editAdvisor.fullName} Â· {genDisplayId('advisor', editAdvisor.seqId)} Â· Changes apply immediately</p>
             </div>
             <button onClick={() => setEditModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
           </div>
 
-          <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+          <div className="px-6 py-5 space-y-5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 210px)' }}>
             {editError && (
               <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-red-600 text-xs">
                 <AlertCircle size={13} className="shrink-0" />{editError}
@@ -2432,24 +2725,45 @@ export default function AdminSuitePage() {
 
             {/* ── Section: Identity ── */}
             <div>
-              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-3 pb-1 border-b border-indigo-100">Identity (Sensitive — applies immediately)</p>
+              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1 pb-1 border-b border-indigo-100">
+                Identity (Sensitive — applies immediately)
+              </p>
+              {!isSuperAdmin && (
+                <p className="text-[9px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 mb-2">
+                  Full Name, Mobile Number, Aadhaar and License are locked — only Super Admin can edit these.
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: 'Full Name', key: 'fullName', hint: 'Must match Aadhaar card' },
+                  { label: 'Full Name', key: 'fullName', hint: 'Must match Aadhaar card', superAdminOnly: true },
                   { label: 'Email', key: 'email', type: 'email', hint: 'Optional' },
-                  { label: 'Mobile Number', key: 'phoneNumber', type: 'tel', hint: '10-digit Indian number' },
-                  { label: 'Aadhaar Number', key: 'aadhaarNumber', hint: '12 digits — leave blank to keep current' },
-                  { label: 'License Number', key: 'licenseNumber', hint: 'Professional licence / degree no.' },
+                  { label: 'Mobile Number', key: 'phoneNumber', type: 'tel', hint: '10-digit Indian number', superAdminOnly: true },
+                  { label: 'Aadhaar Number', key: 'aadhaarNumber', hint: '12 digits — leave blank to keep current', superAdminOnly: true },
+                  { label: 'License Number', key: 'licenseNumber', hint: 'Professional licence / degree no.', superAdminOnly: true },
                   { label: 'GST Number', key: 'gstNumber', hint: 'Optional' },
-                ].map(({ label, key, type, hint }) => (
-                  <div key={key}>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label>
-                    <input type={type || 'text'} value={(editForm as any)[key]}
-                      onChange={e => setEditForm(p => ({ ...p, [key]: e.target.value }))}
-                      placeholder={hint}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-300" />
-                  </div>
-                ))}
+                ].map(({ label, key, type, hint, superAdminOnly }) => {
+                  const locked = superAdminOnly && !isSuperAdmin;
+                  return (
+                    <div key={key}>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider mb-1 flex items-center gap-1 text-slate-500">
+                        {label}
+                        {locked && <span className="text-[8px] text-amber-500 font-semibold normal-case tracking-normal">Admin only</span>}
+                      </label>
+                      {locked ? (
+                        <div className="w-full border border-slate-100 bg-slate-50 rounded-xl px-3 py-2 text-xs text-slate-400 select-none cursor-not-allowed">
+                          {key === 'aadhaarNumber'
+                            ? (editAdvisor?.aadhaarLast4 ? `****${editAdvisor.aadhaarLast4}` : '—')
+                            : ((editForm as any)[key] || '—')}
+                        </div>
+                      ) : (
+                        <input type={type || 'text'} value={(editForm as any)[key]}
+                          onChange={e => setEditForm(p => ({ ...p, [key]: e.target.value }))}
+                          placeholder={hint}
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-300" />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
