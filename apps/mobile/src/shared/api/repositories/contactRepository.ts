@@ -7,6 +7,11 @@ import type {
 } from '@brokersaab/shared-types';
 
 export const contactRepository = {
+  getMyStatus: () =>
+    apiClient
+      .get<{ success: boolean; creditsRemaining: number; creditsTotal: number; expiresAt: string | null; unlockedAdvisorIds: string[] }>('/contacts/status')
+      .then((r) => r.data),
+
   getStatus: (advisorId: string) =>
     apiClient
       .get<ContactStatusResponse>(`/contacts/status/${advisorId}`)

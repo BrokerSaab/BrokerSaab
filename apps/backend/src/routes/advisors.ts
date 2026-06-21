@@ -634,6 +634,37 @@ router.post(
 );
 
 /**
+ * GET /advisors/me/full
+ * Returns all editable profile fields for the logged-in advisor.
+ */
+router.get(
+  '/me/full',
+  authenticateJWT,
+  requireRole([Role.ADVISOR]),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const advisorId = (req.user as any).advisorId;
+      if (!advisorId) { res.status(400).json({ success: false, message: 'Advisor profile not found' }); return; }
+      const advisor = await prisma.advisor.findUnique({
+        where: { id: advisorId },
+        select: {
+          id: true, fullName: true, email: true, phoneNumber: true, businessName: true,
+          bio: true, location: true, state: true, circle: true, subdivision: true,
+          experienceYears: true, consultationFee: true, languages: true,
+          gstNumber: true, licenseNumber: true, aadhaarLast4: true,
+          avatarUrl: true, coverImageUrl: true,
+        },
+      });
+      if (!advisor) { res.status(404).json({ success: false, message: 'Advisor not found' }); return; }
+      res.json({ success: true, data: advisor });
+    } catch (err) {
+      console.error('[advisors/me/full]', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch profile' });
+    }
+  }
+);
+
+/**
  * 5c. GET /advisors/me/images
  * Returns current avatarUrl and coverImageUrl for the logged-in advisor.
  */
@@ -692,5 +723,202 @@ router.get('/onboarding-progress/:phoneNumber', async (req: Request, res: Respon
     res.status(500).json({ success: false, message: 'Failed to fetch progress' });
   }
 });
+
+// ── Profile Edit & Change Requests ───────────────────────────────────────────
+
+const updateProfileSchema = z.object({
+  body: z.object({
+    bio:              z.string().optional(),
+    businessName:     z.string().optional(),
+    location:         z.string().optional(),
+    state:            z.string().optional(),
+    circle:           z.string().optional(),
+    subdivision:      z.string().optional(),
+    experienceYears:  z.number().int().min(0).optional(),
+    consultationFee:  z.number().min(0).optional(),
+    languages:        z.array(z.string()).optional(),
+    email:            z.string().email().optional().or(z.literal('')),
+    gstNumber:        z.string().optional(),
+  })
+});
+
+const SENSITIVE_FIELDS = ['phoneNumber', 'aadhaarNumber', 'licenseNumber', 'fullName'] as const;
+type SensitiveField = typeof SENSITIVE_FIELDS[number];
+
+const changeRequestSchema = z.object({
+  body: z.object({
+    fieldName: z.enum(SENSITIVE_FIELDS),
+    newValue:  z.string().min(1),
+  })
+});
+
+/**
+ * PATCH /advisors/me/profile
+ * Directly update non-sensitive advisor profile fields.
+ * Changes are applied immediately without admin approval.
+ */
+router.patch(
+  '/me/profile',
+  authenticateJWT,
+  requireRole([Role.ADVISOR]),
+  validateRequest(updateProfileSchema),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const userId = req.user!.id;
+    const { bio, businessName, location, state, circle, subdivision, experienceYears, consultationFee, languages, email, gstNumber } = req.body;
+
+    try {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+
+      const advisor = await prisma.advisor.findUnique({ where: { phoneNumber: user.phoneNumber } });
+      if (!advisor) { res.status(404).json({ success: false, message: 'Advisor not found' }); return; }
+
+      // Build update payload — only include defined fields
+      const data: Record<string, any> = {};
+      if (bio            !== undefined) data.bio            = bio;
+      if (businessName   !== undefined) data.businessName   = businessName;
+      if (location       !== undefined) data.location       = location;
+      if (state          !== undefined) data.state          = state;
+      if (circle         !== undefined) data.circle         = circle;
+      if (subdivision    !== undefined) data.subdivision    = subdivision;
+      if (experienceYears !== undefined) data.experienceYears = experienceYears;
+      if (consultationFee !== undefined) data.consultationFee = consultationFee;
+      if (languages      !== undefined) data.languages      = languages;
+      if (gstNumber      !== undefined) data.gstNumber      = gstNumber || null;
+
+      // Email is optional — update both Advisor and User tables
+      if (email !== undefined) {
+        const normalised = email.trim().toLowerCase() || null;
+        if (normalised && normalised !== advisor.email) {
+          const existing = await prisma.advisor.findFirst({ where: { email: normalised, id: { not: advisor.id } } });
+          if (existing) { res.status(409).json({ success: false, message: 'Email already in use by another advisor' }); return; }
+          data.email = normalised;
+          // Mirror onto User row
+          await prisma.user.update({ where: { id: userId }, data: { email: normalised } });
+        }
+      }
+
+      if (Object.keys(data).length === 0) {
+        res.status(400).json({ success: false, message: 'No fields provided to update' });
+        return;
+      }
+
+      const updated = await prisma.advisor.update({ where: { id: advisor.id }, data });
+      res.json({ success: true, message: 'Profile updated successfully', data: updated });
+    } catch (err) {
+      console.error('[PATCH /advisors/me/profile]', err);
+      res.status(500).json({ success: false, message: 'Failed to update profile' });
+    }
+  }
+);
+
+/**
+ * POST /advisors/me/change-requests
+ * Submit a change request for a sensitive field (phoneNumber, aadhaarNumber, licenseNumber, fullName).
+ * The change is held pending until an admin approves it.
+ * Only one PENDING request per field is allowed at a time.
+ */
+router.post(
+  '/me/change-requests',
+  authenticateJWT,
+  requireRole([Role.ADVISOR]),
+  validateRequest(changeRequestSchema),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const userId = req.user!.id;
+    const { fieldName, newValue } = req.body as { fieldName: SensitiveField; newValue: string };
+
+    try {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+
+      const advisor = await prisma.advisor.findUnique({ where: { phoneNumber: user.phoneNumber } });
+      if (!advisor) { res.status(404).json({ success: false, message: 'Advisor not found' }); return; }
+
+      // Block duplicate pending request for the same field
+      const existing = await (prisma as any).advisorChangeRequest.findFirst({
+        where: { advisorId: advisor.id, fieldName, status: 'PENDING' }
+      });
+      if (existing) {
+        res.status(409).json({ success: false, message: `A pending change request for ${fieldName} already exists. Please wait for admin review.` });
+        return;
+      }
+
+      // Validate & normalise the new value per field
+      let processedNewValue = newValue.trim();
+      let oldValue: string | null = null;
+
+      if (fieldName === 'phoneNumber') {
+        const digits = processedNewValue.replace(/\D/g, '');
+        if (!/^[6-9][0-9]{9}$/.test(digits)) {
+          res.status(400).json({ success: false, message: 'Invalid Indian mobile number (10 digits starting with 6-9)' });
+          return;
+        }
+        const dup = await prisma.advisor.findFirst({ where: { phoneNumber: digits, id: { not: advisor.id } } });
+        if (dup) { res.status(409).json({ success: false, message: 'Phone number already registered' }); return; }
+        processedNewValue = digits;
+        oldValue = advisor.phoneNumber;
+      }
+
+      if (fieldName === 'aadhaarNumber') {
+        const digits = processedNewValue.replace(/\D/g, '');
+        if (!validateAadhaar(digits)) {
+          res.status(400).json({ success: false, message: 'Invalid Aadhaar number (12 digits, not starting with 0 or 1)' });
+          return;
+        }
+        // Store as JSON so approval handler can extract last4 + hash
+        processedNewValue = JSON.stringify({ last4: maskAadhaar(digits), hash: hashAadhaar(digits) });
+        oldValue = advisor.aadhaarLast4 ?? null;
+      }
+
+      if (fieldName === 'licenseNumber') {
+        if (!processedNewValue) { res.status(400).json({ success: false, message: 'License number cannot be empty' }); return; }
+        const dup = await prisma.advisor.findFirst({ where: { licenseNumber: processedNewValue, id: { not: advisor.id } } });
+        if (dup) { res.status(409).json({ success: false, message: 'License number already registered' }); return; }
+        oldValue = advisor.licenseNumber ?? null;
+      }
+
+      if (fieldName === 'fullName') {
+        if (processedNewValue.length < 2) { res.status(400).json({ success: false, message: 'Full name must be at least 2 characters' }); return; }
+        oldValue = advisor.fullName;
+      }
+
+      const changeRequest = await (prisma as any).advisorChangeRequest.create({
+        data: { advisorId: advisor.id, fieldName, oldValue, newValue: processedNewValue }
+      });
+
+      res.status(201).json({ success: true, message: 'Change request submitted. An admin will review it shortly.', data: changeRequest });
+    } catch (err) {
+      console.error('[POST /advisors/me/change-requests]', err);
+      res.status(500).json({ success: false, message: 'Failed to submit change request' });
+    }
+  }
+);
+
+/**
+ * GET /advisors/me/change-requests
+ * Returns this advisor's own change request history.
+ */
+router.get(
+  '/me/change-requests',
+  authenticateJWT,
+  requireRole([Role.ADVISOR]),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const userId = req.user!.id;
+    try {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const advisor = user ? await prisma.advisor.findUnique({ where: { phoneNumber: user.phoneNumber } }) : null;
+      if (!advisor) { res.status(404).json({ success: false, message: 'Advisor not found' }); return; }
+
+      const requests = await (prisma as any).advisorChangeRequest.findMany({
+        where: { advisorId: advisor.id },
+        orderBy: { requestedAt: 'desc' }
+      });
+      res.json({ success: true, data: requests });
+    } catch (err) {
+      console.error('[GET /advisors/me/change-requests]', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch change requests' });
+    }
+  }
+);
 
 export default router;

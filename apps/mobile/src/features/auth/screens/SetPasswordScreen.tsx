@@ -80,7 +80,7 @@ export const SetPasswordScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
           <View style={styles.logoRow}>
             <View style={styles.navLogoWrap}>
-              <Image source={require('../../../assets/logo-icon.png')} style={styles.navLogoImg} resizeMode="contain" />
+              <Image source={require('../../../../assets/logo-icon.png')} style={styles.navLogoImg} resizeMode="contain" />
             </View>
             <Text style={styles.logoTextBroker}>Broker</Text>
             <Text style={styles.logoTextSaab}>Saab</Text>

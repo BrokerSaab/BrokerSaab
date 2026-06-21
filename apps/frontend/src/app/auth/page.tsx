@@ -367,7 +367,7 @@ export default function AuthPage() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-3 text-center">{t('auth.otp.label')}</label>
-                  <div className="flex justify-center gap-2 sm:gap-3">
+                  <div className="flex justify-center gap-1.5 sm:gap-3">
                     {otp.map((digit, i) => (
                       <input
                         key={i}
@@ -378,7 +378,7 @@ export default function AuthPage() {
                         value={digit}
                         onChange={(e) => handleOtpChange(i, e.target.value.replace(/\D/g, ''))}
                         onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                        className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold border-2 border-gray-200 rounded-xl outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition-all text-gray-900"
+                        className="w-10 h-11 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold border-2 border-gray-200 rounded-xl outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition-all text-gray-900"
                         autoFocus={i === 0}
                       />
                     ))}

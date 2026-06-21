@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Palette.inputBg,
     borderRadius: Radius.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Palette.inputBorder,
   },
   inputWrapperFocused: {
@@ -105,10 +105,10 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     color: Palette.text,
-    fontSize: 14,
+    fontSize: 15,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
-    minHeight: 48,
+    minHeight: 50,
   },
   inputWithLeft: { paddingLeft: Spacing.xs },
   inputWithRight: { paddingRight: Spacing.xs },

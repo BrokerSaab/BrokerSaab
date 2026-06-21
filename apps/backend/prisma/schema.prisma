@@ -89,6 +89,12 @@ enum DocumentType {
   OTHER
 }
 
+enum ChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id                String             @id @default(uuid())
   seqId             Int                @unique @default(autoincrement())
@@ -172,6 +178,7 @@ model Advisor {
   contactUnlocks     ContactUnlock[]
   feeQuotes          FeeQuote[]         @relation("AdvisorFeeQuotes")
   serviceTickets     ServiceTicket[]    @relation("AdvisorServiceTickets")
+  changeRequests     AdvisorChangeRequest[]
 
   @@index([verificationStatus])
   @@index([location])
@@ -549,6 +556,27 @@ model AdminUsers {
 
   assignedAdvisors Advisor[]        @relation("SubAdminAdvisors")
   assignedTickets  SupportTickets[] @relation("AssignedTickets")
+}
+
+// ── Advisor Profile Change Requests ──────────────────────────────────────────
+
+model AdvisorChangeRequest {
+  id           String              @id @default(uuid())
+  advisorId    String
+  advisor      Advisor             @relation(fields: [advisorId], references: [id], onDelete: Cascade)
+  // fieldName: "phoneNumber" | "aadhaarNumber" | "licenseNumber" | "fullName"
+  fieldName    String
+  oldValue     String?             // masked for display (e.g. last-4 of Aadhaar)
+  newValue     String              // plaintext new value (aadhaar stored as JSON {last4, hash})
+  status       ChangeRequestStatus @default(PENDING)
+  requestedAt  DateTime            @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?             // AdminUsers.id
+  reviewNote   String?             @db.Text
+  documentUrl  String?             // optional new doc scan uploaded with request
+
+  @@index([advisorId])
+  @@index([status])
 }
 
 // ── Service Ticket System (Escrow-based work tracking) ────────────────────────

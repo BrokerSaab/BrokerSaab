@@ -14,6 +14,8 @@ export type AuthStackParamList = {
 export type HomeStackParamList = {
   HomeScreen: undefined;
   ServiceDetail: { moduleId: string; moduleName: string };
+  AdvisorList: { category?: string; subService?: string } | undefined;
+  AdvisorProfile: { advisorId: string };
 };
 
 export type AdvisorsStackParamList = {
@@ -39,10 +41,19 @@ export type ProfileStackParamList = {
   ContactsUnlocked: undefined;
 };
 
+export type DocumentsStackParamList = {
+  DocumentsScreen: undefined;
+};
+
+export type PaymentsStackParamList = {
+  PaymentsScreen: undefined;
+};
+
 export type ClientTabParamList = {
   HomeTab: NavigatorScreenParams<HomeStackParamList>;
-  AdvisorsTab: NavigatorScreenParams<AdvisorsStackParamList>;
-  BookingsTab: NavigatorScreenParams<BookingsStackParamList>;
+  MyCasesTab: NavigatorScreenParams<BookingsStackParamList>;
+  DocumentsTab: NavigatorScreenParams<DocumentsStackParamList>;
+  PaymentsTab: NavigatorScreenParams<PaymentsStackParamList>;
   ProfileTab: NavigatorScreenParams<ProfileStackParamList>;
 };
 

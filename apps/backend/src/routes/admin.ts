@@ -1183,4 +1183,232 @@ router.delete('/sub-admins/:id', ...SUPER_ADMIN_ONLY, async (req: AuthenticatedR
   }
 });
 
+// ── Change Request endpoints ───────────────────────────────────────────────────
+
+/**
+ * GET /admin/change-requests
+ * List all advisor change requests (filterable by status / fieldName).
+ * SUPER_ADMIN sees all; SUB_ADMIN sees requests for advisors assigned to them.
+ */
+router.get('/change-requests', ...ADMIN_GUARD, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const { status, fieldName, page = '1', limit = '50' } = req.query as Record<string, string>;
+  const isSuperAdmin = req.user!.role === Role.SUPER_ADMIN;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  try {
+    const where: any = {};
+    if (status) where.status = status;
+    if (fieldName) where.fieldName = fieldName;
+
+    if (!isSuperAdmin) {
+      // Sub-admin: only requests from advisors assigned to them
+      const myAdvisors = await prisma.advisor.findMany({
+        where: { assignedSubAdminId: req.user!.id },
+        select: { id: true },
+      });
+      where.advisorId = { in: myAdvisors.map(a => a.id) };
+    }
+
+    const [requests, total] = await Promise.all([
+      (prisma as any).advisorChangeRequest.findMany({
+        where,
+        orderBy: { requestedAt: 'desc' },
+        skip,
+        take: parseInt(limit),
+        include: {
+          advisor: { select: { id: true, seqId: true, fullName: true, phoneNumber: true, avatarUrl: true } },
+        },
+      }),
+      (prisma as any).advisorChangeRequest.count({ where }),
+    ]);
+
+    res.json({ success: true, data: requests, total, page: parseInt(page), limit: parseInt(limit) });
+  } catch (err) {
+    console.error('[admin/change-requests GET]', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch change requests' });
+  }
+});
+
+/**
+ * GET /admin/advisors/:id/change-requests
+ * All change requests for a specific advisor.
+ */
+router.get('/advisors/:id/change-requests', ...ADMIN_GUARD, async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+  try {
+    const requests = await (prisma as any).advisorChangeRequest.findMany({
+      where: { advisorId: id },
+      orderBy: { requestedAt: 'desc' },
+    });
+    res.json({ success: true, data: requests });
+  } catch (err) {
+    console.error('[admin/advisors/:id/change-requests GET]', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch change requests' });
+  }
+});
+
+/**
+ * PATCH /admin/change-requests/:id
+ * Approve or reject a pending change request.
+ * On APPROVE: applies the field change to the Advisor (and User for phoneNumber).
+ */
+router.patch('/change-requests/:id', ...ADMIN_GUARD,
+  validateRequest(z.object({ body: z.object({ action: z.enum(['APPROVE', 'REJECT']), note: z.string().optional() }) })),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { id } = req.params;
+    const { action, note } = req.body;
+    const adminId = req.user!.id;
+
+    try {
+      const cr = await (prisma as any).advisorChangeRequest.findUnique({
+        where: { id },
+        include: { advisor: true },
+      });
+      if (!cr) { res.status(404).json({ success: false, message: 'Change request not found' }); return; }
+      if (cr.status !== 'PENDING') {
+        res.status(400).json({ success: false, message: 'This change request has already been reviewed' });
+        return;
+      }
+
+      if (action === 'REJECT') {
+        await (prisma as any).advisorChangeRequest.update({
+          where: { id },
+          data: { status: 'REJECTED', reviewedAt: new Date(), reviewedById: adminId, reviewNote: note || null },
+        });
+        await logAuditEvent('CHANGE_REQUEST_REJECTED', adminId,
+          { advisorId: cr.advisorId, fieldName: cr.fieldName, reviewNote: note || '' }, cr.advisorId, req);
+        res.json({ success: true, message: 'Change request rejected.' });
+        return;
+      }
+
+      // APPROVE — apply the field change
+      const advisor = cr.advisor;
+      const advisorUpdate: Record<string, any> = {};
+      const userUpdate: Record<string, any> = {};
+
+      if (cr.fieldName === 'phoneNumber') {
+        advisorUpdate.phoneNumber = cr.newValue;
+        userUpdate.phoneNumber = cr.newValue;
+      } else if (cr.fieldName === 'aadhaarNumber') {
+        const parsed = JSON.parse(cr.newValue) as { last4: string; hash: string };
+        advisorUpdate.aadhaarLast4 = parsed.last4;
+        advisorUpdate.aadhaarHash  = parsed.hash;
+      } else if (cr.fieldName === 'licenseNumber') {
+        advisorUpdate.licenseNumber = cr.newValue;
+      } else if (cr.fieldName === 'fullName') {
+        advisorUpdate.fullName = cr.newValue;
+        // Mirror onto User row via phone number lookup
+        userUpdate.fullName = cr.newValue;
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.advisor.update({ where: { id: advisor.id }, data: advisorUpdate });
+        if (Object.keys(userUpdate).length > 0) {
+          await tx.user.updateMany({ where: { phoneNumber: advisor.phoneNumber }, data: userUpdate });
+        }
+        await (tx as any).advisorChangeRequest.update({
+          where: { id },
+          data: { status: 'APPROVED', reviewedAt: new Date(), reviewedById: adminId, reviewNote: note || null },
+        });
+      });
+
+      await logAuditEvent('CHANGE_REQUEST_APPROVED', adminId,
+        { advisorId: cr.advisorId, advisorName: advisor.fullName, fieldName: cr.fieldName, newValue: cr.fieldName === 'aadhaarNumber' ? '[masked]' : cr.newValue },
+        cr.advisorId, req);
+
+      res.json({ success: true, message: `Change request for ${cr.fieldName} approved and applied.` });
+    } catch (err) {
+      console.error('[admin/change-requests/:id PATCH]', err);
+      res.status(500).json({ success: false, message: 'Failed to process change request' });
+    }
+  }
+);
+
+/**
+ * PATCH /admin/advisors/:id/edit
+ * Admin direct-edit of ANY advisor field — no approval queue.
+ * Super-admin only.
+ */
+router.patch('/advisors/:id/edit', ...SUPER_ADMIN_ONLY,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { id } = req.params;
+    const adminId = req.user!.id;
+    const {
+      fullName, email, phoneNumber,
+      bio, businessName, location, state, circle, subdivision,
+      experienceYears, consultationFee, languages, gstNumber, licenseNumber,
+      aadhaarNumber,
+    } = req.body;
+
+    try {
+      const advisor = await prisma.advisor.findUnique({ where: { id } });
+      if (!advisor) { res.status(404).json({ success: false, message: 'Advisor not found' }); return; }
+
+      const advisorData: Record<string, any> = {};
+      const userData: Record<string, any> = {};
+
+      if (fullName       !== undefined) { advisorData.fullName       = fullName;       userData.fullName = fullName; }
+      if (bio            !== undefined) advisorData.bio            = bio;
+      if (businessName   !== undefined) advisorData.businessName   = businessName;
+      if (location       !== undefined) advisorData.location       = location;
+      if (state          !== undefined) advisorData.state          = state;
+      if (circle         !== undefined) advisorData.circle         = circle;
+      if (subdivision    !== undefined) advisorData.subdivision    = subdivision;
+      if (experienceYears !== undefined) advisorData.experienceYears = Number(experienceYears);
+      if (consultationFee !== undefined) advisorData.consultationFee = Number(consultationFee);
+      if (languages      !== undefined) advisorData.languages      = languages;
+      if (gstNumber      !== undefined) advisorData.gstNumber      = gstNumber || null;
+      if (licenseNumber  !== undefined) advisorData.licenseNumber  = licenseNumber || null;
+
+      if (email !== undefined && email.trim() !== advisor.email) {
+        const normalised = email.trim().toLowerCase();
+        const dup = await prisma.advisor.findFirst({ where: { email: normalised, id: { not: id } } });
+        if (dup) { res.status(409).json({ success: false, message: 'Email already in use' }); return; }
+        advisorData.email = normalised;
+        userData.email    = normalised;
+      }
+
+      if (phoneNumber !== undefined && phoneNumber.trim() !== advisor.phoneNumber) {
+        const digits = phoneNumber.replace(/\D/g, '');
+        const dup = await prisma.advisor.findFirst({ where: { phoneNumber: digits, id: { not: id } } });
+        if (dup) { res.status(409).json({ success: false, message: 'Phone number already in use' }); return; }
+        advisorData.phoneNumber = digits;
+        userData.phoneNumber    = digits;
+      }
+
+      if (aadhaarNumber !== undefined && aadhaarNumber.trim()) {
+        const { validateAadhaar: va, maskAadhaar: ma, hashAadhaar: ha } = await import('../utils/aadhaar');
+        const digits = aadhaarNumber.replace(/\D/g, '');
+        if (!va(digits)) { res.status(400).json({ success: false, message: 'Invalid Aadhaar number' }); return; }
+        advisorData.aadhaarLast4 = ma(digits);
+        advisorData.aadhaarHash  = ha(digits);
+      }
+
+      if (Object.keys(advisorData).length === 0) {
+        res.status(400).json({ success: false, message: 'No fields provided to update' }); return;
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.advisor.update({ where: { id }, data: advisorData });
+        if (Object.keys(userData).length > 0) {
+          await tx.user.updateMany({ where: { phoneNumber: advisor.phoneNumber }, data: userData });
+        }
+      });
+
+      await logAuditEvent('ADMIN_DIRECT_EDIT', adminId,
+        { advisorId: id, advisorName: advisor.fullName, fieldsChanged: Object.keys(advisorData) }, id, req);
+
+      const updated = await prisma.advisor.findUnique({
+        where: { id },
+        include: { documents: true, assignedSubAdmin: { select: { id: true, fullName: true, email: true } } },
+      });
+
+      res.json({ success: true, message: 'Advisor details updated successfully.', data: updated });
+    } catch (err) {
+      console.error('[admin/advisors/:id/edit PATCH]', err);
+      res.status(500).json({ success: false, message: 'Failed to update advisor details' });
+    }
+  }
+);
+
 export default router;

@@ -70,9 +70,12 @@ export default function Navbar() {
   /* Returns className string for a nav link based on whether it is currently active */
   const navLink = (href: string, exact = true) => {
     const active = exact ? pathname === href : pathname.startsWith(href);
+    // Tighter padding in Hindi so longer nav labels don't overflow
+    const px = language === 'HI' ? 'px-2.5' : 'px-4';
+    const fontSize = language === 'HI' ? 'text-xs' : 'text-sm';
     return active
-      ? 'text-sm font-semibold tracking-wide transition-all duration-200 px-4 py-2 rounded-md text-gold-400 bg-gold-500/12 border border-gold-500/25 relative'
-      : 'text-sm font-medium tracking-wide transition-all duration-200 px-4 py-2 rounded-md text-white/80 hover:text-gold-400 hover:bg-white/5 border border-transparent';
+      ? `${fontSize} font-semibold tracking-wide transition-all duration-200 ${px} py-2 rounded-md text-gold-400 bg-gold-500/12 border border-gold-500/25 relative`
+      : `${fontSize} font-medium tracking-wide transition-all duration-200 ${px} py-2 rounded-md text-white/80 hover:text-gold-400 hover:bg-white/5 border border-transparent`;
   };
 
   const mobileNavLink = (href: string, exact = true) => {
@@ -262,7 +265,7 @@ export default function Navbar() {
             {pathname === '/about' && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-gold-400" />}
           </Link>
 
-          {/* ── Services Mega Dropdown (All 19 Modules) ── */}
+          {/* ── Services Mega Dropdown (All 26 Modules) ── */}
           <div
             ref={dropdownRef}
             className="relative"
@@ -312,7 +315,7 @@ export default function Navbar() {
                       {language === 'EN' ? 'All Service Categories' : 'सभी सेवा श्रेणियां'}
                     </h3>
                     <p className="text-[10px] text-slate-500 font-medium">
-                      {language === 'EN' ? '26 modules · 180+ sub-services' : '26 श्रेणियां · 180+ उप-सेवाएं'}
+                      {language === 'EN' ? '26 modules · 185+ sub-services' : '26 श्रेणियां · 185+ उप-सेवाएं'}
                     </p>
                   </div>
                   <Link
@@ -381,13 +384,13 @@ export default function Navbar() {
             <>
               <Link
                 href="/advisors/onboarding"
-                className="text-white hover:text-gold-400 hover:bg-white/10 font-medium transition-all px-3 py-2 rounded-md text-sm flex items-center gap-1.5 border border-white/20 hover:border-gold-500/30"
+                className={`text-white hover:text-gold-400 hover:bg-white/10 font-medium transition-all py-2 rounded-md flex items-center gap-1.5 border border-white/20 hover:border-gold-500/30 ${language === 'HI' ? 'px-2 text-xs' : 'px-3 text-sm'}`}
               >
-                <UserPlus size={15} /> {t('nav.registerAdvisor')}
+                <UserPlus size={14} /> {t('nav.registerAdvisor')}
               </Link>
               <button
                 onClick={() => openLoginModal()}
-                className="text-white hover:text-gold-400 hover:bg-white/10 font-medium transition-all px-3 py-2 rounded-md text-sm border border-white/20 hover:border-gold-500/30"
+                className={`text-white hover:text-gold-400 hover:bg-white/10 font-medium transition-all py-2 rounded-md border border-white/20 hover:border-gold-500/30 ${language === 'HI' ? 'px-2 text-xs' : 'px-3 text-sm'}`}
               >
                 {t('nav.signIn')}
               </button>
@@ -534,7 +537,7 @@ export default function Navbar() {
               {t('nav.about')}
             </Link>
 
-            {/* Mobile Services — All 19 Modules */}
+            {/* Mobile Services — All 26 Modules */}
             <div className="border-y border-gold-500/10 py-3">
               <Link href="/#services-section" onClick={(e) => { setMobileOpen(false); handleServicesNavClick(e); }} className="block text-sm font-bold text-gold-400 mb-3 uppercase tracking-wide">
                 {t('nav.services')} — {language === 'EN' ? 'All Categories' : 'सभी श्रेणियां'}

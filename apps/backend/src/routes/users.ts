@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../config/db';
 import { authenticateJWT, AuthenticatedRequest } from '../middlewares/auth';
 import { validateRequest } from '../middlewares/validate';
+import { kycUpload } from '../middlewares/upload';
 
 const router = Router();
 
@@ -91,5 +92,30 @@ router.get('/me', authenticateJWT, async (req: AuthenticatedRequest, res: Respon
     res.status(500).json({ success: false, message: 'Error fetching user profile' });
   }
 });
+
+/**
+ * POST /users/upload/avatar
+ * Upload / replace client profile picture. Updates user.avatarUrl.
+ */
+router.post(
+  '/upload/avatar',
+  authenticateJWT,
+  kycUpload.single('file'),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      if (!req.file) {
+        res.status(400).json({ success: false, message: 'No file uploaded' });
+        return;
+      }
+      const avatarUrl = `/uploads/kyc/${req.file.filename}`;
+      await prisma.user.update({ where: { id: userId }, data: { avatarUrl } });
+      res.json({ success: true, avatarUrl });
+    } catch (err) {
+      console.error('[users/upload/avatar]', err);
+      res.status(500).json({ success: false, message: 'Avatar upload failed' });
+    }
+  },
+);
 
 export default router;

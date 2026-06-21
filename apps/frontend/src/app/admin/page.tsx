@@ -6,7 +6,8 @@ import {
   ShieldCheck, BookOpen, Loader2, Calendar, Clock, RefreshCw, BadgeCheck,
   BarChart2, CreditCard, Download, ChevronDown, ChevronRight, MapPin, X,
   UserCheck, Award, Activity, Eye, EyeOff, MessageSquare, TicketCheck,
-  UserPlus, Send, ClipboardCheck, Shield, Search, Lock
+  UserPlus, Send, ClipboardCheck, Shield, Search, Lock, Edit3, Save,
+  Phone, AlertCircle,
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -70,6 +71,156 @@ interface FunnelSessionSnapshot {
 }
 interface FunnelSession { id: string; phoneNumber: string; currentStep: number; stepLabel: string; lastActiveAt: string; advisorId?: string; formSnapshot?: FunnelSessionSnapshot; }
 interface Metrics { totalClients: number; totalAdvisors: number; approvedAdvisors: number; authorizedAdvisors: number; regularAdvisors: number; pendingVerification: number; consultationsCompleted: number; grossRevenue: string; platformCommission: string; activeSubscriptions: number; subscriptionRevenue: string; abandonedFunnels: number; completedOnboardings: number; }
+
+// ── Change Requests panel sub-component ───────────────────────────────────────
+const CR_STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
+  PENDING:  { bg: 'bg-amber-50 border-amber-200',    text: 'text-amber-700',   label: 'Pending' },
+  APPROVED: { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', label: 'Approved' },
+  REJECTED: { bg: 'bg-red-50 border-red-200',         text: 'text-red-700',     label: 'Rejected' },
+};
+const CR_FIELD_LABELS: Record<string, string> = {
+  phoneNumber: 'Mobile Number', aadhaarNumber: 'Aadhaar Number',
+  licenseNumber: 'License Number', fullName: 'Full Name',
+};
+
+function AdvisorChangeRequestsPanel({
+  advisorId, token, onReview, crReviewing,
+}: {
+  advisorId: string;
+  token: string;
+  onReview: (id: string, action: 'APPROVE' | 'REJECT', note?: string) => void;
+  crReviewing: string | null;
+}) {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+  const [requests, setRequests] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [rejectNote, setRejectNote] = React.useState<Record<string, string>>({});
+  const [showRejectInput, setShowRejectInput] = React.useState<Record<string, boolean>>({});
+  const [open, setOpen] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!advisorId) return;
+    setLoading(true);
+    fetch(`${API_URL}/admin/advisors/${advisorId}/change-requests`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { if (d.success) setRequests(d.data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [advisorId, token]);
+
+  // Re-fetch after a review action completes
+  React.useEffect(() => {
+    if (!crReviewing) {
+      setLoading(true);
+      fetch(`${API_URL}/admin/advisors/${advisorId}/change-requests`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json()).then(d => { if (d.success) setRequests(d.data); }).catch(() => {}).finally(() => setLoading(false));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [crReviewing]);
+
+  const pending  = requests.filter(r => r.status === 'PENDING');
+  const history  = requests.filter(r => r.status !== 'PENDING');
+
+  return (
+    <div className="border border-slate-200 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen(p => !p)}
+        className="w-full flex items-center justify-between px-3 py-2 bg-amber-50 border-b border-amber-200 hover:bg-amber-100 transition-colors"
+      >
+        <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5">
+          <AlertCircle size={12} className="text-amber-500" />
+          Change Requests
+          {pending.length > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-black">{pending.length}</span>
+          )}
+        </p>
+        {open ? <ChevronDown size={13} className="text-amber-600" /> : <ChevronRight size={13} className="text-amber-600" />}
+      </button>
+
+      {open && (
+        <div className="p-3 space-y-2 bg-white">
+          {loading && <div className="flex items-center gap-2 py-2 text-xs text-slate-400"><Loader2 size={12} className="animate-spin" /> Loading…</div>}
+
+          {!loading && requests.length === 0 && (
+            <p className="text-[10px] text-slate-400 text-center py-2">No change requests from this advisor.</p>
+          )}
+
+          {pending.map(cr => (
+            <div key={cr.id} className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs font-bold text-amber-800">{CR_FIELD_LABELS[cr.fieldName] || cr.fieldName}</p>
+                  <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-600">
+                    {cr.oldValue && <span className="line-through text-slate-400">{cr.oldValue}</span>}
+                    {cr.oldValue && <span>→</span>}
+                    <span className="font-semibold">{cr.fieldName === 'aadhaarNumber' ? '[New Aadhaar submitted]' : cr.newValue}</span>
+                  </div>
+                  <p className="text-[9px] text-slate-400 mt-0.5">Requested: {new Date(cr.requestedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                </div>
+                <span className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-200 text-amber-800">PENDING</span>
+              </div>
+
+              {showRejectInput[cr.id] && (
+                <div className="space-y-1.5">
+                  <input
+                    type="text" placeholder="Reason for rejection (optional)"
+                    value={rejectNote[cr.id] || ''}
+                    onChange={e => setRejectNote(p => ({ ...p, [cr.id]: e.target.value }))}
+                    className="w-full border border-red-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-red-400 focus:ring-1 focus:ring-red-100"
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={() => { onReview(cr.id, 'REJECT', rejectNote[cr.id]); setShowRejectInput(p => ({...p, [cr.id]: false})); }}
+                      disabled={crReviewing === cr.id}
+                      className="flex-1 py-1.5 rounded-lg text-[10px] font-black text-white bg-red-500 hover:bg-red-600 flex items-center justify-center gap-1 disabled:opacity-50">
+                      {crReviewing === cr.id ? <Loader2 size={10} className="animate-spin" /> : <XCircle size={10} />} Confirm Reject
+                    </button>
+                    <button onClick={() => setShowRejectInput(p => ({...p, [cr.id]: false}))}
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200">Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {!showRejectInput[cr.id] && (
+                <div className="flex gap-2">
+                  <button onClick={() => onReview(cr.id, 'APPROVE')} disabled={!!crReviewing}
+                    className="flex-1 py-1.5 rounded-lg text-[10px] font-black text-white bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center gap-1 disabled:opacity-50 transition-all">
+                    {crReviewing === cr.id ? <Loader2 size={10} className="animate-spin" /> : <CheckCircle size={10} />} Approve
+                  </button>
+                  <button onClick={() => setShowRejectInput(p => ({...p, [cr.id]: true}))} disabled={!!crReviewing}
+                    className="flex-1 py-1.5 rounded-lg text-[10px] font-black text-white bg-red-500 hover:bg-red-600 flex items-center justify-center gap-1 disabled:opacity-50 transition-all">
+                    <XCircle size={10} /> Reject
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {history.length > 0 && (
+            <details className="group">
+              <summary className="text-[10px] font-semibold text-slate-400 cursor-pointer hover:text-slate-600 list-none flex items-center gap-1 pt-1">
+                <ChevronRight size={10} className="group-open:rotate-90 transition-transform" /> View history ({history.length})
+              </summary>
+              <div className="mt-2 space-y-1.5">
+                {history.map(cr => {
+                  const style = CR_STATUS_STYLE[cr.status];
+                  return (
+                    <div key={cr.id} className={`rounded-lg border p-2 ${style.bg}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-700">{CR_FIELD_LABELS[cr.fieldName] || cr.fieldName}</span>
+                        <span className={`text-[9px] font-black ${style.text}`}>{style.label}</span>
+                      </div>
+                      {cr.reviewNote && <p className="text-[9px] text-slate-500 mt-0.5">Note: {cr.reviewNote}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AdminSuitePage() {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
@@ -191,6 +342,23 @@ export default function AdminSuitePage() {
   const [assigningTicket, setAssigningTicket]   = useState<string|null>(null);
   const [assignTargetId, setAssignTargetId]     = useState('');
 
+  // ── Advisor Edit Modal ──────────────────────────────────────────────────────
+  interface ChangeRequest { id: string; fieldName: string; oldValue: string | null; newValue: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; requestedAt: string; reviewedAt: string | null; reviewNote: string | null; }
+  const [editModalOpen, setEditModalOpen]   = useState(false);
+  const [editAdvisor,   setEditAdvisor]     = useState<Advisor | null>(null);
+  const [editSaving,    setEditSaving]      = useState(false);
+  const [editError,     setEditError]       = useState('');
+  const [editSuccess,   setEditSuccess]     = useState('');
+  const [editForm, setEditForm] = useState({
+    fullName: '', email: '', phoneNumber: '', bio: '', businessName: '',
+    location: '', state: '', circle: '', subdivision: '',
+    experienceYears: '', consultationFee: '', languages: [] as string[],
+    gstNumber: '', licenseNumber: '', aadhaarNumber: '',
+  });
+  const [advChangeRequests, setAdvChangeRequests] = useState<ChangeRequest[]>([]);
+  const [crReviewing, setCrReviewing] = useState<string | null>(null);
+  const [pendingCrCount, setPendingCrCount] = useState(0);
+
   const token = () => (typeof localStorage !== 'undefined' ? localStorage.getItem('accessToken') || '' : '');
 
   useEffect(() => {
@@ -260,6 +428,87 @@ export default function AdminSuitePage() {
       if (d.success) setUsers(d.data);
     } catch { /* empty */ } finally { setUsersLoading(false); }
   }, [userSearch]);
+
+  const fetchAdvChangeRequests = async (advisorId: string) => {
+    try {
+      const r = await fetch(`${API}/admin/advisors/${advisorId}/change-requests`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.success) setAdvChangeRequests(d.data);
+    } catch {}
+  };
+
+  const fetchPendingCrCount = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/admin/change-requests?status=PENDING&limit=1`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.success) setPendingCrCount(d.total ?? 0);
+    } catch {}
+  }, []);
+
+  const openEditModal = (adv: Advisor) => {
+    setEditAdvisor(adv);
+    setEditForm({
+      fullName: adv.fullName || '', email: adv.email || '', phoneNumber: adv.phoneNumber || '',
+      bio: (adv as any).bio || '', businessName: adv.businessName || '',
+      location: adv.location || '', state: adv.state || '',
+      circle: (adv as any).circle || '', subdivision: (adv as any).subdivision || '',
+      experienceYears: String(adv.experienceYears || ''), consultationFee: String(adv.consultationFee || ''),
+      languages: (adv as any).languages || [],
+      gstNumber: adv.gstNumber || '', licenseNumber: adv.licenseNumber || '',
+      aadhaarNumber: '',
+    });
+    setEditError(''); setEditSuccess('');
+    setEditModalOpen(true);
+    fetchAdvChangeRequests(adv.id);
+  };
+
+  const saveAdminEdit = async () => {
+    if (!editAdvisor) return;
+    setEditSaving(true); setEditError(''); setEditSuccess('');
+    try {
+      const body: Record<string, any> = { ...editForm };
+      if (!body.aadhaarNumber?.trim()) delete body.aadhaarNumber;
+      body.experienceYears = parseInt(editForm.experienceYears) || 0;
+      body.consultationFee = parseFloat(editForm.consultationFee) || 0;
+      const r = await fetch(`${API}/admin/advisors/${editAdvisor.id}/edit`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (d.success) {
+        setEditSuccess('Advisor details updated successfully.');
+        setAdvisors(prev => prev.map(a => a.id === editAdvisor.id ? { ...a, ...d.data } : a));
+        setSelectedAdv(prev => prev?.id === editAdvisor.id ? { ...prev, ...d.data } : prev);
+        setTimeout(() => { setEditModalOpen(false); setEditSuccess(''); }, 1500);
+      } else {
+        setEditError(d.message || 'Failed to save');
+      }
+    } catch { setEditError('Network error. Please try again.'); }
+    setEditSaving(false);
+  };
+
+  const reviewChangeRequest = async (crId: string, action: 'APPROVE' | 'REJECT', note?: string) => {
+    setCrReviewing(crId);
+    try {
+      const r = await fetch(`${API}/admin/change-requests/${crId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, note }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        if (editAdvisor) {
+          fetchAdvChangeRequests(editAdvisor.id);
+          fetchAdvisors();
+        }
+        fetchPendingCrCount();
+      } else {
+        alert(d.message || 'Failed');
+      }
+    } catch { alert('Network error'); }
+    setCrReviewing(null);
+  };
 
   const fetchFunnel = useCallback(async () => {
     setFunnelLoading(true);
@@ -398,7 +647,7 @@ export default function AdminSuitePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { fetchDashboard(); fetchMyStats(); }, [fetchDashboard, fetchMyStats]);
+  useEffect(() => { fetchDashboard(); fetchMyStats(); fetchPendingCrCount(); }, [fetchDashboard, fetchMyStats, fetchPendingCrCount]);
   useEffect(() => { if (activeTab === 'advisors') fetchAdvisors(); }, [activeTab, fetchAdvisors]);
   useEffect(() => { if (activeTab === 'users') fetchUsers(); }, [activeTab, fetchUsers]);
   useEffect(() => { if (activeTab === 'funnel') fetchFunnel(); }, [activeTab, fetchFunnel]);
@@ -708,7 +957,7 @@ export default function AdminSuitePage() {
 
   const BASE_TABS: { key: AdminTab; label: string; icon: React.ElementType }[] = [
     { key: 'overview', label: 'Overview', icon: BarChart2 },
-    { key: 'advisors', label: 'Advisors', icon: Users },
+    { key: 'advisors', label: pendingCrCount > 0 ? `Advisors (${pendingCrCount} changes)` : 'Advisors', icon: Users },
     { key: 'users', label: 'Users', icon: UserCheck },
     { key: 'funnel', label: 'Onboarding Funnel', icon: Activity },
     { key: 'subscriptions', label: 'Subscriptions', icon: CreditCard },
@@ -970,6 +1219,14 @@ export default function AdminSuitePage() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
+                      {/* Edit Details — SUPER_ADMIN only */}
+                      {isSuperAdmin && (
+                        <button onClick={() => openEditModal(selectedAdv)}
+                          className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg flex items-center gap-1 transition-all">
+                          <Edit3 size={13} /> Edit Details
+                        </button>
+                      )}
+
                       {/* SUPER_ADMIN action buttons */}
                       {isSuperAdmin && (
                         <>
@@ -1004,6 +1261,16 @@ export default function AdminSuitePage() {
                       )}
                     </div>
                   </div>
+
+                  {/* Change Requests panel — visible when advisor selected, fetch on select */}
+                  {isSuperAdmin && (
+                    <AdvisorChangeRequestsPanel
+                      advisorId={selectedAdv.id}
+                      token={token()}
+                      onReview={reviewChangeRequest}
+                      crReviewing={crReviewing}
+                    />
+                  )}
 
                   {/* Sub-admin note (visible to super admin) */}
                   {isSuperAdmin && selectedAdv.subAdminNote && (
@@ -2132,6 +2399,117 @@ export default function AdminSuitePage() {
             <button onClick={confirmSubmit} disabled={!!verifying}
               className="px-4 py-2 text-xs font-bold bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1.5">
               {verifying ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Submit for Approval
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* ── ADMIN EDIT ADVISOR MODAL ── */}
+    {editModalOpen && editAdvisor && (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4 py-6 overflow-y-auto">
+        <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-2xl my-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
+            <div>
+              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Edit3 size={15} className="text-indigo-600" /> Edit Advisor Details</h3>
+              <p className="text-[10px] text-slate-400 mt-0.5">{editAdvisor.fullName} · {genDisplayId('advisor', editAdvisor.seqId)} · Changes apply immediately</p>
+            </div>
+            <button onClick={() => setEditModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+          </div>
+
+          <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
+            {editError && (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-red-600 text-xs">
+                <AlertCircle size={13} className="shrink-0" />{editError}
+              </div>
+            )}
+            {editSuccess && (
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5 text-emerald-700 text-xs font-semibold">
+                <CheckCircle size={13} className="shrink-0" />{editSuccess}
+              </div>
+            )}
+
+            {/* ── Section: Identity ── */}
+            <div>
+              <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-3 pb-1 border-b border-indigo-100">Identity (Sensitive — applies immediately)</p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Full Name', key: 'fullName', hint: 'Must match Aadhaar card' },
+                  { label: 'Email', key: 'email', type: 'email', hint: 'Optional' },
+                  { label: 'Mobile Number', key: 'phoneNumber', type: 'tel', hint: '10-digit Indian number' },
+                  { label: 'Aadhaar Number', key: 'aadhaarNumber', hint: '12 digits — leave blank to keep current' },
+                  { label: 'License Number', key: 'licenseNumber', hint: 'Professional licence / degree no.' },
+                  { label: 'GST Number', key: 'gstNumber', hint: 'Optional' },
+                ].map(({ label, key, type, hint }) => (
+                  <div key={key}>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label>
+                    <input type={type || 'text'} value={(editForm as any)[key]}
+                      onChange={e => setEditForm(p => ({ ...p, [key]: e.target.value }))}
+                      placeholder={hint}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-slate-300" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Section: Profile ── */}
+            <div>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 pb-1 border-b border-slate-100">Profile Details</p>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Business Name', key: 'businessName' },
+                    { label: 'Experience (years)', key: 'experienceYears', type: 'number' },
+                    { label: 'Consultation Fee (₹)', key: 'consultationFee', type: 'number' },
+                  ].map(({ label, key, type }) => (
+                    <div key={key}>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label>
+                      <input type={type || 'text'} value={(editForm as any)[key]}
+                        onChange={e => setEditForm(p => ({ ...p, [key]: e.target.value }))}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Bio / Description</label>
+                  <textarea rows={3} value={editForm.bio} onChange={e => setEditForm(p => ({ ...p, bio: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all resize-none placeholder:text-slate-300"
+                    placeholder="Describe expertise and services…" />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Section: Location ── */}
+            <div>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 pb-1 border-b border-slate-100">Location</p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'City / Location', key: 'location' },
+                  { label: 'State', key: 'state' },
+                  { label: 'Circle / Block', key: 'circle' },
+                  { label: 'Subdivision', key: 'subdivision' },
+                ].map(({ label, key }) => (
+                  <div key={key}>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</label>
+                    <input type="text" value={(editForm as any)[key]}
+                      onChange={e => setEditForm(p => ({ ...p, [key]: e.target.value }))}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end bg-slate-50 rounded-b-2xl">
+            <button onClick={() => setEditModalOpen(false)}
+              className="px-5 py-2.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-white transition-all">
+              Cancel
+            </button>
+            <button onClick={saveAdminEdit} disabled={editSaving}
+              className="px-5 py-2.5 text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-50 flex items-center gap-1.5 transition-all">
+              {editSaving ? <><Loader2 size={13} className="animate-spin" />Saving…</> : <><Save size={13} />Save Changes</>}
             </button>
           </div>
         </div>

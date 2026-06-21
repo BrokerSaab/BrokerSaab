@@ -885,24 +885,14 @@ export default function DiscoverPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             {/* Left Content Column */}
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left flex flex-col items-center lg:items-start min-w-0">
-              {/* Badge */}
-              <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-extrabold uppercase tracking-wider ${
-                theme === 'light'
-                  ? 'bg-amber-100/50 border-amber-300 text-amber-800 shadow-sm'
-                  : 'bg-gold-500/5 border-gold-500/20 text-gold-400'
-              }`}>
-                <span>✨</span>
-                <span>19 MODULES • 165+ SERVICES</span>
-              </div>
-
               {/* Heading — English uses large sizing; Hindi uses smaller size + looser line-height
                   because Devanagari glyphs are visually taller and words are longer */}
               <h1 className={`font-black tracking-tight w-full ${
                 theme === 'light' ? 'text-slate-900' : 'text-white'
               } ${
                 language === 'EN'
-                  ? 'text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.1]'
-                  : 'text-3xl sm:text-4xl md:text-5xl leading-[1.4]'
+                  ? 'text-3xl sm:text-4xl md:text-6xl lg:text-7xl leading-[1.15]'
+                  : 'text-2xl sm:text-3xl md:text-5xl leading-[1.4]'
               }`}>
                 {language === 'EN' ? (
                   <>Find your <span className="gold-gradient-text">Agents</span></>
@@ -1000,40 +990,49 @@ export default function DiscoverPage() {
 
               {/* "Try:" popular tags */}
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 pt-2 text-xs">
-                <span className={`font-bold mr-1 ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>Try:</span>
-                {[
-                  'Registry', 'Bainama', 'Sale Deed', 'GST Filing',
-                  'DL Renewal', 'Aadhaar', 'ITR', 'Notary', 'Labour Card'
-                ].map((tag) => (
+                <span className={`font-bold mr-1 ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                  {language === 'EN' ? 'Try:' : 'जैसे:'}
+                </span>
+                {([
+                  { en: 'Registry',    hi: 'रजिस्ट्री' },
+                  { en: 'Bainama',     hi: 'बैनामा' },
+                  { en: 'Sale Deed',   hi: 'सेल डीड' },
+                  { en: 'GST Filing',  hi: 'जीएसटी' },
+                  { en: 'DL Renewal',  hi: 'DL नवीनीकरण' },
+                  { en: 'Aadhaar',     hi: 'आधार' },
+                  { en: 'ITR',         hi: 'आईटीआर' },
+                  { en: 'Notary',      hi: 'नोटरी' },
+                  { en: 'Labour Card', hi: 'लेबर कार्ड' },
+                ] as { en: string; hi: string }[]).map((tag) => (
                   <button
-                    key={tag}
+                    key={tag.en}
                     onClick={() => {
-                      setSearchQuery(tag);
-                      handleSearchChange(tag);
+                      setSearchQuery(tag.en);
+                      handleSearchChange(tag.en);
                       const el = document.getElementById('services-section');
                       if (el) {
                         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }
                     }}
-                    className={`px-3.5 py-1.5 rounded-xl border text-[11px] font-bold transition-all shadow-sm ${
+                    className={`px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl border text-[10px] sm:text-[11px] font-bold transition-all shadow-sm ${
                       theme === 'light'
                         ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                         : 'bg-[#112240]/55 border-white/5 text-slate-300 hover:bg-white/10 hover:text-white hover:border-white/10'
                     }`}
                   >
-                    {tag}
+                    {language === 'EN' ? tag.en : tag.hi}
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Right Column — Auto-rotating image carousel */}
-            <div className="lg:col-span-5 relative w-full flex justify-center lg:justify-end mt-4 lg:mt-0 hidden sm:flex">
-              {/* Background glow orbs */}
-              <div className="absolute w-72 h-72 bg-gold-500/10 rounded-full blur-3xl -top-12 -right-12 pointer-events-none animate-pulse" />
-              <div className="absolute w-72 h-72 bg-blue-500/10 rounded-full blur-3xl -bottom-12 -left-12 pointer-events-none animate-pulse" />
+            <div className="lg:col-span-5 relative w-full flex justify-center lg:justify-end mt-6 lg:mt-0">
+              {/* Background glow orbs — hidden on mobile to reduce visual noise */}
+              <div className="absolute w-72 h-72 bg-gold-500/10 rounded-full blur-3xl -top-12 -right-12 pointer-events-none animate-pulse hidden sm:block" />
+              <div className="absolute w-72 h-72 bg-blue-500/10 rounded-full blur-3xl -bottom-12 -left-12 pointer-events-none animate-pulse hidden sm:block" />
 
-              <div className="relative w-full max-w-lg">
+              <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
                 {/* Slide container */}
                 <div className="relative overflow-hidden rounded-2xl border border-gold-500/20 shadow-2xl w-full" style={{ aspectRatio: '1/1' }}>
 
@@ -1385,7 +1384,7 @@ export default function DiscoverPage() {
           </div>
 
           {loadingAdvisors ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 space-y-4 animate-pulse">
                   <div className="flex items-start justify-between">
@@ -1427,7 +1426,7 @@ export default function DiscoverPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {advisors.map((advisor) => (
                 <div
                   key={advisor.id}

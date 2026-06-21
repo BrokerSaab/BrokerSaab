@@ -47,3 +47,5 @@ get-token*.mjs
 get-token*.js
 verify-*.js
 verify-all.js
+
+.vercel

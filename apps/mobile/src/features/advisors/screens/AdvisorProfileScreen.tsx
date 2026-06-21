@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -29,6 +30,13 @@ import { ConsultationMode } from '@brokersaab/shared-types';
 import type { AvailabilitySlot } from '@brokersaab/shared-types';
 
 type Props = NativeStackScreenProps<AdvisorsStackParamList, 'AdvisorProfile'>;
+
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'https://brokersaab-backend.onrender.com';
+function resolveUrl(path: string | null | undefined): string | undefined {
+  if (!path) return undefined;
+  if (path.startsWith('http')) return path;
+  return `${BASE_URL}${path}`;
+}
 
 type Tab = 'about' | 'services' | 'availability' | 'reviews';
 
@@ -85,10 +93,21 @@ export const AdvisorProfileScreen: React.FC<Props> = ({ route, navigation }) => 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Cover banner */}
+        {resolveUrl(advisor.coverImageUrl) ? (
+          <Image
+            source={{ uri: resolveUrl(advisor.coverImageUrl) }}
+            style={styles.coverBanner}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.coverBannerFallback} />
+        )}
+
         {/* Hero */}
-        <View style={styles.hero}>
+        <View style={[styles.hero, resolveUrl(advisor.coverImageUrl) ? styles.heroWithCover : null]}>
           <View style={styles.heroAvatarWrap}>
-            <Avatar uri={advisor.avatarUrl} fallbackName={advisor.fullName} size={80} showBorder />
+            <Avatar uri={resolveUrl(advisor.avatarUrl)} fallbackName={advisor.fullName} size={80} showBorder />
             {advisor.isAuthorizedDealer && (
               <View style={styles.dealerBadge}>
                 <Text style={styles.dealerText}>✓ Auth</Text>
@@ -254,7 +273,7 @@ export const AdvisorProfileScreen: React.FC<Props> = ({ route, navigation }) => 
         </View>
         <TouchableOpacity
           style={styles.quoteBtn}
-          onPress={() => (navigation as any).navigate('BookingsTab', {
+          onPress={() => (navigation as any).navigate('MyCasesTab', {
             screen: 'QuoteRequest',
             params: { advisorId: advisor.id, advisorName: advisor.fullName },
           })}
@@ -278,7 +297,7 @@ export const AdvisorProfileScreen: React.FC<Props> = ({ route, navigation }) => 
           onClose={() => setBookingOpen(false)}
           onSuccess={(bookingId) => {
             setBookingOpen(false);
-            (navigation as any).navigate('BookingsTab', {
+            (navigation as any).navigate('MyCasesTab', {
               screen: 'BookingDetail',
               params: { bookingId },
             });
@@ -465,7 +484,11 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Palette.background },
   container: { paddingBottom: Spacing.xxl },
 
+  coverBanner: { width: '100%', height: 180 },
+  coverBannerFallback: { width: '100%', height: 8, backgroundColor: Palette.primaryLight },
+
   hero: { alignItems: 'center', padding: Spacing.lg, gap: Spacing.sm },
+  heroWithCover: { marginTop: -24 },
   heroAvatarWrap: { position: 'relative' },
   dealerBadge: {
     position: 'absolute', bottom: -4, right: -8,

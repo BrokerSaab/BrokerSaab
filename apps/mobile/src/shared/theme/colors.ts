@@ -56,27 +56,43 @@ export const Colors = {
   transparent: 'transparent',
 } as const;
 
-// Semantic aliases
+// Semantic aliases — light theme matching the website
 export const Palette = {
-  background: Colors.navy[950],
-  surface: Colors.navy[900],
-  card: Colors.navy[800],
-  border: 'rgba(212, 175, 55, 0.15)',
-  borderStrong: 'rgba(212, 175, 55, 0.35)',
-  primary: Colors.gold[500],
+  // Backgrounds
+  background: '#F8FAFC',    // near-white page bg
+  surface: '#FFFFFF',       // card surfaces
+  card: '#FFFFFF',          // cards/panels
+  navBg: Colors.navy[800],  // top navbar / headers = dark navy
+
+  // Borders
+  border: '#E2E8F0',
+  borderStrong: 'rgba(212, 175, 55, 0.4)',
+
+  // Brand
+  primary: Colors.gold[500],       // #D4AF37
   primaryLight: 'rgba(212, 175, 55, 0.12)',
-  accent: Colors.indigo[500],
-  accentLight: 'rgba(99, 102, 241, 0.12)',
-  text: Colors.white,
-  textSecondary: '#94A9C3',
-  textMuted: Colors.slate[500],
+  navy: Colors.navy[800],          // #0B1F3A — logo, headings, dark accents
+  accent: Colors.indigo[600],      // #4F46E5
+  accentLight: 'rgba(79, 70, 229, 0.10)',
+
+  // Text
+  text: Colors.navy[800],          // primary dark text on light bg
+  textSecondary: Colors.slate[500],
+  textMuted: Colors.slate[400],
+  textInverse: Colors.white,       // white text on dark bg
+
+  // Semantic
   success: Colors.emerald[500],
   error: Colors.red[500],
   warning: Colors.amber[500],
-  inputBg: 'rgba(5, 14, 27, 0.8)',
-  inputBorder: 'rgba(212, 175, 55, 0.1)',
-  inputBorderFocus: 'rgba(212, 175, 55, 0.5)',
-  overlay: 'rgba(5, 14, 27, 0.85)',
+
+  // Inputs (light mode)
+  inputBg: '#FFFFFF',
+  inputBorder: '#CBD5E1',
+  inputBorderFocus: Colors.gold[500],
+
+  // Overlay
+  overlay: 'rgba(11, 31, 58, 0.75)',
 } as const;
 
 export type PaletteKey = keyof typeof Palette;

@@ -15,7 +15,7 @@ type Tab = 'about' | 'platform' | 'terms';
 const advantages = [
   { icon: ShieldCheck, titleEN: 'Verified Professionals', titleHI: 'सत्यापित पेशेवर', descEN: 'Every advisor passes rigorous KYC — license check, background verification, and admin approval.', descHI: 'हर सलाहकार KYC से गुजरता है।', accent: '#10b981', num: '01' },
   { icon: Lock, titleEN: 'Escrow-Protected Payments', titleHI: 'एस्क्रो-सुरक्षित भुगतान', descEN: 'Money held in escrow and released only after your consultation is successfully completed.', descHI: 'पैसा एस्क्रो में रहता है और परामर्श पूरा होने के बाद ही जारी होता है।', accent: '#6366f1', num: '02' },
-  { icon: Briefcase, titleEN: '19 Service Categories', titleHI: '19 सेवा श्रेणियां', descEN: 'From property registry to GST filing, court help to RTO — 165+ services for every life need.', descHI: 'संपत्ति रजिस्ट्री से GST, कोर्ट से RTO तक — 165+ सेवाएं।', accent: '#D4AF37', num: '03' },
+  { icon: Briefcase, titleEN: '26 Service Categories', titleHI: '26 सेवा श्रेणियां', descEN: 'From property registry to GST filing, court help to RTO — 185+ services for every life need.', descHI: 'संपत्ति रजिस्ट्री से GST, कोर्ट से RTO तक — 185+ सेवाएं।', accent: '#D4AF37', num: '03' },
   { icon: MessageCircle, titleEN: 'Real-Time Consultation', titleHI: 'रियल-टाइम परामर्श', descEN: 'Private encrypted chat room auto-created per booking for seamless communication.', descHI: 'हर बुकिंग के साथ निजी एन्क्रिप्टेड चैट रूम स्वतः बनता है।', accent: '#8b5cf6', num: '04' },
   { icon: TrendingUp, titleEN: 'Transparent Pricing', titleHI: 'पारदर्शी मूल्य', descEN: 'Advisor fees shown upfront. No hidden charges, no surprises before you book.', descHI: 'सलाहकार शुल्क पहले से दिखते हैं। कोई छिपा शुल्क नहीं।', accent: '#D4AF37', num: '05' },
   { icon: Globe, titleEN: 'Multi-Language Support', titleHI: 'बहु-भाषा समर्थन', descEN: 'Search and interact in English or Hindi. No language barrier for anyone.', descHI: 'अंग्रेजी या हिंदी में खोजें। कोई भाषा बाधा नहीं।', accent: '#6366f1', num: '06' },
@@ -29,8 +29,8 @@ const verificationSteps = [
 ];
 
 const stats = [
-  { value: '19', label: 'Service Modules', labelHI: 'सेवा मॉड्यूल', icon: Briefcase, color: '#D4AF37' },
-  { value: '165+', label: 'Services Listed', labelHI: 'सूचीबद्ध सेवाएं', icon: FileText, color: '#6366f1' },
+  { value: '26', label: 'Service Modules', labelHI: 'सेवा मॉड्यूल', icon: Briefcase, color: '#D4AF37' },
+  { value: '185+', label: 'Services Listed', labelHI: 'सूचीबद्ध सेवाएं', icon: FileText, color: '#6366f1' },
   { value: '4', label: 'Consultation Modes', labelHI: 'परामर्श मोड', icon: MessageCircle, color: '#0B1F3A' },
   { value: '100%', label: 'Payment Protected', labelHI: 'भुगतान सुरक्षित', icon: ShieldCheck, color: '#10b981' },
 ];
@@ -166,8 +166,8 @@ export default function AboutPage() {
                     <div className="absolute -inset-[20px] rounded-3xl pointer-events-none"
                       style={{ background: 'radial-gradient(circle,rgba(212,175,55,0.12) 0%,transparent 70%)' }} />
                     <img src="/founder.jpg" alt="Ravi Ranjan — Founder & CEO, BrokerSaab"
-                      className="relative z-10 rounded-3xl object-cover object-top"
-                      style={{ width: '100%', maxWidth: '300px', height: '360px' }} />
+                      className="relative z-10 rounded-3xl object-cover object-top w-full"
+                      style={{ maxWidth: '300px', height: '340px' }} />
                     <div className="absolute top-3 left-3 z-20 w-7 h-7 pointer-events-none"
                       style={{ borderTop: '2px solid #D4AF37', borderLeft: '2px solid #D4AF37', borderRadius: '4px 0 0 0', opacity: 0.75 }} />
                     <div className="absolute bottom-3 right-3 z-20 w-7 h-7 pointer-events-none"

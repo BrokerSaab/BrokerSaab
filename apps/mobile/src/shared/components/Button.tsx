@@ -7,7 +7,7 @@ import {
   TextStyle,
   StyleSheet,
 } from 'react-native';
-import { Palette, Radius, Spacing } from '../theme';
+import { Colors, Palette, Radius, Spacing } from '../theme';
 
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
@@ -77,10 +77,10 @@ const styles = StyleSheet.create({
 
   // Variants
   primary: {
-    backgroundColor: Palette.primary,
+    backgroundColor: Palette.navy,  // dark navy button on light bg
   },
   secondary: {
-    backgroundColor: Palette.card,
+    backgroundColor: Colors.white,
     borderWidth: 1,
     borderColor: Palette.border,
   },
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   text: { fontWeight: '700', letterSpacing: 0.2 },
 
   // Text by variant
-  text_primary: { color: Palette.card },
+  text_primary: { color: Colors.white },
   text_secondary: { color: Palette.text },
   text_outline: { color: Palette.primary },
   text_ghost: { color: Palette.primary },

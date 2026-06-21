@@ -54,10 +54,7 @@ export const ServiceDetailScreen: React.FC<Props> = ({ route, navigation }) => {
     // Navigate to advisor list in the parent TabNavigator — use navigate to advisors tab
     // Since we're in Home stack, we navigate up then to advisors
     // We'll use the root navigation via casting
-    (navigation as any).navigate('AdvisorsTab', {
-      screen: 'AdvisorList',
-      params: { category: moduleId, subService: sub },
-    });
+    navigation.navigate('AdvisorList', { category: moduleId, subService: sub });
   };
 
   return (

@@ -1,16 +1,23 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../../shared/navigation/types';
-import { Colors, Spacing, Radius, Shadow } from '../../../shared/theme';
+import { Colors, Spacing, Radius } from '../../../shared/theme';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
+const SERVICES = [
+  { id: 's1', icon: '🎓', label: 'Study Abroad' },
+  { id: 's2', icon: '🏛️', label: 'Domestic Admission' },
+  { id: 's3', icon: '💼', label: 'Job Placement' },
+  { id: 's4', icon: '✈️', label: 'Visa & PR' },
+];
+
 export const WelcomeScreen: React.FC<Props> = ({ navigation }) => (
   <LinearGradient
-    colors={['#0B1F3A', '#1a1040', '#0B1F3A']}
+    colors={['#1C2B6B', '#1E3A8A', '#2563EB', '#1E3A8A', '#0B1F3A']}
     start={{ x: 0.3, y: 0 }}
     end={{ x: 0.7, y: 1 }}
     style={styles.gradient}
@@ -18,84 +25,53 @@ export const WelcomeScreen: React.FC<Props> = ({ navigation }) => (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Ambient glow blobs */}
-      <View style={styles.glowTopRight} pointerEvents="none" />
-      <View style={styles.glowBottomLeft} pointerEvents="none" />
+      {/* Skip */}
+      <View style={styles.topRow}>
+        <View />
+        <TouchableOpacity onPress={() => navigation.navigate('Terms')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={styles.skipText}>Skip</Text>
+        </TouchableOpacity>
+      </View>
 
-      {/* Logo */}
+      {/* Logo section */}
       <View style={styles.logoSection}>
-        <View style={styles.logoIconWrap}>
-          <Image
-            source={require('../../../assets/logo-icon.png')}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+        {/* Compass circle */}
+        <View style={styles.compassWrap}>
+          <Text style={styles.compassIcon}>🧭</Text>
         </View>
-        <View style={styles.logoRow}>
-          <Text style={styles.logoTextBroker}>Broker</Text>
-          <Text style={styles.logoTextSaab}>Saab</Text>
-        </View>
-        <Text style={styles.logoTagline}>India's Trusted Advisory Marketplace</Text>
+        <Text style={styles.brandName}>BrokerSaab</Text>
+        <Text style={styles.tagline}>Aapka Vishwaspaatra Salahkar</Text>
       </View>
 
-      {/* Hero */}
-      <View style={styles.heroSection}>
-        <View style={styles.heroBadge}>
-          <Text style={styles.heroBadgeText}>🏆 India's #1 Advisory Platform</Text>
-        </View>
-        <Text style={styles.heroTitle}>Find Verified{'\n'}Advisors Near You</Text>
-        <Text style={styles.heroSubtitle}>
-          Connect with SEBI-verified experts for financial, legal, property and government services.
-        </Text>
-      </View>
+      {/* Spacer */}
+      <View style={{ flex: 1 }} />
 
-      {/* Trust strip */}
-      <View style={styles.trustStrip}>
-        {[
-          { icon: '🛡️', label: 'SEBI Verified' },
-          { icon: '🔒', label: 'Escrow Safe' },
-          { icon: '⭐', label: '4.8 Rated' },
-          { icon: '👥', label: '10K+ Users' },
-        ].map((item) => (
-          <View key={item.label} style={styles.trustItem}>
-            <Text style={styles.trustIcon}>{item.icon}</Text>
-            <Text style={styles.trustLabel}>{item.label}</Text>
-          </View>
+      {/* Service cards 2x2 */}
+      <View style={styles.serviceGrid}>
+        {SERVICES.map((s) => (
+          <TouchableOpacity key={s.id} style={styles.serviceCard} activeOpacity={0.8}>
+            <Text style={styles.serviceIcon}>{s.icon}</Text>
+            <Text style={styles.serviceLabel}>{s.label}</Text>
+          </TouchableOpacity>
         ))}
       </View>
 
-      {/* CTA buttons */}
+      {/* Get Started button */}
       <View style={styles.ctaSection}>
         <LinearGradient
           colors={['#FFE082', '#D4AF37', '#B48C22']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={styles.primaryBtnGradient}
+          style={styles.btnGradient}
         >
           <TouchableOpacity
             onPress={() => navigation.navigate('Terms')}
-            style={styles.primaryBtnInner}
+            style={styles.btnInner}
             activeOpacity={0.85}
           >
-            <Text style={styles.primaryBtnText}>Get Started →</Text>
+            <Text style={styles.btnText}>Get Started</Text>
           </TouchableOpacity>
         </LinearGradient>
-
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Terms')}
-          style={styles.outlineBtn}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.outlineBtnText}>Login to Account</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => navigation.navigate('AdminLogin')}
-          style={styles.ghostBtn}
-          activeOpacity={0.75}
-        >
-          <Text style={styles.ghostBtnText}>Admin Portal →</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   </LinearGradient>
@@ -103,89 +79,51 @@ export const WelcomeScreen: React.FC<Props> = ({ navigation }) => (
 
 const styles = StyleSheet.create({
   gradient: { flex: 1 },
-  safe: { flex: 1, backgroundColor: 'transparent', justifyContent: 'space-between', paddingHorizontal: Spacing.lg },
+  safe: { flex: 1, backgroundColor: 'transparent', paddingHorizontal: Spacing.lg },
 
-  glowTopRight: {
-    position: 'absolute', top: -80, right: -80,
-    width: 280, height: 280, borderRadius: 140,
-    backgroundColor: 'rgba(212,175,55,0.07)',
-  },
-  glowBottomLeft: {
-    position: 'absolute', bottom: -80, left: -80,
-    width: 280, height: 280, borderRadius: 140,
-    backgroundColor: 'rgba(79,70,229,0.07)',
-  },
-
-  // Logo
-  logoSection: { paddingTop: Spacing.lg, alignItems: 'center', gap: 6 },
-  logoIconWrap: {
-    width: 88, height: 88, borderRadius: 22, overflow: 'hidden',
-    borderWidth: 2, borderColor: 'rgba(212,175,55,0.5)',
-    shadowColor: Colors.gold[500],
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 10,
-  },
-  logoImage: { width: 88, height: 88 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  logoTextBroker: { fontSize: 22, fontWeight: '900', color: Colors.white, letterSpacing: -0.3 },
-  logoTextSaab: { fontSize: 22, fontWeight: '900', color: Colors.gold[500], letterSpacing: -0.3 },
-  logoTagline: { fontSize: 11, color: 'rgba(255,255,255,0.35)', letterSpacing: 0.5 },
-
-  // Hero
-  heroSection: { gap: Spacing.md },
-  heroBadge: {
-    backgroundColor: 'rgba(212,175,55,0.15)',
-    borderWidth: 1, borderColor: 'rgba(212,175,55,0.3)',
-    borderRadius: Radius.full, alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.md, paddingVertical: 5,
-  },
-  heroBadgeText: { fontSize: 12, color: Colors.gold[400], fontWeight: '700', letterSpacing: 0.3 },
-  heroTitle: {
-    fontSize: 34, fontWeight: '900', color: Colors.white,
-    lineHeight: 40, letterSpacing: -0.5,
-  },
-  heroSubtitle: {
-    fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 21,
-  },
-
-  // Trust strip
-  trustStrip: {
+  topRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: Radius.lg,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.sm,
-  },
-  trustItem: { flex: 1, alignItems: 'center', gap: 4 },
-  trustIcon: { fontSize: 18 },
-  trustLabel: {
-    fontSize: 9, fontWeight: '700',
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center', letterSpacing: 0.3,
-  },
-
-  // CTAs
-  ctaSection: { paddingBottom: Spacing.lg, gap: Spacing.md },
-
-  primaryBtnGradient: { borderRadius: Radius.lg, overflow: 'hidden', ...Shadow.gold },
-  primaryBtnInner: { paddingVertical: Spacing.md + 2, alignItems: 'center' },
-  primaryBtnText: {
-    color: Colors.navy[900], fontSize: 16, fontWeight: '900', letterSpacing: 0.5,
-  },
-
-  outlineBtn: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: Radius.lg,
-    paddingVertical: Spacing.md + 2,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.2)',
+    paddingTop: Spacing.md,
   },
-  outlineBtnText: { color: Colors.white, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+  skipText: { fontSize: 15, color: Colors.white, fontWeight: '500' },
 
-  ghostBtn: { alignItems: 'center', paddingVertical: Spacing.sm },
-  ghostBtnText: { color: 'rgba(255,255,255,0.35)', fontSize: 13, fontWeight: '500' },
+  logoSection: { alignItems: 'center', marginTop: Spacing.xxl, gap: 12 },
+  compassWrap: {
+    width: 90, height: 90, borderRadius: 45,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  compassIcon: { fontSize: 42 },
+  brandName: {
+    fontSize: 38, fontWeight: '900', color: Colors.gold[400], letterSpacing: -0.5,
+  },
+  tagline: {
+    fontSize: 16, color: 'rgba(255,255,255,0.75)', fontWeight: '400', letterSpacing: 0.2,
+  },
+
+  serviceGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    gap: Spacing.sm, marginBottom: Spacing.xl,
+  },
+  serviceCard: {
+    width: '47.5%',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    borderRadius: Radius.lg,
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
+    gap: 10,
+  },
+  serviceIcon: { fontSize: 30 },
+  serviceLabel: {
+    fontSize: 14, color: Colors.white, fontWeight: '500', textAlign: 'center',
+  },
+
+  ctaSection: { marginBottom: Spacing.md },
+  btnGradient: { borderRadius: Radius.xl, overflow: 'hidden' },
+  btnInner: { paddingVertical: 18, alignItems: 'center' },
+  btnText: { fontSize: 18, fontWeight: '800', color: Colors.navy[900], letterSpacing: 0.3 },
 });

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -64,7 +63,6 @@ export const PhoneOtpScreen: React.FC<Props> = ({ navigation }) => {
     try {
       const cleaned = phone.replace(/\D/g, '');
       const res = await authRepository.verifyOtp(`+91${cleaned}`, otp);
-
       if (res.isNewUser && res.tempToken) {
         navigation.navigate('RegisterComplete', {
           phoneNumber: `+91${cleaned}`,
@@ -80,263 +78,233 @@ export const PhoneOtpScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const autoFillOtp = (code: string) => setOtp(code);
-
   return (
-    <LinearGradient
-      colors={['#0B1F3A', '#1a1040', '#0B1F3A']}
-      start={{ x: 0.3, y: 0 }}
-      end={{ x: 0.7, y: 1 }}
-      style={styles.gradient}
-    >
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-        {/* Glow blobs */}
-        <View style={styles.glowTopRight} pointerEvents="none" />
-        <View style={styles.glowBottomLeft} pointerEvents="none" />
-
-        {/* Navbar */}
-        <View style={styles.navbar}>
-          <TouchableOpacity
-            onPress={otpSent ? () => setOtpSent(false) : () => navigation.goBack()}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
+      {/* Dark blue header */}
+      <LinearGradient
+        colors={['#1C2B6B', '#1E3A8A', '#2563EB']}
+        start={{ x: 0.3, y: 0 }}
+        end={{ x: 0.7, y: 1 }}
+        style={styles.header}
+      >
+        <SafeAreaView edges={['top']} style={styles.headerInner}>
           <View style={styles.logoRow}>
-            <View style={styles.navLogoWrap}>
-              <Image source={require('../../../assets/logo-icon.png')} style={styles.navLogoImg} resizeMode="contain" />
-            </View>
+            <Text style={styles.logoIcon}>🏛️</Text>
             <Text style={styles.logoTextBroker}>Broker</Text>
             <Text style={styles.logoTextSaab}>Saab</Text>
           </View>
-          <View style={{ width: 48 }} />
-        </View>
+        </SafeAreaView>
+      </LinearGradient>
 
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView
-            contentContainerStyle={styles.scroll}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Step header */}
-            <View style={styles.stepHeader}>
-              <Text style={styles.stepBadge}>{otpSent ? 'STEP 2 OF 2' : 'STEP 1 OF 2'}</Text>
-              <Text style={styles.stepTitle}>{otpSent ? 'Enter OTP' : 'Enter Mobile Number'}</Text>
-              <Text style={styles.stepSubtitle}>
-                {otpSent
-                  ? `Code sent to +91 ${phone}`
-                  : 'Enter your mobile number to receive OTP'}
-              </Text>
+      {/* White card */}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          style={styles.cardScroll}
+          contentContainerStyle={styles.cardContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <View style={styles.card}>
+            <Text style={styles.heading}>Welcome Back</Text>
+            <Text style={styles.subheading}>Log in to access your dashboard</Text>
+
+            {/* Phone number */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>PHONE NUMBER</Text>
+              <Text style={styles.fieldLabelHindi}>फोन नंबर</Text>
+              <View style={styles.phoneRow}>
+                <View style={styles.prefixBox}>
+                  <Text style={styles.prefixText}>+91</Text>
+                </View>
+                <TextInput
+                  style={[styles.phoneInput, otpSent && styles.inputDisabled]}
+                  placeholder="Enter 10-digit number"
+                  placeholderTextColor={Colors.slate[400]}
+                  keyboardType="phone-pad"
+                  value={phone}
+                  onChangeText={setPhone}
+                  maxLength={10}
+                  editable={!otpSent}
+                  selectionColor={Colors.indigo[500]}
+                />
+              </View>
             </View>
 
-            {/* Form card */}
-            <View style={styles.formCard}>
-              {!otpSent ? (
-                <>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>MOBILE NUMBER</Text>
-                    <View style={styles.phoneRow}>
-                      <View style={styles.prefixBox}>
-                        <Text style={styles.prefixText}>🇮🇳 +91</Text>
-                      </View>
-                      <TextInput
-                        style={styles.phoneInput}
-                        placeholder="98765 43210"
-                        placeholderTextColor="rgba(255,255,255,0.25)"
-                        keyboardType="phone-pad"
-                        value={phone}
-                        onChangeText={setPhone}
-                        maxLength={10}
-                        selectionColor={Colors.gold[500]}
-                      />
-                    </View>
-                  </View>
-
-                  <LinearGradient
-                    colors={['#FFE082', '#D4AF37', '#B48C22']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.primaryBtnGradient, loading && styles.btnDisabled]}
-                  >
-                    <TouchableOpacity
-                      onPress={handleSendOtp}
-                      disabled={loading}
-                      style={styles.primaryBtnInner}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.primaryBtnText}>{loading ? 'Sending…' : 'Send OTP →'}</Text>
-                    </TouchableOpacity>
-                  </LinearGradient>
-                </>
-              ) : (
-                <>
-                  {devOtp ? (
-                    <TouchableOpacity
-                      style={styles.devOtpBox}
-                      onPress={() => autoFillOtp(devOtp)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.devOtpLabel}>🧪 Test OTP (tap to auto-fill)</Text>
-                      <Text style={styles.devOtpCode}>{devOtp}</Text>
-                      <Text style={styles.devOtpHint}>Tap anywhere on this box to auto-fill</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={styles.staticOtpBox}>
-                      <Text style={styles.staticOtpLabel}>📌 Static Test OTP</Text>
-                      <Text style={styles.staticOtpCode}>1 2 3 4 5 6</Text>
-                      <TouchableOpacity onPress={() => autoFillOtp('123456')} style={styles.autoFillBtn}>
-                        <Text style={styles.autoFillBtnText}>Tap to Auto-fill</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-
-                  <OtpInput
-                    length={6}
-                    value={otp}
-                    onFill={setOtp}
-                    onChangeText={setOtp}
-                    darkMode
-                  />
-
-                  <LinearGradient
-                    colors={['#FFE082', '#D4AF37', '#B48C22']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={[styles.primaryBtnGradient, (loading || otp.length < 6) && styles.btnDisabled]}
-                  >
-                    <TouchableOpacity
-                      onPress={handleVerify}
-                      disabled={loading || otp.length < 6}
-                      style={styles.primaryBtnInner}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.primaryBtnText}>
-                        {loading ? 'Verifying…' : 'Verify & Continue →'}
-                      </Text>
-                    </TouchableOpacity>
-                  </LinearGradient>
-
-                  <TouchableOpacity disabled={resendTimer > 0} onPress={handleSendOtp} style={styles.linkBtn}>
-                    <Text style={[styles.linkBtnText, resendTimer > 0 && styles.linkDisabled]}>
-                      {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity onPress={() => setOtpSent(false)} style={styles.linkBtn}>
-                    <Text style={styles.changeLinkText}>Change Number</Text>
-                  </TouchableOpacity>
-                </>
-              )}
+            {/* OTP section */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>VERIFICATION CODE (OTP)</Text>
+              <Text style={styles.fieldLabelHindi}>सत्यापन कोड</Text>
+              <OtpInput
+                length={6}
+                value={otp}
+                onFill={setOtp}
+                onChangeText={setOtp}
+                darkMode={false}
+              />
+              {devOtp ? (
+                <TouchableOpacity onPress={() => setOtp(devOtp)} style={styles.devOtpRow}>
+                  <Text style={styles.devOtpHint}>🧪 Test OTP: {devOtp} (tap to fill)</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity
+                disabled={resendTimer > 0 || !otpSent}
+                onPress={handleSendOtp}
+                style={styles.resendRow}
+              >
+                <Text style={[styles.resendText, (!otpSent || resendTimer > 0) && styles.resendDisabled]}>
+                  {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP / पुनः भेजें'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
-            <Text style={styles.secureNote}>🔒 End-to-end encrypted · BrokerSaab</Text>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </LinearGradient>
+            {/* Login button */}
+            <LinearGradient
+              colors={['#FFE082', '#D4AF37', '#B48C22']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.loginGradient, loading && { opacity: 0.6 }]}
+            >
+              <TouchableOpacity
+                style={styles.loginInner}
+                activeOpacity={0.85}
+                disabled={loading}
+                onPress={otpSent ? handleVerify : handleSendOtp}
+              >
+                <Text style={styles.loginText}>
+                  {loading ? 'Please wait…' : otpSent ? 'Login →' : 'Send OTP →'}
+                </Text>
+              </TouchableOpacity>
+            </LinearGradient>
+
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google */}
+            <TouchableOpacity style={styles.googleBtn} activeOpacity={0.8}>
+              <Text style={styles.googleG}>G</Text>
+              <Text style={styles.googleText}>Continue with Google</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Register link */}
+          <View style={styles.registerRow}>
+            <Text style={styles.registerText}>New user? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Terms')}>
+              <Text style={styles.registerLink}>Register here</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.registerHindi}>नये उपयोगकर्ता? यहाँ रजिस्टर करें</Text>
+
+          {/* Admin portal */}
+          <TouchableOpacity onPress={() => navigation.navigate('AdminLogin')} style={styles.adminLink}>
+            <Text style={styles.adminText}>Admin Portal →</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  gradient: { flex: 1 },
-  safe: { flex: 1, backgroundColor: 'transparent' },
+  root: { flex: 1, backgroundColor: '#F1F5F9' },
+  flex: { flex: 1 },
 
-  glowTopRight: {
-    position: 'absolute', top: -80, right: -80,
-    width: 240, height: 240, borderRadius: 120,
-    backgroundColor: 'rgba(212,175,55,0.07)',
-  },
-  glowBottomLeft: {
-    position: 'absolute', bottom: -80, left: -80,
-    width: 240, height: 240, borderRadius: 120,
-    backgroundColor: 'rgba(79,70,229,0.07)',
-  },
+  header: { paddingBottom: 32 },
+  headerInner: { alignItems: 'center', paddingTop: Spacing.md, paddingBottom: Spacing.lg },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logoIcon: { fontSize: 26 },
+  logoTextBroker: { fontSize: 24, fontWeight: '800', color: Colors.white },
+  logoTextSaab: { fontSize: 24, fontWeight: '800', color: Colors.gold[400] },
 
-  navbar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
-  },
-  backText: { fontSize: 14, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  navLogoWrap: { width: 28, height: 28, borderRadius: 7, overflow: 'hidden' },
-  navLogoImg: { width: 28, height: 28 },
-  logoTextBroker: { fontSize: 18, fontWeight: '800', color: Colors.white },
-  logoTextSaab: { fontSize: 18, fontWeight: '800', color: Colors.gold[500] },
+  cardScroll: { flex: 1, marginTop: -28 },
+  cardContent: { paddingBottom: Spacing.xl },
 
-  scroll: { padding: Spacing.lg, paddingTop: Spacing.xl, paddingBottom: Spacing.xl },
-
-  stepHeader: { marginBottom: Spacing.lg, gap: Spacing.xs },
-  stepBadge: {
-    fontSize: 11, fontWeight: '700', color: Colors.gold[400],
-    letterSpacing: 1.5, textTransform: 'uppercase',
-  },
-  stepTitle: { fontSize: 26, fontWeight: '900', color: Colors.white, letterSpacing: -0.3 },
-  stepSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 20 },
-
-  formCard: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: Radius.xl, padding: Spacing.lg, gap: Spacing.md,
-    borderWidth: 1, borderColor: 'rgba(212,175,55,0.2)',
+  card: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.lg,
+    gap: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 6,
   },
 
-  inputGroup: { gap: 6 },
-  inputLabel: {
-    fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.45)',
-    letterSpacing: 1, textTransform: 'uppercase',
-  },
+  heading: { fontSize: 28, fontWeight: '900', color: Colors.navy[900], letterSpacing: -0.5 },
+  subheading: { fontSize: 14, color: Colors.slate[500], marginTop: -Spacing.sm },
+
+  fieldGroup: { gap: 4 },
+  fieldLabel: { fontSize: 11, fontWeight: '700', color: Colors.navy[800], letterSpacing: 1, textTransform: 'uppercase' },
+  fieldLabelHindi: { fontSize: 11, color: Colors.slate[500], marginBottom: 6 },
+
   phoneRow: { flexDirection: 'row', gap: Spacing.sm },
   prefixBox: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: Radius.md, paddingHorizontal: Spacing.md,
-    justifyContent: 'center', minHeight: 52,
+    backgroundColor: Colors.slate[100],
+    borderWidth: 1, borderColor: Colors.slate[200],
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    justifyContent: 'center',
+    minHeight: 52,
   },
-  prefixText: { color: Colors.white, fontSize: 13, fontWeight: '700' },
+  prefixText: { fontSize: 15, fontWeight: '700', color: Colors.slate[700] },
   phoneInput: {
-    flex: 1, backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: Radius.md, color: Colors.white, fontSize: 18,
-    paddingHorizontal: Spacing.md, minHeight: 52, letterSpacing: 2, fontWeight: '600',
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderWidth: 1, borderColor: Colors.slate[200],
+    borderRadius: Radius.md,
+    color: Colors.navy[800],
+    fontSize: 16, fontWeight: '500',
+    paddingHorizontal: Spacing.md,
+    minHeight: 52,
   },
+  inputDisabled: { backgroundColor: Colors.slate[50], color: Colors.slate[500] },
 
-  devOtpBox: {
-    backgroundColor: 'rgba(212,175,55,0.12)',
-    borderWidth: 1.5, borderColor: 'rgba(212,175,55,0.4)',
-    borderRadius: Radius.lg, padding: Spacing.md, alignItems: 'center', gap: 4,
-  },
-  devOtpLabel: { fontSize: 12, color: Colors.gold[300], fontWeight: '700', letterSpacing: 0.5 },
-  devOtpCode: {
-    fontSize: 34, fontWeight: '900', color: Colors.gold[300], letterSpacing: 8, marginVertical: 4,
-  },
-  devOtpHint: { fontSize: 11, color: 'rgba(212,175,55,0.6)' },
+  devOtpRow: { marginTop: 4 },
+  devOtpHint: { fontSize: 12, color: Colors.indigo[500], fontWeight: '600' },
 
-  staticOtpBox: {
-    backgroundColor: 'rgba(212,175,55,0.12)',
-    borderWidth: 1.5, borderColor: 'rgba(212,175,55,0.4)',
-    borderRadius: Radius.lg, padding: Spacing.md, alignItems: 'center', gap: 6,
-  },
-  staticOtpLabel: { fontSize: 12, color: Colors.gold[300], fontWeight: '700' },
-  staticOtpCode: { fontSize: 32, fontWeight: '900', color: Colors.gold[300], letterSpacing: 8 },
-  autoFillBtn: {
-    backgroundColor: Colors.gold[500], borderRadius: Radius.md,
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs + 2, marginTop: 4,
-  },
-  autoFillBtnText: { color: Colors.navy[900], fontSize: 12, fontWeight: '700' },
+  resendRow: { alignSelf: 'flex-end' },
+  resendText: { fontSize: 13, color: Colors.indigo[600], fontWeight: '600' },
+  resendDisabled: { color: Colors.slate[400] },
 
-  primaryBtnGradient: { borderRadius: Radius.lg, overflow: 'hidden' },
-  primaryBtnInner: { paddingVertical: Spacing.md, alignItems: 'center' },
-  primaryBtnText: { color: Colors.navy[900], fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
-  btnDisabled: { opacity: 0.45 },
+  loginGradient: { borderRadius: Radius.lg, overflow: 'hidden' },
+  loginInner: { paddingVertical: 16, alignItems: 'center' },
+  loginText: { fontSize: 17, fontWeight: '800', color: Colors.navy[900], letterSpacing: 0.3 },
 
-  linkBtn: { alignItems: 'center', paddingVertical: Spacing.sm },
-  linkBtnText: { color: Colors.gold[400], fontSize: 13, fontWeight: '600' },
-  linkDisabled: { color: 'rgba(255,255,255,0.3)' },
-  changeLinkText: { color: 'rgba(255,255,255,0.4)', fontSize: 12 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.slate[200] },
+  dividerText: { fontSize: 12, color: Colors.slate[400], fontWeight: '600' },
 
-  secureNote: {
-    textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.3)',
-    marginTop: Spacing.xl, letterSpacing: 0.3,
+  googleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: Spacing.sm,
+    borderWidth: 1.5, borderColor: Colors.slate[200],
+    borderRadius: Radius.lg,
+    paddingVertical: 14,
+    backgroundColor: Colors.white,
   },
+  googleG: { fontSize: 18, fontWeight: '900', color: '#EA4335' },
+  googleText: { fontSize: 15, fontWeight: '600', color: Colors.navy[800] },
+
+  registerRow: { flexDirection: 'row', justifyContent: 'center', marginTop: Spacing.lg },
+  registerText: { fontSize: 14, color: Colors.navy[800] },
+  registerLink: { fontSize: 14, color: Colors.navy[800], fontWeight: '800' },
+  registerHindi: { textAlign: 'center', fontSize: 12, color: Colors.slate[500], marginTop: 2 },
+
+  adminLink: { alignItems: 'center', paddingTop: Spacing.md },
+  adminText: { fontSize: 12, color: Colors.slate[400] },
 });

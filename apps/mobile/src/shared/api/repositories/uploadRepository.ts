@@ -2,7 +2,6 @@ import apiClient from '../apiClient';
 import type { UploadResponse } from '@brokersaab/shared-types';
 
 export const uploadRepository = {
-  // formData should include 'file' and optionally 'documentType' fields
   uploadDocument: (formData: FormData) =>
     apiClient
       .post<UploadResponse>('/upload/document', formData, {
@@ -10,16 +9,26 @@ export const uploadRepository = {
       })
       .then((r) => r.data),
 
+  // Advisor-specific avatar upload → /advisors/upload/avatar
   uploadAvatar: (formData: FormData) =>
     apiClient
-      .post<UploadResponse>('/upload/avatar', formData, {
+      .post<{ success: boolean; avatarUrl: string }>('/advisors/upload/avatar', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       .then((r) => r.data),
 
+  // Advisor cover / banner image → /advisors/upload/cover
   uploadCover: (formData: FormData) =>
     apiClient
-      .post<UploadResponse>('/upload/cover', formData, {
+      .post<{ success: boolean; coverImageUrl: string }>('/advisors/upload/cover', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data),
+
+  // Client user avatar upload → /users/upload/avatar
+  uploadUserAvatar: (formData: FormData) =>
+    apiClient
+      .post<{ success: boolean; avatarUrl: string }>('/users/upload/avatar', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       .then((r) => r.data),
