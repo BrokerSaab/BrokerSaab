@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -28,7 +28,7 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-// LoginModal is imported here to avoid circular dep â€” we import the component lazily
+// LoginModal is imported here to avoid circular dep — we import the component lazily
 // by accepting it as a prop via the children pattern inside AuthProvider's JSX.
 // Instead, we render it directly below after importing.
 import LoginModal from '@/components/LoginModal';
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof document !== 'undefined') document.body.style.overflow = '';
   };
 
-  // Private â€” passed directly to LoginModal, not exposed through context
+  // Private — passed directly to LoginModal, not exposed through context
   const handleLoginSuccess = (userData: AuthUser) => {
     sessionStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);

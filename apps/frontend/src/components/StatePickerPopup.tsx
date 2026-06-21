@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import { X, MapPin, ArrowRight, ArrowLeft } from 'lucide-react';
@@ -63,7 +63,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
 
   if (!open) return null;
 
-  /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ STEP 2 â€” District â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ─────────────────── STEP 2 — District ─────────────────── */
   if (step === 'district') {
     return (
       <div className="fixed inset-0 z-[99997] flex items-center justify-center p-3 sm:p-5">
@@ -97,7 +97,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
               </button>
               <div>
                 <h2 className="text-white font-black text-lg sm:text-xl leading-tight">
-                  ðŸ“ Pick your district in&nbsp;
+                  📍 Pick your district in&nbsp;
                   <span style={{ color: '#D4AF37' }}>{selected}</span>
                 </h2>
                 <p className="text-white/50 text-xs mt-0.5">
@@ -117,7 +117,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
           <div className="flex-1 overflow-y-auto">
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_240px] gap-0">
 
-              {/* LEFT â€” District grid map */}
+              {/* LEFT — District grid map */}
               <div className="px-4 sm:px-5 py-4 flex flex-col items-center justify-center border-r border-white/5 overflow-y-auto">
                 <p className="text-white/35 text-[11px] uppercase tracking-widest font-semibold mb-3">
                   Click any district on the map
@@ -130,7 +130,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
                 />
               </div>
 
-              {/* RIGHT â€” District list + confirm */}
+              {/* RIGHT — District list + confirm */}
               <div className="flex flex-col px-4 sm:px-5 py-4">
                 <p className="text-white/35 text-[11px] uppercase tracking-widest font-semibold mb-3">
                   Or select from list
@@ -162,7 +162,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
                         <span className="w-2 h-2 rounded-full shrink-0"
                           style={{ background: isActive ? '#D4AF37' : 'rgba(212,175,55,0.4)' }} />
                         <span className="font-medium flex-1 truncate">{d}</span>
-                        {isActive && <span className="text-gold-400 text-sm shrink-0">âœ“</span>}
+                        {isActive && <span className="text-gold-400 text-sm shrink-0">✓</span>}
                       </button>
                     );
                   })}
@@ -175,7 +175,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
                     <MapPin size={13} className="text-gold-400 shrink-0" />
                     <span className="text-gold-300 text-xs font-bold truncate">{district}</span>
                     <button onClick={() => setDistrict('')}
-                      className="ml-auto text-white/30 hover:text-white/70 text-xs transition-colors shrink-0">âœ•</button>
+                      className="ml-auto text-white/30 hover:text-white/70 text-xs transition-colors shrink-0">✕</button>
                   </div>
                 )}
 
@@ -195,7 +195,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
                   {district ? (
                     <><MapPin size={14} /> {district}, {selected} <ArrowRight size={14} /></>
                   ) : (
-                    <>All {selected} â†’</>
+                    <>All {selected} →</>
                   )}
                 </button>
 
@@ -203,7 +203,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
                   onClick={() => finish(selected, '')}
                   className="mt-2 text-center w-full text-white/25 text-xs hover:text-white/50 transition-colors py-1"
                 >
-                  Skip â€” show all {selected}
+                  Skip — show all {selected}
                 </button>
               </div>
             </div>
@@ -213,7 +213,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
     );
   }
 
-  /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ STEP 1 â€” State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ─────────────────── STEP 1 — State ─────────────────── */
   return (
     <div
       className="fixed inset-0 z-[99997] flex items-center justify-center p-3 sm:p-5"
@@ -246,7 +246,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
             </div>
             <div>
               <h2 className="text-white font-black text-lg sm:text-xl leading-tight">
-                ðŸ“ Where are you in India?
+                📍 Where are you in India?
               </h2>
               <p className="text-white/50 text-xs mt-0.5">
                 Click your state on the map or pick from the list below
@@ -265,7 +265,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
         <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_260px] gap-0">
 
-            {/* LEFT â€” SVG Map */}
+            {/* LEFT — SVG Map */}
             <div className="px-4 sm:px-6 py-4 flex flex-col items-center justify-center border-r border-white/5">
               <p className="text-white/35 text-[11px] uppercase tracking-widest font-semibold mb-3">
                 Click any state on the map
@@ -276,7 +276,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
               />
             </div>
 
-            {/* RIGHT â€” State list + confirm */}
+            {/* RIGHT — State list + confirm */}
             <div className="flex flex-col px-4 sm:px-5 py-4">
               <p className="text-white/35 text-[11px] uppercase tracking-widest font-semibold mb-3">
                 Or select from list
@@ -311,7 +311,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
                             : '#FFD600',
                         }} />
                       <span className="font-medium flex-1 truncate">{state.name}</span>
-                      {isActive && <span className="text-gold-400 text-sm shrink-0">âœ“</span>}
+                      {isActive && <span className="text-gold-400 text-sm shrink-0">✓</span>}
                     </button>
                   );
                 })}
@@ -323,7 +323,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
                   <MapPin size={13} className="text-gold-400 shrink-0" />
                   <span className="text-gold-300 text-xs font-bold truncate">{selected}</span>
                   <button onClick={() => setSelected('')}
-                    className="ml-auto text-white/30 hover:text-white/70 text-xs transition-colors shrink-0">âœ•</button>
+                    className="ml-auto text-white/30 hover:text-white/70 text-xs transition-colors shrink-0">✕</button>
                 </div>
               )}
 
@@ -342,7 +342,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
                 {selected ? (
                   <><MapPin size={14} /> Select district in {selected} <ArrowRight size={14} /></>
                 ) : (
-                  <>Browse All India â†’</>
+                  <>Browse All India →</>
                 )}
               </button>
 
@@ -350,7 +350,7 @@ export default function StatePickerPopup({ forceOpen, onForceClose }: Props) {
                 onClick={() => finish('All India', '')}
                 className="mt-2 text-center w-full text-white/25 text-xs hover:text-white/50 transition-colors py-1"
               >
-                Skip â€” show all states
+                Skip — show all states
               </button>
             </div>
           </div>

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -56,10 +56,10 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 const KYC_DOCS = [
-  { type: 'AADHAAR_CARD',    label: 'Aadhaar Card',           hint: 'Front & back scan Â· PDF or image',        needsNum: true  },
+  { type: 'AADHAAR_CARD',    label: 'Aadhaar Card',           hint: 'Front & back scan · PDF or image',        needsNum: true  },
   { type: 'PASSPORT_PHOTO',  label: 'Passport Photo',         hint: 'Clear face photo on plain background',    needsNum: false },
   { type: 'LICENSE_COPY',    label: 'License / Certificate',  hint: 'Professional licence or degree',          needsNum: false },
-  { type: 'GST_CERTIFICATE', label: 'GST Certificate',        hint: 'Optional â€” for GST-registered advisors', needsNum: false },
+  { type: 'GST_CERTIFICATE', label: 'GST Certificate',        hint: 'Optional — for GST-registered advisors', needsNum: false },
 ] as const;
 
 export default function AdvisorProfilePage() {
@@ -67,7 +67,7 @@ export default function AdvisorProfilePage() {
   const router = useRouter();
   const token = () => sessionStorage.getItem('accessToken') || '';
 
-  // â”€â”€ Images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Images ─────────────────────────────────────────────────────────────────
   const [avatarUrl,    setAvatarUrl]    = useState<string | null>(null);
   const [coverUrl,     setCoverUrl]     = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -81,7 +81,7 @@ export default function AdvisorProfilePage() {
   const avatarRef = useRef<HTMLInputElement>(null);
   const coverRef  = useRef<HTMLInputElement>(null);
 
-  // â”€â”€ Profile direct-edit form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Profile direct-edit form ────────────────────────────────────────────────
   const [profileEditing, setProfileEditing] = useState(false);
   const [profileSaving,  setProfileSaving]  = useState(false);
   const [profileDone,    setProfileDone]    = useState(false);
@@ -99,7 +99,7 @@ export default function AdvisorProfilePage() {
   const [gstNumber,    setGstNumber]    = useState('');
   const [profileError, setProfileError] = useState('');
 
-  // â”€â”€ Sensitive change requests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Sensitive change requests ───────────────────────────────────────────────
   const [currentPhone,   setCurrentPhone]   = useState('');
   const [currentAadhaar, setCurrentAadhaar] = useState('');
   const [currentLicense, setCurrentLicense] = useState('');
@@ -112,7 +112,7 @@ export default function AdvisorProfilePage() {
   const [crError, setCrError]   = useState('');
   const [crSuccess, setCrSuccess] = useState('');
 
-  // â”€â”€ KYC docs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── KYC docs ───────────────────────────────────────────────────────────────
   const [kycFiles,   setKycFiles]   = useState<Record<string, File | null>>({});
   const [kycNums,    setKycNums]    = useState<Record<string, string>>({});
   const [kycLoading, setKycLoading] = useState<Record<string, boolean>>({});
@@ -120,7 +120,7 @@ export default function AdvisorProfilePage() {
   const [kycError,   setKycError]   = useState<Record<string, string>>({});
   const kycRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Init ────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!authReady) return;
     if (!isLoggedIn) { router.push('/auth'); return; }
@@ -173,7 +173,7 @@ export default function AdvisorProfilePage() {
 
   const initials = fullName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
-  // â”€â”€ Image handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Image handlers ──────────────────────────────────────────────────────────
   const saveAvatar = async () => {
     if (!avatarFile) return;
     setSavingAvatar(true);
@@ -198,7 +198,7 @@ export default function AdvisorProfilePage() {
     setSavingCover(false);
   };
 
-  // â”€â”€ Profile direct-edit save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Profile direct-edit save ────────────────────────────────────────────────
   const saveProfile = async () => {
     setProfileSaving(true); setProfileError('');
     try {
@@ -230,7 +230,7 @@ export default function AdvisorProfilePage() {
     setProfileSaving(false);
   };
 
-  // â”€â”€ Change request submit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Change request submit ───────────────────────────────────────────────────
   const pendingFor = (field: string) => changeRequests.find(r => r.fieldName === field && r.status === 'PENDING');
 
   const submitChangeRequest = async () => {
@@ -256,7 +256,7 @@ export default function AdvisorProfilePage() {
     setCrSubmitting(false);
   };
 
-  // â”€â”€ KYC upload â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── KYC upload ──────────────────────────────────────────────────────────────
   const uploadKycDoc = async (docType: string) => {
     const file = kycFiles[docType];
     if (!file) return;
@@ -304,7 +304,7 @@ export default function AdvisorProfilePage() {
           <p className="text-white/40 text-sm">Update your profile details. Changes to mobile, Aadhaar, license and name require admin approval.</p>
         </div>
 
-        {/* â”€â”€ COVER + AVATAR CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── COVER + AVATAR CARD ───────────────────────────────────── */}
         <div className="bg-white rounded-2xl overflow-hidden shadow-2xl" style={{ border: '1px solid rgba(212,175,55,0.2)' }}>
           <div className="relative w-full h-44 group cursor-pointer" style={{ background: displayCover ? undefined : 'linear-gradient(135deg,#0B1F3A,#1a1040)' }} onClick={() => coverRef.current?.click()}>
             {displayCover && <img src={displayCover} alt="Cover" className="w-full h-full object-cover" />}
@@ -355,11 +355,11 @@ export default function AdvisorProfilePage() {
                 <div><p className="text-sm font-black text-gray-800">{label}</p><p className="text-[10px] text-gray-400">{hint}</p></div>
               </div>
               <button onClick={onClick} className="w-full py-2 rounded-xl text-xs font-semibold border-2 border-dashed border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-500 transition-all mb-2">
-                {file ? `âœ“ ${file.name.slice(0,22)}â€¦` : 'Choose Image'}
+                {file ? `✓ ${file.name.slice(0,22)}…` : 'Choose Image'}
               </button>
               {file && (
                 <button onClick={onSave} disabled={saving} className="w-full py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50" style={{ background: `linear-gradient(135deg,${accent},${accent}bb)`, color: '#0B1F3A' }}>
-                  {saving ? <><Loader2 size={13} className="animate-spin" />Uploadingâ€¦</> : <><Upload size={12} />Save</>}
+                  {saving ? <><Loader2 size={13} className="animate-spin" />Uploading…</> : <><Upload size={12} />Save</>}
                 </button>
               )}
               {done && !file && <div className="flex items-center justify-center gap-1.5 text-emerald-600 text-xs font-bold py-1"><CheckCircle2 size={13} /> Saved!</div>}
@@ -367,7 +367,7 @@ export default function AdvisorProfilePage() {
           ))}
         </div>
 
-        {/* â”€â”€ DIRECT EDIT PROFILE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── DIRECT EDIT PROFILE ──────────────────────────────────── */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden" style={{ border: '1px solid rgba(212,175,55,0.15)' }}>
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <div className="flex items-center gap-3">
@@ -376,7 +376,7 @@ export default function AdvisorProfilePage() {
               </div>
               <div>
                 <p className="text-sm font-black text-gray-800">Profile Details</p>
-                <p className="text-[10px] text-gray-400">Bio, location, fee, languages â€” saved immediately</p>
+                <p className="text-[10px] text-gray-400">Bio, location, fee, languages — saved immediately</p>
               </div>
             </div>
             {!profileEditing
@@ -422,7 +422,7 @@ export default function AdvisorProfilePage() {
               <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Bio / Description</label>
               <textarea disabled={!profileEditing} value={bio} onChange={e => setBio(e.target.value)} rows={3}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all disabled:bg-gray-50 disabled:text-gray-400 resize-none placeholder:text-gray-300"
-                placeholder="Describe your expertise and servicesâ€¦" />
+                placeholder="Describe your expertise and services…" />
             </div>
 
             {/* Location + State */}
@@ -464,7 +464,7 @@ export default function AdvisorProfilePage() {
             {/* Fee + Email */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Consultation Fee (â‚¹)</label>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Consultation Fee (₹)</label>
                 <input disabled={!profileEditing} type="number" min="0" value={consultationFee} onChange={e => setConsultationFee(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all disabled:bg-gray-50 disabled:text-gray-400"
                   placeholder="0" />
@@ -508,13 +508,13 @@ export default function AdvisorProfilePage() {
               <button onClick={saveProfile} disabled={profileSaving}
                 className="w-full py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}>
-                {profileSaving ? <><Loader2 size={15} className="animate-spin" />Savingâ€¦</> : <><Save size={15} />Save Profile Changes</>}
+                {profileSaving ? <><Loader2 size={15} className="animate-spin" />Saving…</> : <><Save size={15} />Save Profile Changes</>}
               </button>
             )}
           </div>
         </div>
 
-        {/* â”€â”€ SENSITIVE FIELDS (Change Requests) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── SENSITIVE FIELDS (Change Requests) ───────────────────── */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden" style={{ border: '1px solid rgba(212,175,55,0.15)' }}>
           <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.1)' }}>
@@ -522,7 +522,7 @@ export default function AdvisorProfilePage() {
             </div>
             <div>
               <p className="text-sm font-black text-gray-800">Sensitive Fields</p>
-              <p className="text-[10px] text-gray-400">Changes require admin verification â€” reviewed within 24 hours</p>
+              <p className="text-[10px] text-gray-400">Changes require admin verification — reviewed within 24 hours</p>
             </div>
           </div>
 
@@ -530,8 +530,8 @@ export default function AdvisorProfilePage() {
             {([
               { field: 'fullName',      label: 'Full Name',      current: fullName,        hint: 'Must match Aadhaar card exactly',  Icon: User },
               { field: 'phoneNumber',   label: 'Mobile Number',  current: currentPhone,    hint: '10-digit Indian number',           Icon: Phone },
-              { field: 'aadhaarNumber', label: 'Aadhaar Number', current: currentAadhaar ? `****${currentAadhaar.slice(-4)}` : 'â€”', hint: '12-digit Aadhaar', Icon: CreditCard },
-              { field: 'licenseNumber', label: 'License Number', current: currentLicense || 'â€”', hint: 'Professional licence / degree No.', Icon: BadgeCheck },
+              { field: 'aadhaarNumber', label: 'Aadhaar Number', current: currentAadhaar ? `****${currentAadhaar.slice(-4)}` : '—', hint: '12-digit Aadhaar', Icon: CreditCard },
+              { field: 'licenseNumber', label: 'License Number', current: currentLicense || '—', hint: 'Professional licence / degree No.', Icon: BadgeCheck },
             ] as const).map(({ field, label, current, hint, Icon }) => {
               const pending = pendingFor(field);
               const history = changeRequests.filter(r => r.fieldName === field && r.status !== 'PENDING').slice(0, 1)[0];
@@ -553,7 +553,7 @@ export default function AdvisorProfilePage() {
                       {history && !pending && (
                         <div className={`mt-1 inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${STATUS_STYLES[history.status].text} ${STATUS_STYLES[history.status].bg} border`}>
                           <span>{STATUS_STYLES[history.status].label}</span>
-                          {history.reviewNote && <span>Â· {history.reviewNote}</span>}
+                          {history.reviewNote && <span>· {history.reviewNote}</span>}
                         </div>
                       )}
                       <p className="text-[9px] text-gray-400 mt-0.5">{hint}</p>
@@ -572,7 +572,7 @@ export default function AdvisorProfilePage() {
           </div>
         </div>
 
-        {/* â”€â”€ CHANGE REQUEST HISTORY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── CHANGE REQUEST HISTORY ────────────────────────────────── */}
         {changeRequests.length > 0 && (
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden" style={{ border: '1px solid rgba(212,175,55,0.15)' }}>
             <div className="px-5 py-4 border-b border-gray-100">
@@ -605,7 +605,7 @@ export default function AdvisorProfilePage() {
           </div>
         )}
 
-        {/* â”€â”€ KYC DOCUMENTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── KYC DOCUMENTS ────────────────────────────────────────── */}
         <div>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.3)' }}>
@@ -639,17 +639,17 @@ export default function AdvisorProfilePage() {
                   )}
                   <button onClick={() => kycRefs.current[type]?.click()}
                     className="w-full py-2 rounded-xl text-xs font-semibold border-2 border-dashed border-gray-200 text-gray-500 hover:border-[#D4AF37]/50 hover:text-[#B48C22] transition-all mb-2">
-                    {file ? `âœ“ ${file.name.slice(0, 24)}â€¦` : 'Choose File'}
+                    {file ? `✓ ${file.name.slice(0, 24)}…` : 'Choose File'}
                   </button>
                   <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden"
                     ref={el => { kycRefs.current[type] = el; }}
                     onChange={e => { const f = e.target.files?.[0]; if (f) setKycFiles(p => ({ ...p, [type]: f })); setKycError(p => ({ ...p, [type]: '' })); }} />
-                  {err && <p className="text-[10px] text-red-500 mb-2">âš  {err}</p>}
+                  {err && <p className="text-[10px] text-red-500 mb-2">⚠ {err}</p>}
                   {file && (
                     <button onClick={() => uploadKycDoc(type)} disabled={loading}
                       className="w-full py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50"
                       style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}>
-                      {loading ? <><Loader2 size={12} className="animate-spin" />Uploadingâ€¦</> : <><Upload size={12} />Upload Document</>}
+                      {loading ? <><Loader2 size={12} className="animate-spin" />Uploading…</> : <><Upload size={12} />Upload Document</>}
                     </button>
                   )}
                   {done && !file && <div className="flex items-center justify-center gap-1.5 text-emerald-600 text-xs font-bold py-1"><CheckCircle2 size={12} /> Uploaded!</div>}
@@ -661,7 +661,7 @@ export default function AdvisorProfilePage() {
 
       </div>
 
-      {/* â”€â”€ CHANGE REQUEST MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── CHANGE REQUEST MODAL ─────────────────────────────────────── */}
       {crModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
@@ -701,7 +701,7 @@ export default function AdvisorProfilePage() {
                 <button onClick={submitChangeRequest} disabled={!crValue.trim() || crSubmitting}
                   className="flex-1 py-2.5 rounded-xl text-xs font-black text-[#0B1F3A] flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)' }}>
-                  {crSubmitting ? <><Loader2 size={13} className="animate-spin" />Submittingâ€¦</> : 'Submit Request'}
+                  {crSubmitting ? <><Loader2 size={13} className="animate-spin" />Submitting…</> : 'Submit Request'}
                 </button>
               </div>
             </div>

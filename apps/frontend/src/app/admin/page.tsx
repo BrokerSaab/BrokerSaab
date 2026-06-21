@@ -1419,7 +1419,7 @@ export default function AdminSuitePage() {
                               </div>
                               <span className="text-[10px] text-slate-600 font-medium leading-tight">{doc.documentType.replace(/_/g, ' ')}</span>
                               <span className={`text-[9px] px-1.5 py-0.5 rounded text-center font-semibold ${doc.verified ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-amber-50 text-amber-600 border border-amber-200'}`}>
-                                {doc.verified ? 'âœ“ Verified' : 'â³ Pending'}
+                                {doc.verified ? '✓ Verified' : '⏳ Pending'}
                               </span>
                               <div className="flex gap-1">
                                 <a href={fileUrl} target="_blank" rel="noreferrer"
@@ -2009,7 +2009,7 @@ export default function AdminSuitePage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${u.isFree ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
-                          {u.isFree ? 'ðŸŽ Free' : 'Credit'}
+                          {u.isFree ? '🎁 Free' : 'Credit'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
@@ -2064,7 +2064,7 @@ export default function AdminSuitePage() {
                     <p className="text-sm font-semibold text-white">{b.client?.fullName ?? 'Client'} → {b.advisor?.fullName ?? 'Advisor'}</p>
                     <div className="flex gap-3 text-xs text-slate-400">
                       <span className="flex items-center gap-1"><Calendar size={11} className="text-gold-500/60" />{new Date(b.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                      <span className="flex items-center gap-1"><Clock size={11} className="text-gold-500/60" />{b.startTime} â€“ {b.endTime}</span>
+                      <span className="flex items-center gap-1"><Clock size={11} className="text-gold-500/60" />{b.startTime} – {b.endTime}</span>
                       <span className="text-gold-400 font-bold">₹{b.totalFee}</span>
                     </div>
                   </div>
@@ -2136,7 +2136,7 @@ export default function AdminSuitePage() {
                       </div>
                       <p className="text-[11px] text-slate-400 truncate">{ticket.user.fullName || ticket.user.phoneNumber}</p>
                       {ticket.assignedToAdmin && (
-                        <p className="text-[10px] text-slate-400 mt-0.5">â†³ {ticket.assignedToAdmin.fullName}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">↳ {ticket.assignedToAdmin.fullName}</p>
                       )}
                     </div>
                   );
@@ -2237,7 +2237,7 @@ export default function AdminSuitePage() {
                               : s === 'RESOLVED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
                               : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
                             }`}>
-                            {s === 'IN_PROGRESS' ? 'ðŸ"„ In Progress' : s === 'RESOLVED' ? 'âœ… Resolved' : 'ðŸ"’ Close Ticket'}
+                            {s === 'IN_PROGRESS' ? '🔄 In Progress' : s === 'RESOLVED' ? '✅ Resolved' : '🔒 Close Ticket'}
                           </button>
                         ))}
                       </div>
@@ -2277,7 +2277,7 @@ export default function AdminSuitePage() {
                 </div>
               ) : (
                 <div className="hidden lg:col-span-3 lg:flex items-center justify-center bg-white rounded-2xl border border-dashed border-slate-200 h-64 text-slate-300 text-sm">
-                  â† Click a ticket to view details
+                  ← Click a ticket to view details
                 </div>
               )}
             </div>
@@ -2310,7 +2310,7 @@ export default function AdminSuitePage() {
                     disabled={!closingNoteText.trim() || closingSubmitting}
                     className="px-5 py-2 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {closingSubmitting ? <><Loader2 size={13} className="animate-spin" /> Closing…</> : <>ðŸ"’ Close Ticket</>}
+                    {closingSubmitting ? <><Loader2 size={13} className="animate-spin" /> Closing…</> : <>🔒 Close Ticket</>}
                   </button>
                 </div>
               </div>
@@ -2520,7 +2520,7 @@ export default function AdminSuitePage() {
                     </div>
                     {pending > 0 && (
                       <p className="text-[10px] text-amber-600 mt-2 font-medium">
-                        â³ {pending} advisor{pending > 1 ? 's' : ''} in pipeline
+                        ⏳ {pending} advisor{pending > 1 ? 's' : ''} in pipeline
                       </p>
                     )}
                   </div>
@@ -2555,7 +2555,7 @@ export default function AdminSuitePage() {
                   <tr key={i} className="border-t border-slate-100">
                     <td className="px-3 py-2 text-slate-700">{e.fullName}</td>
                     <td className="px-3 py-2 text-slate-500">{e.email}</td>
-                    <td className="px-3 py-2 font-mono text-slate-400">{'â€¢'.repeat(Math.min(e.password.length, 12))}</td>
+                    <td className="px-3 py-2 font-mono text-slate-400">{'•'.repeat(Math.min(e.password.length, 12))}</td>
                   </tr>
                 ))}
               </tbody>

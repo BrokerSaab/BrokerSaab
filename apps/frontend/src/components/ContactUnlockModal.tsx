@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import { X, ShieldCheck, Loader2, CheckCircle2, Copy, Check, Download, Phone, Mail, Award } from 'lucide-react';
@@ -85,7 +85,7 @@ export default function ContactUnlockModal({ advisorId, advisorName, isOpen, onC
         amount: orderData.amount,
         currency: 'INR',
         name: 'BrokerSaab',
-        description: 'Contact Unlock Pack â€” 20 Contacts Â· 1 Year',
+        description: 'Contact Unlock Pack — 20 Contacts · 1 Year',
         order_id: orderData.orderId,
         theme: { color: '#D4AF37' },
         prefill: { name: user.fullName || '', contact: user.phoneNumber || '' },
@@ -159,7 +159,7 @@ export default function ContactUnlockModal({ advisorId, advisorName, isOpen, onC
     const dateStr  = invoiceData.paidAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-<title>Tax Invoice â€” BrokerSaab â€” ${invoiceData.invoiceNo}</title>
+<title>Tax Invoice — BrokerSaab — ${invoiceData.invoiceNo}</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
   body{font-family:'Segoe UI',Arial,sans-serif;color:#111827;padding:0;}
@@ -203,7 +203,7 @@ export default function ContactUnlockModal({ advisorId, advisorName, isOpen, onC
     <p><strong>Date:</strong> ${dateStr}</p>
     <p><strong>Payment ID:</strong> ${invoiceData.paymentId}</p>
     <p><strong>Order ID:</strong> ${invoiceData.orderId}</p>
-    <span style="display:inline-block;background:linear-gradient(135deg,#D4AF37,#B48C22);color:#0B1F3A;font-size:9px;font-weight:900;padding:3px 10px;border-radius:20px;margin-top:4px;">PAID âœ“</span>
+    <span style="display:inline-block;background:linear-gradient(135deg,#D4AF37,#B48C22);color:#0B1F3A;font-size:9px;font-weight:900;padding:3px 10px;border-radius:20px;margin-top:4px;">PAID ✓</span>
   </div>
 </div>
 
@@ -211,7 +211,7 @@ export default function ContactUnlockModal({ advisorId, advisorName, isOpen, onC
   <div class="box">
     <div class="box-label">From (Seller)</div>
     <strong>BrokerSaab Technology Pvt. Ltd.</strong>
-    <p style="font-size:11px;color:#6b7280;margin-top:4px;">GSTIN: 27AABCB1234A1Z5<br/>SAC Code: 9983<br/>Mumbai, Maharashtra â€” 400001, India</p>
+    <p style="font-size:11px;color:#6b7280;margin-top:4px;">GSTIN: 27AABCB1234A1Z5<br/>SAC Code: 9983<br/>Mumbai, Maharashtra — 400001, India</p>
   </div>
   <div class="box">
     <div class="box-label">Bill To (Buyer)</div>
@@ -223,46 +223,46 @@ export default function ContactUnlockModal({ advisorId, advisorName, isOpen, onC
 <table>
   <thead><tr>
     <th style="width:50%">Description</th>
-    <th>HSN/SAC</th><th>Qty</th><th>Unit Price (â‚¹)</th><th>Taxable Amt (â‚¹)</th>
+    <th>HSN/SAC</th><th>Qty</th><th>Unit Price (₹)</th><th>Taxable Amt (₹)</th>
   </tr></thead>
   <tbody><tr>
     <td>
-      <strong>Contact Unlock Pack â€” 20 Advisor Contacts</strong><br/>
-      <span style="font-size:10px;color:#6b7280;">Access to 20 advisor phone/email contacts Â· 1 Year Validity</span>
+      <strong>Contact Unlock Pack — 20 Advisor Contacts</strong><br/>
+      <span style="font-size:10px;color:#6b7280;">Access to 20 advisor phone/email contacts · 1 Year Validity</span>
     </td>
-    <td>9983</td><td>1</td><td>â‚¹${BASE_PRICE.toFixed(2)}</td><td>â‚¹${BASE_PRICE.toFixed(2)}</td>
+    <td>9983</td><td>1</td><td>₹${BASE_PRICE.toFixed(2)}</td><td>₹${BASE_PRICE.toFixed(2)}</td>
   </tr></tbody>
 </table>
 
 <div class="total-section">
   <div class="total-row" style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
-    <span>MRP / Original Price</span><span>â‚¹${ORIGINAL_PRICE.toFixed(2)}</span>
+    <span>MRP / Original Price</span><span>₹${ORIGINAL_PRICE.toFixed(2)}</span>
   </div>
   <div class="total-row discount" style="border-bottom:1px solid #e5e7eb;">
-    <span>Promotional Discount (90.09% off)</span><span>âˆ’ â‚¹${DISCOUNT_AMT.toFixed(2)}</span>
+    <span>Promotional Discount (90.09% off)</span><span>− ₹${DISCOUNT_AMT.toFixed(2)}</span>
   </div>
   <div class="total-row" style="font-weight:700;border-bottom:1px solid #e5e7eb;">
-    <span>Taxable Amount (after discount)</span><span>â‚¹${BASE_PRICE.toFixed(2)}</span>
+    <span>Taxable Amount (after discount)</span><span>₹${BASE_PRICE.toFixed(2)}</span>
   </div>
   <div class="total-row" style="border-bottom:1px solid #e5e7eb;">
-    <span>CGST @ 9% (Central GST)</span><span>â‚¹${CGST_AMT.toFixed(2)}</span>
+    <span>CGST @ 9% (Central GST)</span><span>₹${CGST_AMT.toFixed(2)}</span>
   </div>
   <div class="total-row" style="border-bottom:1px solid #e5e7eb;">
-    <span>SGST @ 9% (State GST â€” Maharashtra)</span><span>â‚¹${SGST_AMT.toFixed(2)}</span>
+    <span>SGST @ 9% (State GST — Maharashtra)</span><span>₹${SGST_AMT.toFixed(2)}</span>
   </div>
   <div class="total-row grand">
-    <span>TOTAL AMOUNT PAID (Inclusive of GST)</span><span>â‚¹${TOTAL_PAYABLE.toFixed(2)}</span>
+    <span>TOTAL AMOUNT PAID (Inclusive of GST)</span><span>₹${TOTAL_PAYABLE.toFixed(2)}</span>
   </div>
 </div>
 
 <div class="guarantee">
-  <strong>100% Refund Policy:</strong> If you are unhappy with your purchase within 7 days, the full amount of â‚¹${TOTAL_PAYABLE.toFixed(2)} will be refunded to your original payment method. No questions asked.
+  <strong>100% Refund Policy:</strong> If you are unhappy with your purchase within 7 days, the full amount of ₹${TOTAL_PAYABLE.toFixed(2)} will be refunded to your original payment method. No questions asked.
 </div>
 
 <div class="footer">
   <div>
     <p>Computer-generated invoice. No signature required.</p>
-    <p style="margin-top:4px;">BrokerSaab Technology Pvt. Ltd. Â· CIN: U72900MH2024PTC000000</p>
+    <p style="margin-top:4px;">BrokerSaab Technology Pvt. Ltd. · CIN: U72900MH2024PTC000000</p>
   </div>
   <div style="text-align:right;">
     <p>Generated: ${dateStr}</p>
@@ -303,7 +303,7 @@ export default function ContactUnlockModal({ advisorId, advisorName, isOpen, onC
             {/* Header */}
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-white font-black text-lg">ðŸ”“ Unlock Contact Details</h2>
+                <h2 className="text-white font-black text-lg">🔓 Unlock Contact Details</h2>
                 <p className="text-white/50 text-xs mt-0.5">Get direct access to <strong className="text-white/70">{advisorName}</strong>'s phone & email</p>
               </div>
               <button onClick={handleClose} className="w-8 h-8 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/8 transition-all shrink-0">
@@ -318,8 +318,8 @@ export default function ContactUnlockModal({ advisorId, advisorName, isOpen, onC
                 <span className="px-2 py-0.5 rounded-full text-[9px] font-black text-navy-800" style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)' }}>90% OFF</span>
               </div>
               <div className="flex items-baseline gap-2 mb-2">
-                <span className="text-white/40 text-xs line-through">â‚¹{ORIGINAL_PRICE}/year</span>
-                <span className="text-gold-400 font-black text-2xl">â‚¹{BASE_PRICE}</span>
+                <span className="text-white/40 text-xs line-through">₹{ORIGINAL_PRICE}/year</span>
+                <span className="text-gold-400 font-black text-2xl">₹{BASE_PRICE}</span>
                 <span className="text-white/50 text-xs">/year</span>
               </div>
               <div className="flex gap-3 text-xs text-white/70">
@@ -332,7 +332,7 @@ export default function ContactUnlockModal({ advisorId, advisorName, isOpen, onC
             <div className="flex items-start gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/8 px-3 py-2.5">
               <ShieldCheck size={15} className="text-emerald-400 shrink-0 mt-0.5" />
               <p className="text-xs text-emerald-300 leading-relaxed">
-                <strong>100% Money-Back Guarantee.</strong> If you're unhappy within 7 days, we'll refund every rupee â€” no questions asked.
+                <strong>100% Money-Back Guarantee.</strong> If you're unhappy within 7 days, we'll refund every rupee — no questions asked.
               </p>
             </div>
 
@@ -344,22 +344,22 @@ export default function ContactUnlockModal({ advisorId, advisorName, isOpen, onC
               </div>
               <div className="p-4 space-y-1.5 text-xs">
                 <div className="flex justify-between text-white/50">
-                  <span>MRP / Original Price</span><span>â‚¹{ORIGINAL_PRICE.toFixed(2)}</span>
+                  <span>MRP / Original Price</span><span>₹{ORIGINAL_PRICE.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-emerald-400 font-semibold">
-                  <span>Discount (90.09% off)</span><span>âˆ’ â‚¹{DISCOUNT_AMT.toFixed(2)}</span>
+                  <span>Discount (90.09% off)</span><span>− ₹{DISCOUNT_AMT.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-white font-bold border-t border-white/10 pt-1.5 mt-1">
-                  <span>Taxable Amount (Base)</span><span>â‚¹{BASE_PRICE.toFixed(2)}</span>
+                  <span>Taxable Amount (Base)</span><span>₹{BASE_PRICE.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-white/60">
-                  <span>CGST @ 9%</span><span>â‚¹{CGST_AMT.toFixed(2)}</span>
+                  <span>CGST @ 9%</span><span>₹{CGST_AMT.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-white/60">
-                  <span>SGST @ 9%</span><span>â‚¹{SGST_AMT.toFixed(2)}</span>
+                  <span>SGST @ 9%</span><span>₹{SGST_AMT.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-black text-base border-t-2 border-white/20 pt-2 mt-1" style={{ color: '#D4AF37' }}>
-                  <span>Total Payable (Incl. GST)</span><span>â‚¹{TOTAL_PAYABLE.toFixed(2)}</span>
+                  <span>Total Payable (Incl. GST)</span><span>₹{TOTAL_PAYABLE.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -377,7 +377,7 @@ export default function ContactUnlockModal({ advisorId, advisorName, isOpen, onC
               disabled={loading}
               className="w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99]"
               style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527', boxShadow: '0 6px 20px rgba(212,175,55,0.3)', cursor: loading ? 'wait' : 'pointer' }}>
-              {loading ? <><Loader2 size={16} className="animate-spin" /> Processingâ€¦</> : <><ShieldCheck size={16} /> Pay â‚¹{TOTAL_PAYABLE.toFixed(2)} â€” Secure Checkout</>}
+              {loading ? <><Loader2 size={16} className="animate-spin" /> Processing…</> : <><ShieldCheck size={16} /> Pay ₹{TOTAL_PAYABLE.toFixed(2)} — Secure Checkout</>}
             </button>
             <button
               type="button"
@@ -386,15 +386,15 @@ export default function ContactUnlockModal({ advisorId, advisorName, isOpen, onC
               disabled={loading}
               className="w-full py-2.5 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50"
               style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc' }}>
-              {loading ? <Loader2 size={13} className="animate-spin" /> : <>ðŸ§ª</>} Test Mode â€” Skip Payment (Dev Only)
+              {loading ? <Loader2 size={13} className="animate-spin" /> : <>🧪</>} Test Mode — Skip Payment (Dev Only)
             </button>
-            <p className="text-[10px] text-white/30 text-center">Secured by Razorpay Â· UPI, Cards, Net Banking Â· 100% refund guarantee</p>
+            <p className="text-[10px] text-white/30 text-center">Secured by Razorpay · UPI, Cards, Net Banking · 100% refund guarantee</p>
           </div>
         ) : (
           /* Success view */
           <div className="p-6 space-y-4">
             <div className="flex items-start justify-between">
-              <h2 className="text-white font-black text-lg">âœ… Contact Revealed!</h2>
+              <h2 className="text-white font-black text-lg">✅ Contact Revealed!</h2>
               <button onClick={handleClose} className="w-8 h-8 rounded-full flex items-center justify-center text-white/30 hover:text-white hover:bg-white/8 transition-all">
                 <X size={16} />
               </button>

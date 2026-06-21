@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -350,7 +350,7 @@ export default function AdvisorDashboard() {
           )
         )}
 
-        {/* â”€â”€ Service Tickets panel â”€â”€ */}
+        {/* ── Service Tickets panel ── */}
         {showTickets && (
           <div className="mb-5 bg-white border border-emerald-100 rounded-2xl overflow-hidden shadow-sm">
             <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100 bg-emerald-50">
@@ -385,11 +385,11 @@ export default function AdvisorDashboard() {
                           {t.status.replace('_', ' ')}
                         </span>
                         {t.status === 'AWAITING_CONFIRM' && (
-                          <span className="text-[10px] font-bold text-purple-600 animate-pulse">â³ Confirm needed</span>
+                          <span className="text-[10px] font-bold text-purple-600 animate-pulse">⏳ Confirm needed</span>
                         )}
                       </div>
                       <p className="text-sm font-bold text-slate-800 mt-0.5">{t.client?.fullName}</p>
-                      <p className="text-xs text-slate-500">â‚¹{Number(t.totalAmount).toLocaleString('en-IN')} Â· {t.stages?.length ?? 0} stages</p>
+                      <p className="text-xs text-slate-500">₹{Number(t.totalAmount).toLocaleString('en-IN')} · {t.stages?.length ?? 0} stages</p>
                     </div>
                     <Link href={`/tickets/${t.id}`}
                       className="px-3 py-1.5 rounded-xl text-xs font-bold text-white whitespace-nowrap"
@@ -403,7 +403,7 @@ export default function AdvisorDashboard() {
           </div>
         )}
 
-        {/* â”€â”€ Connected Clients panel â”€â”€ */}
+        {/* ── Connected Clients panel ── */}
         {showConnectedClients && (
           <div className="mb-5 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
             <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50">
@@ -454,7 +454,7 @@ export default function AdvisorDashboard() {
           </div>
         )}
 
-        {/* â”€â”€ Quote Requests panel â”€â”€ */}
+        {/* ── Quote Requests panel ── */}
         {showQuoteList && (
           <div className="mb-5 bg-white border border-indigo-100 rounded-2xl overflow-hidden shadow-sm">
             <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100"
@@ -492,9 +492,9 @@ export default function AdvisorDashboard() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-slate-800">{q.client.fullName}</p>
                         <p className="text-[11px] text-slate-500 truncate">
-                          {q.categorySlug?.toUpperCase() ?? 'General'} Â·{' '}
+                          {q.categorySlug?.toUpperCase() ?? 'General'} ·{' '}
                           {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                          {q.totalAmount && ` Â· â‚¹${parseFloat(q.totalAmount).toLocaleString('en-IN')}`}
+                          {q.totalAmount && ` · ₹${parseFloat(q.totalAmount).toLocaleString('en-IN')}`}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -581,7 +581,7 @@ export default function AdvisorDashboard() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20 text-slate-500">
-            <Loader2 size={24} className="animate-spin mr-3" /> Loading bookingsâ€¦
+            <Loader2 size={24} className="animate-spin mr-3" /> Loading bookings…
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 space-y-3">
@@ -621,13 +621,13 @@ export default function AdvisorDashboard() {
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Clock size={12} className="text-indigo-400/60" />
-                      {booking.startTime} â€“ {booking.endTime}
+                      {booking.startTime} – {booking.endTime}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <MessageSquare size={12} className="text-indigo-400/60" />
                       {booking.mode}
                     </span>
-                    <span style={{ color: '#B48C22' }} className="font-bold">â‚¹{booking.totalFee}</span>
+                    <span style={{ color: '#B48C22' }} className="font-bold">₹{booking.totalFee}</span>
                   </div>
 
                   {booking.notes && (
@@ -658,7 +658,7 @@ export default function AdvisorDashboard() {
                     )}
                     {(booking.status === 'COMPLETED' || booking.status === 'CANCELLED') && (
                       <span className="text-xs text-slate-500 py-2">
-                        {booking.status === 'COMPLETED' ? 'âœ“ Consultation closed' : 'âœ— Rejected/cancelled'}
+                        {booking.status === 'COMPLETED' ? '✓ Consultation closed' : '✗ Rejected/cancelled'}
                       </span>
                     )}
                   </div>

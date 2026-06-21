@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -41,14 +41,14 @@ const ADVISOR_CATEGORIES = [
   { name: 'Domestic College Admission',     slug: 'm22', icon: School,        color: 'bg-indigo-100', iconColor: 'text-indigo-600', desc: 'NEET/JEE/CAT counseling, seat allotment & college enrollment help' },
   { name: 'Job Placement & Recruitment',    slug: 'm23', icon: ClipboardList, color: 'bg-teal-100',   iconColor: 'text-teal-600',   desc: 'Resume building, interview prep, offer negotiation & post-placement' },
   { name: 'Visa & PR Immigration',          slug: 'm24', icon: FileCheck,     color: 'bg-red-100',    iconColor: 'text-red-600',    desc: 'Canada/UK/Australia PR, work permits, EOI, ITA & landing support' },
-  { name: 'Others / Custom Service',        slug: 'm25', icon: Sparkles,      color: 'bg-indigo-100', iconColor: 'text-indigo-600', desc: 'Any unique expertise not listed above â€” describe your own specialisation' },
+  { name: 'Others / Custom Service',        slug: 'm25', icon: Sparkles,      color: 'bg-indigo-100', iconColor: 'text-indigo-600', desc: 'Any unique expertise not listed above — describe your own specialisation' },
   { name: 'Tour & Travel',                  slug: 'm26', icon: MapPin,        color: 'bg-orange-100', iconColor: 'text-orange-600', desc: 'Bus, train & flight bookings, hotel stays, tour packages, cab services & travel insurance' },
 ];
 
 const OPEN_PLACEHOLDERS: Record<string, string> = {
-  m21: 'E.g., I guide students for UK, US, Canada admissions â€” IELTS coaching, SOP review, visa documentation.',
+  m21: 'E.g., I guide students for UK, US, Canada admissions — IELTS coaching, SOP review, visa documentation.',
   m22: 'E.g., I help NEET/JEE aspirants with counseling rounds, college shortlisting and enrollment.',
-  m23: 'E.g., I place IT professionals in MNC jobs â€” resume building, LinkedIn, interview prep and offer negotiation.',
+  m23: 'E.g., I place IT professionals in MNC jobs — resume building, LinkedIn, interview prep and offer negotiation.',
   m24: 'E.g., I specialize in Canada Express Entry, Australia PR, and UK Skilled Worker visa applications.',
   m25: 'E.g., I provide CA services, MCA compliance, FEMA advisory for NRIs and export-import businesses.',
 };
@@ -99,7 +99,7 @@ export default function AdvisorServicesPage() {
         setSelectedSubSlugs(regularSubs);
       }
     } catch {
-      /* non-fatal â€” start with empty selection */
+      /* non-fatal — start with empty selection */
     } finally {
       setLoading(false);
     }
@@ -208,7 +208,7 @@ export default function AdvisorServicesPage() {
         <div className="text-center space-y-3">
           <CheckCircle2 size={48} className="text-emerald-400 mx-auto" />
           <p className="text-white text-lg font-bold">Services updated!</p>
-          <p className="text-slate-400 text-sm">Redirecting to dashboardâ€¦</p>
+          <p className="text-slate-400 text-sm">Redirecting to dashboard…</p>
         </div>
       </div>
     );
@@ -239,7 +239,7 @@ export default function AdvisorServicesPage() {
           Select all applicable service categories. For standard modules, pick your specific sub-services. For open modules (Study Abroad, Job Placement, etc.), describe your unique specialisation in a short paragraph.
         </div>
 
-        {/* Step 1 â€” Category tiles */}
+        {/* Step 1 — Category tiles */}
         <div>
           <h2 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-black">1</span>
@@ -281,7 +281,7 @@ export default function AdvisorServicesPage() {
           </div>
         </div>
 
-        {/* Step 2 â€” Specialization details */}
+        {/* Step 2 — Specialization details */}
         {selectedSlugs.length > 0 && (
           <div>
             <h2 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
@@ -313,7 +313,7 @@ export default function AdvisorServicesPage() {
                         <p className="text-white text-sm font-semibold truncate">{module.titleEn}</p>
                         {isOpenModule ? (
                           <p className={`text-xs ${customText.trim() ? 'text-emerald-400' : 'text-amber-400'}`}>
-                            {customText.trim() ? 'Specialisation added âœ“' : 'Tap to describe your specialisation'}
+                            {customText.trim() ? 'Specialisation added ✓' : 'Tap to describe your specialisation'}
                           </p>
                         ) : (
                           <p className="text-slate-500 text-xs">{selectedCount}/{module.subModules.length} selected</p>
@@ -331,7 +331,7 @@ export default function AdvisorServicesPage() {
                             maxLength={300}
                             value={customText}
                             onChange={e => setCustomSpecializations(prev => ({ ...prev, [slug]: e.target.value }))}
-                            placeholder={OPEN_PLACEHOLDERS[slug] ?? 'Describe what you specifically offer in this service areaâ€¦'}
+                            placeholder={OPEN_PLACEHOLDERS[slug] ?? 'Describe what you specifically offer in this service area…'}
                             className="w-full text-sm bg-slate-800 border border-white/10 focus:border-indigo-500 rounded-xl px-3 py-2.5 resize-none outline-none transition-colors text-slate-200 placeholder-slate-500"
                           />
                           <p className="text-[11px] text-slate-500 mt-1 text-right">{customText.length}/300 characters</p>
@@ -392,7 +392,7 @@ export default function AdvisorServicesPage() {
             style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? 'Savingâ€¦' : 'Save Services'}
+            {saving ? 'Saving…' : 'Save Services'}
           </button>
         </div>
       </div>
