@@ -192,7 +192,7 @@ export default function AdvisorDashboard() {
       // ── 2. Logo ────────────────────────────────────────────────────────
       const logoImg = await new Promise<HTMLImageElement | null>(res => {
         const img = new Image();
-        img.onload = () => res(img); img.onerror = () => res(null); img.src = '/logo.png';
+        img.onload = () => res(img); img.onerror = () => res(null); img.src = '/logo-icon.png';
       });
 
       // ── 3. Canvas — A4 @ 2× for crisp output ─────────────────────────
