@@ -68,7 +68,7 @@ const setSpecializationsSchema = z.object({
 });
 
 // Modules where advisors write free-text instead of picking predefined sub-services
-const OPEN_MODULE_SLUGS = ['m21', 'm22', 'm23', 'm24', 'm25'];
+const OPEN_MODULE_SLUGS = ['m21', 'm22', 'm23', 'm24', 'm27', 'm28', 'm25'];
 
 /**
  * 1. GET /advisors

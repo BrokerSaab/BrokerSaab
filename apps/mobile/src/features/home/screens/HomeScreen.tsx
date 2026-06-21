@@ -24,10 +24,12 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'HomeScreen'>;
 
 // Service categories mapped to advisor category slugs
 const SERVICES = [
-  { id: 'm21', icon: '🌍', label: 'Study\nAbroad',       color: '#3F51B5', category: 'study-abroad' },
-  { id: 'm22', icon: '🏛️', label: 'Domestic\nAdmission', color: '#546E7A', category: 'domestic-admission' },
-  { id: 'm23', icon: '💼', label: 'Job\nPlacement',       color: '#FFFFFF', textColor: Colors.navy[800], category: 'job-placement' },
-  { id: 'm24', icon: '✈️', label: 'Visa & PR',            color: '#D4AF37', textColor: Colors.navy[900], category: 'visa-pr' },
+  { id: 'm21', icon: '🌍', label: 'Study\nAbroad',         color: '#3F51B5', category: 'study-abroad' },
+  { id: 'm22', icon: '🏛️', label: 'Domestic\nAdmission',  color: '#546E7A', category: 'domestic-admission' },
+  { id: 'm23', icon: '💼', label: 'Job\nPlacement',         color: '#FFFFFF', textColor: Colors.navy[800], category: 'job-placement' },
+  { id: 'm24', icon: '✈️', label: 'Visa & PR',              color: '#D4AF37', textColor: Colors.navy[900], category: 'visa-pr' },
+  { id: 'm27', icon: '🩺', label: 'Medical\nRep',           color: '#00897B', category: 'medical-rep' },
+  { id: 'm28', icon: '📦', label: 'Local\nDistributor',     color: '#5C6BC0', category: 'local-distributor' },
 ];
 
 const BOOKING_STATUS_ICON: Record<string, string> = {

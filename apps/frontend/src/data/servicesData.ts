@@ -4,7 +4,7 @@ import {
   ShieldCheck, Car, Scale, Users, GraduationCap, HeartHandshake, TrendingUp,
   Globe, Zap, Sprout, Laptop,
   Flag, Plane, School, ClipboardList, FileCheck, Sparkles,
-  MapPin
+  MapPin, Stethoscope, Package
 } from 'lucide-react';
 
 export interface SubModule {
@@ -42,7 +42,7 @@ export const ICON_MAP: Record<string, React.ComponentType<any>> = {
   FileHeart, UserCheck, Award, Home, Percent, Briefcase, Lightbulb, Landmark,
   ShieldCheck, Car, Scale, Users, GraduationCap, HeartHandshake, TrendingUp,
   Globe, Zap, Sprout, Laptop,
-  Flag, Plane, School, ClipboardList, FileCheck, Sparkles, MapPin
+  Flag, Plane, School, ClipboardList, FileCheck, Sparkles, MapPin, Stethoscope, Package
 };
 
 export const MODULE_COLORS: ModuleColor[] = [
@@ -72,6 +72,8 @@ export const MODULE_COLORS: ModuleColor[] = [
   { gradient: 'from-red-500 to-rose-600',         bg: 'bg-red-50',      bgDark: 'bg-red-950/30',     text: 'text-red-600',     border: 'border-red-200',     borderDark: 'border-red-800/40',     iconBg: 'bg-gradient-to-br from-red-500 to-rose-600',        accent: '#EF4444' },
   { gradient: 'from-indigo-500 to-purple-600',    bg: 'bg-indigo-50',   bgDark: 'bg-indigo-950/30',  text: 'text-indigo-600',  border: 'border-indigo-200',  borderDark: 'border-indigo-800/40',  iconBg: 'bg-gradient-to-br from-indigo-500 to-purple-600',   accent: '#6366F1' },
   { gradient: 'from-orange-500 to-amber-600',     bg: 'bg-orange-50',   bgDark: 'bg-orange-950/30',  text: 'text-orange-700',  border: 'border-orange-300',  borderDark: 'border-orange-800/40',  iconBg: 'bg-gradient-to-br from-orange-500 to-amber-600',    accent: '#EA580C' },
+  { gradient: 'from-teal-600 to-emerald-500',     bg: 'bg-teal-50',     bgDark: 'bg-teal-950/30',    text: 'text-teal-700',    border: 'border-teal-200',    borderDark: 'border-teal-800/40',    iconBg: 'bg-gradient-to-br from-teal-600 to-emerald-500',    accent: '#0D9488' },
+  { gradient: 'from-violet-600 to-blue-500',      bg: 'bg-violet-50',   bgDark: 'bg-violet-950/30',  text: 'text-violet-700',  border: 'border-violet-200',  borderDark: 'border-violet-800/40',  iconBg: 'bg-gradient-to-br from-violet-600 to-blue-500',     accent: '#7C3AED' },
 ];
 
 export const MODULES_DATA: Module[] = [
@@ -514,19 +516,6 @@ export const MODULES_DATA: Module[] = [
     ]
   },
   {
-    id: "m25",
-    titleEn: "Others / Custom Service",
-    titleHi: "अन्य / कस्टम सेवा",
-    description: "Any specialization not listed above — describe your unique expertise and connect with the right clients.",
-    descriptionHi: "ऊपर सूचीबद्ध नहीं की गई कोई भी विशेषज्ञता — अपनी अनूठी सेवा का वर्णन करें।",
-    iconName: "Sparkles",
-    subModules: [],
-    moduleKeywords: [
-      "custom service", "special service", "unique expertise", "other services",
-      "miscellaneous", "any service", "specialized advisor"
-    ]
-  },
-  {
     id: "m26",
     titleEn: "Tour & Travel",
     titleHi: "टूर और ट्रैवल",
@@ -618,6 +607,50 @@ export const MODULES_DATA: Module[] = [
         keywords: ["tourist visa", "visit visa", "schengen visa", "Dubai tourist visa", "Thailand visa on arrival", "visitor visa"],
         route: "/advisors?category=m26"
       }
+    ]
+  },
+  {
+    id: "m27",
+    titleEn: "Local Medical Representative",
+    titleHi: "लोकल मेडिकल प्रतिनिधि",
+    description: "Connect with verified local medical representatives for product detailing, doctor visits, hospital coverage and regional pharma distribution.",
+    descriptionHi: "उत्पाद विवरण, डॉक्टर विज़िट, अस्पताल कवरेज और क्षेत्रीय फार्मा वितरण के लिए सत्यापित लोकल मेडिकल प्रतिनिधियों से जुड़ें।",
+    iconName: "Stethoscope",
+    subModules: [],
+    moduleKeywords: [
+      "medical representative", "MR", "pharma rep", "medical sales representative",
+      "doctor visit", "sample distribution", "product detailing", "hospital coverage",
+      "pharma detailing", "medical rep", "drug rep", "pharmaceutical sales",
+      "clinic visits", "chemist coverage", "stockist", "pharma marketing"
+    ]
+  },
+  {
+    id: "m28",
+    titleEn: "Local Distributors",
+    titleHi: "लोकल वितरक",
+    description: "Find verified local distributors for FMCG, pharma, agri-inputs and regional wholesale distribution coverage across your area.",
+    descriptionHi: "अपने क्षेत्र में FMCG, फार्मा, कृषि-इनपुट और क्षेत्रीय थोक वितरण के लिए सत्यापित लोकल वितरकों को खोजें।",
+    iconName: "Package",
+    subModules: [],
+    moduleKeywords: [
+      "local distributor", "wholesale distributor", "FMCG distributor",
+      "regional distributor", "last mile delivery", "pharma distributor",
+      "agri distributor", "dealer", "stockist", "super stockist",
+      "FMCG distribution", "consumer goods distributor", "product distribution",
+      "B2B distributor", "channel distributor", "sub-dealer"
+    ]
+  },
+  {
+    id: "m25",
+    titleEn: "Others / Custom Service",
+    titleHi: "अन्य / कस्टम सेवा",
+    description: "Any specialization not listed above — describe your unique expertise and connect with the right clients.",
+    descriptionHi: "ऊपर सूचीबद्ध नहीं की गई कोई भी विशेषज्ञता — अपनी अनूठी सेवा का वर्णन करें।",
+    iconName: "Sparkles",
+    subModules: [],
+    moduleKeywords: [
+      "custom service", "special service", "unique expertise", "other services",
+      "miscellaneous", "any service", "specialized advisor"
     ]
   }
 ];
