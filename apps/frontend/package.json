@@ -19,6 +19,7 @@
     "postcss": "^8.4.38",
     "react": "^19.0.0-rc.0",
     "react-dom": "^19.0.0-rc.0",
+    "react-qr-code": "^2.2.0",
     "react-redux": "^9.1.1",
     "socket.io-client": "^4.8.3",
     "tailwind-merge": "^2.2.2",

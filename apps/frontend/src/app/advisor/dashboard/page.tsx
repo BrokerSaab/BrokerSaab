@@ -7,8 +7,10 @@ import {
   Calendar, Clock, User, AlertCircle, Loader2, ArrowLeft,
   CheckCircle2, XCircle, ShieldCheck, RefreshCw, LayoutDashboard,
   Phone, MessageSquare, BadgeCheck, Camera, Layers, FileText, Bell,
-  Eye, Edit3, Send, Users, Ticket
+  Eye, Edit3, Send, Users, Ticket, QrCode, Copy, Check, X
 } from 'lucide-react';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const QRCode = require('react-qr-code').default as React.ComponentType<{ value: string; size?: number; bgColor?: string; fgColor?: string; level?: string }>;
 import { useAuth } from '@/contexts/AuthContext';
 import AdvisorFillQuotePanel, { QuoteRequest } from '@/components/AdvisorFillQuotePanel';
 import { io as ioClient } from 'socket.io-client';
@@ -98,6 +100,11 @@ export default function AdvisorDashboard() {
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [showTickets,   setShowTickets]   = useState(false);
 
+  // QR code
+  const [showQR,         setShowQR]         = useState(false);
+  const [advisorPublicId, setAdvisorPublicId] = useState<string | null>(null);
+  const [qrCopied,       setQrCopied]       = useState(false);
+
   const fetchQuoteRequests = async () => {
     try {
       const token = sessionStorage.getItem('accessToken');
@@ -138,6 +145,15 @@ export default function AdvisorDashboard() {
     finally { setTicketsLoading(false); }
   };
 
+  const fetchAdvisorPublicId = async () => {
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      const res = await fetch(`${API}/advisors/me`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success && data.data?.id) setAdvisorPublicId(data.data.id);
+    } catch { /* ignore */ }
+  };
+
   useEffect(() => {
     if (!authReady) return;
     if (!isLoggedIn) { router.push('/auth/admin'); return; }
@@ -148,6 +164,7 @@ export default function AdvisorDashboard() {
     fetchUnreadCount();
     fetchConnectedClients();
     fetchTickets();
+    fetchAdvisorPublicId();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authReady, isLoggedIn, user]);
 
@@ -303,6 +320,11 @@ export default function AdvisorDashboard() {
               style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}>
               <Camera size={13} /> Edit Profile
             </Link>
+            <button onClick={() => setShowQR(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition-all"
+              title="View My QR Code">
+              <QrCode size={13} /> QR Code
+            </button>
             <Link href="/advisor/services" className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition-all">
               <Layers size={13} /> Services
             </Link>
@@ -684,6 +706,77 @@ export default function AdvisorDashboard() {
         setIsProactive(false);
       }}
     />
+
+    {/* QR Code Modal */}
+    {showQR && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
+        onClick={() => setShowQR(false)}>
+        <div className="relative w-full max-w-xs rounded-3xl overflow-hidden shadow-2xl"
+          style={{ background: 'linear-gradient(135deg,#0B1F3A 0%,#1a1040 100%)', border: '1px solid rgba(212,175,55,0.25)' }}
+          onClick={e => e.stopPropagation()}>
+
+          {/* Close */}
+          <button onClick={() => setShowQR(false)}
+            className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors z-10">
+            <X size={18} />
+          </button>
+
+          {/* Header */}
+          <div className="px-6 pt-6 pb-4 text-center" style={{ borderBottom: '1px solid rgba(212,175,55,0.12)' }}>
+            <div className="w-10 h-10 rounded-2xl mx-auto mb-3 flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)' }}>
+              <QrCode size={20} className="text-slate-900" />
+            </div>
+            <p className="text-sm font-black text-white">My Profile QR Code</p>
+            <p className="text-[11px] text-white/40 mt-0.5">Clients scan this to view your profile</p>
+          </div>
+
+          {/* QR */}
+          <div className="flex justify-center py-6 px-6">
+            {advisorPublicId ? (
+              <div className="p-4 bg-white rounded-2xl shadow-lg">
+                <QRCode
+                  value={`${typeof window !== 'undefined' ? window.location.origin : 'https://frontend-tellar.vercel.app'}/advisors/${advisorPublicId}`}
+                  size={200}
+                  bgColor="#ffffff"
+                  fgColor="#0B1F3A"
+                  level="M"
+                />
+              </div>
+            ) : (
+              <div className="w-[232px] h-[232px] rounded-2xl flex items-center justify-center bg-white/5">
+                <Loader2 size={24} className="animate-spin text-white/30" />
+              </div>
+            )}
+          </div>
+
+          {/* URL + copy */}
+          {advisorPublicId && (
+            <div className="px-6 pb-6 space-y-3">
+              <div className="flex items-center gap-2 rounded-xl px-3 py-2.5"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <p className="flex-1 text-[10px] text-white/50 truncate font-mono">
+                  {`${typeof window !== 'undefined' ? window.location.origin : 'https://frontend-tellar.vercel.app'}/advisors/${advisorPublicId}`}
+                </p>
+                <button
+                  onClick={() => {
+                    const url = `${window.location.origin}/advisors/${advisorPublicId}`;
+                    navigator.clipboard.writeText(url).then(() => {
+                      setQrCopied(true);
+                      setTimeout(() => setQrCopied(false), 2000);
+                    });
+                  }}
+                  className="shrink-0 text-white/40 hover:text-amber-400 transition-colors">
+                  {qrCopied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                </button>
+              </div>
+              {qrCopied && <p className="text-[11px] text-emerald-400 text-center">Link copied!</p>}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
     </>
   );
 }
