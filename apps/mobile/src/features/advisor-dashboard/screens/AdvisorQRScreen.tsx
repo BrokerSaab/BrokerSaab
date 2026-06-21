@@ -240,6 +240,19 @@ function buildPDFHTML(opts: {
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+
+  /* ── Diagonal watermark — tiled, very faint, only visible up close ── */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 99999;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Ctext x='90' y='90' text-anchor='middle' dominant-baseline='middle' font-family='Arial%2C sans-serif' font-size='13' font-weight='700' letter-spacing='2' fill='%230B1F3A' fill-opacity='0.055' transform='rotate(-45 90 90)'%3EBrokerSaab%3C/text%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 180px 180px;
+  }
+
   body {
     font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
     background: #F0F4FF;
@@ -248,6 +261,7 @@ function buildPDFHTML(opts: {
     justify-content: center;
     min-height: 100vh;
     padding: 32px 20px;
+    position: relative;
   }
 
   .page {
