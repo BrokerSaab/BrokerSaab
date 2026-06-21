@@ -271,56 +271,63 @@ export default function AdvisorDashboard() {
       }
       ctx.restore();
 
-      // Logo centred in hero (top 60%)
-      const logoSz = 60;
-      const logoX  = (W - logoSz) / 2;
-      const logoY  = 28;
-      if (logoImg) {
-        ctx.save();
-        ctx.shadowColor = 'rgba(212,175,55,0.5)';
-        ctx.shadowBlur  = 20;
-        ctx.fillStyle   = WHITE;
-        ctx.beginPath();
-        ctx.roundRect(logoX, logoY, logoSz, logoSz, 14);
-        ctx.fill();
-        ctx.restore();
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(logoX, logoY, logoSz, logoSz, 14);
-        ctx.clip();
-        ctx.drawImage(logoImg, logoX, logoY, logoSz, logoSz);
-        ctx.restore();
-      } else {
-        ctx.fillStyle   = makeGoldGrad(logoX, logoY, logoX + logoSz, logoY + logoSz);
-        ctx.beginPath();
-        ctx.roundRect(logoX, logoY, logoSz, logoSz, 14);
-        ctx.fill();
-        ctx.font = 'bold 28px Arial';
-        ctx.fillStyle = NAVY;
-        ctx.textAlign = 'center';
-        ctx.fillText('BS', logoX + logoSz / 2, logoY + 40);
-      }
-
-      // "BrokerSaab" — Broker white, Saab gold
+      // Logo + "BrokerSaab" inline row — exactly like the navbar
+      const logoSz  = 54;
       const brandFs = 34;
       ctx.font = `bold ${brandFs}px Arial, sans-serif`;
       const brokerW = ctx.measureText('Broker').width;
       const saabW   = ctx.measureText('Saab').width;
-      const nameStartX = (W - brokerW - saabW) / 2;
-      const nameY = logoY + logoSz + 26;
+      const gap     = 14;
+      const rowW    = logoSz + gap + brokerW + saabW;
+      const rowX    = (W - rowW) / 2;
+      const rowCY   = heroH / 2 - 12;   // vertical centre of the inline row
+
+      // Logo at left of row
+      const logoX = rowX;
+      const logoY = rowCY - logoSz / 2;
+      if (logoImg) {
+        ctx.save();
+        ctx.shadowColor = 'rgba(212,175,55,0.5)';
+        ctx.shadowBlur  = 18;
+        ctx.fillStyle   = WHITE;
+        ctx.beginPath();
+        ctx.roundRect(logoX, logoY, logoSz, logoSz, 12);
+        ctx.fill();
+        ctx.restore();
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(logoX, logoY, logoSz, logoSz, 12);
+        ctx.clip();
+        ctx.drawImage(logoImg, logoX, logoY, logoSz, logoSz);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = makeGoldGrad(logoX, logoY, logoX + logoSz, logoY + logoSz);
+        ctx.beginPath();
+        ctx.roundRect(logoX, logoY, logoSz, logoSz, 12);
+        ctx.fill();
+        ctx.font = 'bold 24px Arial';
+        ctx.fillStyle = NAVY;
+        ctx.textAlign = 'center';
+        ctx.fillText('BS', logoX + logoSz / 2, logoY + logoSz * 0.65);
+      }
+
+      // "Broker" white + "Saab" gold — to the right of logo on same baseline
+      const textX  = rowX + logoSz + gap;
+      const textBY = rowCY + brandFs * 0.36;
+      ctx.font = `bold ${brandFs}px Arial, sans-serif`;
       ctx.textAlign = 'left';
       ctx.fillStyle = WHITE;
-      ctx.fillText('Broker', nameStartX, nameY);
-      ctx.fillStyle = makeGoldGrad(nameStartX + brokerW, nameY - brandFs, nameStartX + brokerW + saabW, nameY);
-      ctx.fillText('Saab', nameStartX + brokerW, nameY);
+      ctx.fillText('Broker', textX, textBY);
+      ctx.fillStyle = makeGoldGrad(textX + brokerW, textBY - brandFs, textX + brokerW + saabW, textBY);
+      ctx.fillText('Saab', textX + brokerW, textBY);
 
-      // Tagline with manual letter-spacing
+      // Tagline below the row with manual letter-spacing
       const tagText = 'TRUSTED ADVISORY PLATFORM';
       const tagSp   = 3.2;
       ctx.font = '700 11px Arial, sans-serif';
       const tagTotalW = ctx.measureText(tagText).width + tagSp * (tagText.length - 1);
       let tagX = (W - tagTotalW) / 2;
-      const tagY = nameY + 20;
+      const tagY = rowCY + logoSz / 2 + 24;
       ctx.fillStyle = 'rgba(212,175,55,0.80)';
       ctx.textAlign = 'left';
       for (const ch of tagText) {
