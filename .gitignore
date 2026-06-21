@@ -43,9 +43,20 @@ coverage/
 chk-*.png
 verify-*.png
 final-*.png
+test-*.png
+test-*.js
 get-token*.mjs
 get-token*.js
 verify-*.js
 verify-all.js
+
+# User-uploaded files (served statically, not stored in git)
+apps/backend/uploads/
+
+# Expo cache & device registry
+apps/mobile/.expo/
+
+# Backup files
+*.bak
 
 .vercel
