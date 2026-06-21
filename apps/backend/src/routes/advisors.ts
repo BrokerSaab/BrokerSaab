@@ -592,13 +592,16 @@ router.post(
   kycUpload.single('file'),
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const advisorId = (req.user as any).advisorId;
-      if (!advisorId) { res.status(400).json({ success: false, message: 'Advisor profile not found' }); return; }
       if (!req.file) { res.status(400).json({ success: false, message: 'No file uploaded' }); return; }
+      const advisor = await (prisma.advisor as any).findUnique({
+        where: { phoneNumber: req.user!.phoneNumber },
+        select: { id: true },
+      });
+      if (!advisor) { res.status(404).json({ success: false, message: 'Advisor profile not found' }); return; }
 
       const avatarUrl = fileUrl(req.file);
       await (prisma.advisor as any).update({
-        where: { id: advisorId },
+        where: { id: advisor.id },
         data: { avatarUrl },
       });
       res.json({ success: true, avatarUrl });
@@ -620,13 +623,16 @@ router.post(
   kycUpload.single('file'),
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const advisorId = (req.user as any).advisorId;
-      if (!advisorId) { res.status(400).json({ success: false, message: 'Advisor profile not found' }); return; }
       if (!req.file) { res.status(400).json({ success: false, message: 'No file uploaded' }); return; }
+      const advisor = await (prisma.advisor as any).findUnique({
+        where: { phoneNumber: req.user!.phoneNumber },
+        select: { id: true },
+      });
+      if (!advisor) { res.status(404).json({ success: false, message: 'Advisor profile not found' }); return; }
 
       const coverImageUrl = fileUrl(req.file);
       await (prisma.advisor as any).update({
-        where: { id: advisorId },
+        where: { id: advisor.id },
         data: { coverImageUrl },
       });
       res.json({ success: true, coverImageUrl });
@@ -678,12 +684,11 @@ router.get(
   requireRole([Role.ADVISOR]),
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const advisorId = (req.user as any).advisorId;
-      if (!advisorId) { res.status(400).json({ success: false, message: 'Advisor profile not found' }); return; }
       const advisor = await (prisma.advisor as any).findUnique({
-        where: { id: advisorId },
+        where: { phoneNumber: req.user!.phoneNumber },
         select: { avatarUrl: true, coverImageUrl: true, fullName: true },
       });
+      if (!advisor) { res.status(404).json({ success: false, message: 'Advisor profile not found' }); return; }
       res.json({ success: true, ...advisor });
     } catch (err) {
       res.status(500).json({ success: false, message: 'Failed to fetch images' });
