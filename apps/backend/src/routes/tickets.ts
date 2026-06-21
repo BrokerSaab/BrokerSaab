@@ -63,6 +63,14 @@ async function getAdvisorRecord(phoneNumber: string) {
   return prisma.advisor.findUnique({ where: { phoneNumber } });
 }
 
+/** Resolves the User.id for an Advisor (linked via shared phoneNumber). */
+async function getAdvisorUserId(advisorId: string): Promise<string | null> {
+  const advisor = await prisma.advisor.findUnique({ where: { id: advisorId }, select: { phoneNumber: true } });
+  if (!advisor?.phoneNumber) return null;
+  const user = await prisma.user.findUnique({ where: { phoneNumber: advisor.phoneNumber }, select: { id: true } });
+  return user?.id ?? null;
+}
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 /**
@@ -333,7 +341,8 @@ router.post(
         });
       }
 
-      io.to(`advisor:${ticket.advisorId}`).emit('ticket_updated', {
+      const advisorUserId = await getAdvisorUserId(ticket.advisorId);
+      io.to(`advisor:${advisorUserId}`).emit('ticket_updated', {
         ticketId: ticket.id,
         event:    'stage_confirmed',
         stage:    confirmed,
@@ -399,7 +408,8 @@ router.post(
       });
 
       if (role === Role.CLIENT) {
-        io.to(`advisor:${ticket.advisorId}`).emit('ticket_comment', { ticketId: ticket.id, comment });
+        const advisorUserId = await getAdvisorUserId(ticket.advisorId);
+        io.to(`advisor:${advisorUserId}`).emit('ticket_comment', { ticketId: ticket.id, comment });
         const advisor = await prisma.advisor.findUnique({ where: { id: ticket.advisorId } });
         if (advisor?.pushToken) {
           sendPushNotification(advisor.pushToken, 'New Comment on Ticket', `${authorName}: ${content.slice(0, 80)}`, { ticketId: ticket.id, screen: 'TicketDetail' });
@@ -450,6 +460,9 @@ router.post(
         return;
       }
 
+      // Resolve advisor's User.id (Wallet is keyed on User.id, not Advisor.id)
+      const advisorUserId = await getAdvisorUserId(ticket.advisorId);
+
       // Close ticket and release payout to advisor wallet in one transaction
       const updated = await prisma.$transaction(async (tx) => {
         const t = await tx.serviceTicket.update({
@@ -464,18 +477,20 @@ router.post(
           },
         });
 
-        // Credit advisor wallet with netAmount
-        const netAmount = Number(ticket.netAmount);
-        await tx.wallet.upsert({
-          where:  { userId: ticket.advisorId },
-          update: { balance: { increment: netAmount } },
-          create: { userId: ticket.advisorId, balance: netAmount },
-        });
+        // Credit advisor wallet — requires User.id, not Advisor.id
+        if (advisorUserId) {
+          const netAmount = Number(ticket.netAmount);
+          await tx.wallet.upsert({
+            where:  { userId: advisorUserId },
+            update: { balance: { increment: netAmount } },
+            create: { userId: advisorUserId, balance: netAmount },
+          });
+        }
 
         return t;
       });
 
-      io.to(`advisor:${ticket.advisorId}`).emit('ticket_closed', {
+      io.to(`advisor:${advisorUserId}`).emit('ticket_closed', {
         ticketId:   ticket.id,
         netAmount:  Number(ticket.netAmount),
         rating:     userRating,
@@ -542,7 +557,8 @@ router.post(
         }).catch(() => {});
       }
 
-      io.to(`advisor:${ticket.advisorId}`).emit('ticket_updated', { ticketId: ticket.id, event: 'disputed' });
+      const advisorUserId = await getAdvisorUserId(ticket.advisorId);
+      io.to(`advisor:${advisorUserId}`).emit('ticket_updated', { ticketId: ticket.id, event: 'disputed' });
 
       res.json({ success: true, data: updated });
     } catch (err) {

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
@@ -79,7 +79,7 @@ export default function ContactPage() {
   const activityLabel = (act: TicketActivity): string => {
     if (act.action === 'ASSIGNED') return act.note || t('contact.activity.assigned');
     if (act.action === 'CLOSED')   return t('contact.activity.closed');
-    if (act.toStatus)              return `Status → ${act.toStatus.replace('_', ' ')}`;
+    if (act.toStatus)              return `Status â†’ ${act.toStatus.replace('_', ' ')}`;
     return act.note || act.action;
   };
 
@@ -96,7 +96,7 @@ export default function ContactPage() {
   const [priority,    setPriority]    = useState<TicketPriority>('MEDIUM');
   const [description, setDescription] = useState('');
 
-  const token = () => localStorage.getItem('accessToken') || '';
+  const token = () => sessionStorage.getItem('accessToken') || '';
 
   const fetchTickets = useCallback(async () => {
     if (!isLoggedIn) return;
@@ -215,7 +215,7 @@ export default function ContactPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex flex-col lg:flex-row gap-5">
 
-          {/* ── Left: Ticket List ── */}
+          {/* â”€â”€ Left: Ticket List â”€â”€ */}
           <div className="lg:w-2/5 space-y-3">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
               {t('contact.myTickets')} {tickets.length > 0 && <span className="ml-1 text-indigo-400">({tickets.length})</span>}
@@ -274,7 +274,7 @@ export default function ContactPage() {
             )}
           </div>
 
-          {/* ── Right: Form or Detail ── */}
+          {/* â”€â”€ Right: Form or Detail â”€â”€ */}
           <div className="lg:w-3/5">
 
             {/* New Ticket Form */}
@@ -425,7 +425,7 @@ export default function ContactPage() {
                               <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{act.note}</p>
                             )}
                             <p className="text-[10px] text-slate-600 mt-0.5">
-                              {act.performedByName} · {new Date(act.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              {act.performedByName} Â· {new Date(act.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                             </p>
                           </div>
                         </div>

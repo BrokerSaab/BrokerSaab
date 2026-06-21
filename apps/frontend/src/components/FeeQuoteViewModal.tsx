@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -76,7 +76,7 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
     if (!isOpen || !quote || viewedRef.current) return;
     if (quote.status !== 'QUOTED') return;
     viewedRef.current = true;
-    const token = localStorage.getItem('accessToken') || '';
+    const token = sessionStorage.getItem('accessToken') || '';
     fetch(`${API}/quotes/${quote.id}/view`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
@@ -105,7 +105,7 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
     setDeclining(true);
     setError('');
     try {
-      const token = localStorage.getItem('accessToken') || '';
+      const token = sessionStorage.getItem('accessToken') || '';
       const res  = await fetch(`${API}/quotes/${quote.id}/cancel`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -121,7 +121,7 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
     setPaying(true);
     setError('');
     try {
-      const token = localStorage.getItem('accessToken') || '';
+      const token = sessionStorage.getItem('accessToken') || '';
       // Accept the quote first
       await fetch(`${API}/quotes/${quote.id}/accept`, {
         method: 'POST',
@@ -187,7 +187,7 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
           </div>
         </div>
 
-        {/* ── QUOTE VIEW ── */}
+        {/* â”€â”€ QUOTE VIEW â”€â”€ */}
         {view === 'quote' && (
           <div className="px-5 pb-5 overflow-y-auto flex-1 space-y-3">
 
@@ -237,14 +237,14 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
                       className={`grid grid-cols-[1fr_auto] px-3 py-2.5 ${idx < quote.lineItems.length - 1 ? 'border-b border-white/5' : ''}`}>
                       <span className="text-sm text-white/80">{item.description}</span>
                       <span className="text-sm text-white/80 font-semibold text-right tabular-nums">
-                        ₹{parseFloat(item.amount).toLocaleString('en-IN')}
+                        â‚¹{parseFloat(item.amount).toLocaleString('en-IN')}
                       </span>
                     </div>
                   ))}
                   <div className="grid grid-cols-[1fr_auto] px-3 py-2.5 bg-white/5 border-t border-white/10">
                     <span className="text-sm font-black text-white">Total</span>
                     <span className="text-base font-black tabular-nums" style={{ color: '#D4AF37' }}>
-                      ₹{total.toLocaleString('en-IN')}
+                      â‚¹{total.toLocaleString('en-IN')}
                     </span>
                   </div>
                 </div>
@@ -321,17 +321,17 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
 
             <p className="text-[10px] text-white/20 text-center">
               Received {new Date(quote.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-              {quote.validUntil && !isExpired && ` · Valid until ${new Date(quote.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+              {quote.validUntil && !isExpired && ` Â· Valid until ${new Date(quote.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
             </p>
           </div>
         )}
 
-        {/* ── PAYMENT VIEW ── */}
+        {/* â”€â”€ PAYMENT VIEW â”€â”€ */}
         {view === 'payment' && (
           <div className="px-5 pb-5 overflow-y-auto flex-1 space-y-4">
             <div className="bg-white/5 rounded-xl px-4 py-3 border border-white/10 flex items-center justify-between">
               <span className="text-white/60 text-sm">Amount to pay</span>
-              <span className="text-xl font-black tabular-nums" style={{ color: '#D4AF37' }}>₹{total.toLocaleString('en-IN')}</span>
+              <span className="text-xl font-black tabular-nums" style={{ color: '#D4AF37' }}>â‚¹{total.toLocaleString('en-IN')}</span>
             </div>
 
             <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl px-4 py-3">
@@ -383,14 +383,14 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
                 className="flex-[2] py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 6px 20px rgba(212,175,55,0.30)' }}>
                 {paying
-                  ? <><Loader2 size={14} className="animate-spin" /> Processing…</>
-                  : <>Pay ₹{total.toLocaleString('en-IN')} <ArrowRight size={14} /></>}
+                  ? <><Loader2 size={14} className="animate-spin" /> Processingâ€¦</>
+                  : <>Pay â‚¹{total.toLocaleString('en-IN')} <ArrowRight size={14} /></>}
               </button>
             </div>
           </div>
         )}
 
-        {/* ── SUCCESS VIEW ── */}
+        {/* â”€â”€ SUCCESS VIEW â”€â”€ */}
         {view === 'success' && (
           <div className="px-5 pb-5 overflow-y-auto flex-1">
             <div className="text-center space-y-4 py-4">

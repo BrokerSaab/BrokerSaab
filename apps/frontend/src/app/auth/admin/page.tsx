@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -10,9 +10,9 @@ import {
 } from 'lucide-react';
 
 type Screen =
-  | 'selection'        // Landing — choose Admin or Advisor
+  | 'selection'        // Landing â€” choose Admin or Advisor
   | 'admin_login'      // Admin email + password
-  | 'advisor_method'   // Advisor — choose OTP or password
+  | 'advisor_method'   // Advisor â€” choose OTP or password
   | 'advisor_otp'      // Advisor OTP flow
   | 'advisor_otp_sent' // OTP entry
   | 'advisor_password' // Advisor email + password
@@ -30,8 +30,8 @@ export default function AdminLoginPage() {
   // Redirect already-authenticated users straight to their destination
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('user');
-      const token  = localStorage.getItem('accessToken');
+      const stored = sessionStorage.getItem('user');
+      const token  = sessionStorage.getItem('accessToken');
       if (!stored || !token) return;
       const u = JSON.parse(stored);
       if (u?.role === 'ADVISOR')    { window.location.replace('/advisor/dashboard'); return; }
@@ -58,13 +58,13 @@ export default function AdminLoginPage() {
 
   const go = (s: Screen) => { setScreen(s); setError(''); };
 
-  // ── Admin / Advisor password login ──────────────────────────────
+  // â”€â”€ Admin / Advisor password login â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handlePasswordLogin = async (role: 'admin' | 'advisor') => {
     if (!email.trim()) { setError('Please enter your email or phone number'); return; }
     if (!password.trim() || password.length < 6) { setError('Password must be at least 6 characters'); return; }
     setLoading(true); setError('');
     const controller = new AbortController();
-    // 20 s timeout — backend may need a cold-start wake-up on free tier
+    // 20 s timeout â€” backend may need a cold-start wake-up on free tier
     const timer = setTimeout(() => controller.abort(), 20000);
     try {
       const res  = await fetch(`${API}/auth/login/password`, {
@@ -76,9 +76,9 @@ export default function AdminLoginPage() {
       clearTimeout(timer);
       const data = await res.json();
       if (data.success) {
-        localStorage.setItem('accessToken', data.tokens.accessToken);
-        localStorage.setItem('refreshToken', data.tokens.refreshToken);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        sessionStorage.setItem('accessToken', data.tokens.accessToken);
+        sessionStorage.setItem('refreshToken', data.tokens.refreshToken);
+        sessionStorage.setItem('user', JSON.stringify(data.user));
         setUserName(data.user.fullName || data.user.email);
         setUserRole(role);
         setScreen('success');
@@ -92,8 +92,8 @@ export default function AdminLoginPage() {
       const isTimeout = err instanceof Error && err.name === 'AbortError';
       if (role === 'admin' && email === 'admin@brokersaab.com' && password === 'BrokerAdmin123') {
         // Offline / cold-start fallback for the dev super-admin account
-        localStorage.setItem('accessToken', 'offline-dev-token');
-        localStorage.setItem('user', JSON.stringify({ fullName: 'Super Admin', email, role: 'SUPER_ADMIN' }));
+        sessionStorage.setItem('accessToken', 'offline-dev-token');
+        sessionStorage.setItem('user', JSON.stringify({ fullName: 'Super Admin', email, role: 'SUPER_ADMIN' }));
         setUserName('Super Admin'); setUserRole('admin'); setScreen('success');
         setTimeout(() => { window.location.href = '/admin'; }, 1500);
       } else if (isTimeout) {
@@ -105,7 +105,7 @@ export default function AdminLoginPage() {
     setLoading(false);
   };
 
-  // ── Send OTP ──────────────────────────────────────────────────────
+  // â”€â”€ Send OTP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleSendOtp = async () => {
     if (phone.length < 10) { setError('Enter a valid 10-digit mobile number'); return; }
     setLoading(true); setError('');
@@ -138,7 +138,7 @@ export default function AdminLoginPage() {
     setLoading(false);
   };
 
-  // ── Verify OTP ───────────────────────────────────────────────────
+  // â”€â”€ Verify OTP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleVerifyOtp = async () => {
     const code = otp.join('');
     if (code.length !== 6) { setError('Enter the 6-digit OTP'); return; }
@@ -156,9 +156,9 @@ export default function AdminLoginPage() {
         } else if (data.user?.role !== 'ADVISOR') {
           setError('This number is not registered as an advisor account.');
         } else {
-          localStorage.setItem('accessToken', data.tokens.accessToken);
-          localStorage.setItem('refreshToken', data.tokens.refreshToken);
-          localStorage.setItem('user', JSON.stringify(data.user));
+          sessionStorage.setItem('accessToken', data.tokens.accessToken);
+          sessionStorage.setItem('refreshToken', data.tokens.refreshToken);
+          sessionStorage.setItem('user', JSON.stringify(data.user));
           setUserName(data.user.fullName || `+91 ${phone}`);
           setUserRole('advisor'); setScreen('success');
           setTimeout(() => { window.location.href = '/advisor/dashboard'; }, 1500);
@@ -178,7 +178,7 @@ export default function AdminLoginPage() {
     if (e.key === 'Backspace' && !otp[i] && i > 0) document.getElementById(`adv-otp-${i-1}`)?.focus();
   };
 
-  // ── RENDER ────────────────────────────────────────────────────────
+  // â”€â”€ RENDER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-10"
       style={{ background: 'linear-gradient(135deg,#0B1F3A 0%,#1a1040 50%,#0B1F3A 100%)' }}>
@@ -192,11 +192,11 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md relative z-10">
 
 
-        {/* ═══ Card — same structure as LoginModal ═══ */}
+        {/* â•â•â• Card â€” same structure as LoginModal â•â•â• */}
         <div className="bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col"
           style={{ border: '1px solid rgba(212,175,55,0.25)', boxShadow: '0 25px 60px rgba(0,0,0,0.4)', maxHeight: '95dvh' }}>
 
-          {/* ── Header (mirrors LoginModal exactly) ── */}
+          {/* â”€â”€ Header (mirrors LoginModal exactly) â”€â”€ */}
           <div className="px-6 py-5 relative shrink-0"
             style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
             {/* Horizontal logo */}
@@ -246,10 +246,10 @@ export default function AdminLoginPage() {
             ) : null}
           </div>
 
-          {/* ── Body ── */}
+          {/* â”€â”€ Body â”€â”€ */}
           <div className="p-6 sm:p-7 overflow-y-auto flex-1 min-h-0">
 
-            {/* ── SUCCESS ── */}
+            {/* â”€â”€ SUCCESS â”€â”€ */}
             {screen === 'success' && (
               <div className="text-center space-y-5 py-3">
                 <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto"
@@ -259,7 +259,7 @@ export default function AdminLoginPage() {
                 <div>
                   <h3 className="text-lg font-black text-gray-900">Welcome, {userName}!</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    {userRole === 'admin' ? 'Redirecting to Admin Dashboard…' : 'Redirecting to Advisor Workspace…'}
+                    {userRole === 'admin' ? 'Redirecting to Admin Dashboardâ€¦' : 'Redirecting to Advisor Workspaceâ€¦'}
                   </p>
                 </div>
                 <button onClick={() => { window.location.href = userRole === 'admin' ? '/admin' : '/advisor/dashboard'; }}
@@ -270,7 +270,7 @@ export default function AdminLoginPage() {
               </div>
             )}
 
-            {/* ── SELECTION ── */}
+            {/* â”€â”€ SELECTION â”€â”€ */}
             {screen === 'selection' && (
               <div className="space-y-4">
                 <div className="text-center mb-6">
@@ -314,14 +314,14 @@ export default function AdminLoginPage() {
                   <p className="text-xs text-gray-400">
                     Are you a user?{' '}
                     <Link href="/auth" className="text-[#B48C22] font-semibold hover:underline">Sign in here</Link>
-                    {' · '}
+                    {' Â· '}
                     <Link href="/advisors/onboarding" className="text-[#B48C22] font-semibold hover:underline">Register as Advisor</Link>
                   </p>
                 </div>
               </div>
             )}
 
-            {/* ── ADMIN LOGIN ── */}
+            {/* â”€â”€ ADMIN LOGIN â”€â”€ */}
             {screen === 'admin_login' && (
               <div className="space-y-4">
                 <div className="flex items-center gap-3 mb-5">
@@ -358,7 +358,7 @@ export default function AdminLoginPage() {
                 <button onClick={() => handlePasswordLogin('admin')} disabled={loading}
                   className="w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50 mt-2"
                   style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', color: '#D4AF37', boxShadow: '0 6px 18px rgba(11,31,58,0.3)' }}>
-                  {loading ? <><Loader2 size={17} className="animate-spin" /> Signing in…</> : <><ShieldCheck size={17} /> Sign In as Admin</>}
+                  {loading ? <><Loader2 size={17} className="animate-spin" /> Signing inâ€¦</> : <><ShieldCheck size={17} /> Sign In as Admin</>}
                 </button>
 
                 {/* Dev hint */}
@@ -369,7 +369,7 @@ export default function AdminLoginPage() {
               </div>
             )}
 
-            {/* ── ADVISOR METHOD SELECT ── */}
+            {/* â”€â”€ ADVISOR METHOD SELECT â”€â”€ */}
             {screen === 'advisor_method' && (
               <div className="space-y-4">
                 <div className="flex items-center gap-3 mb-5">
@@ -419,7 +419,7 @@ export default function AdminLoginPage() {
               </div>
             )}
 
-            {/* ── ADVISOR OTP — PHONE ENTRY ── */}
+            {/* â”€â”€ ADVISOR OTP â€” PHONE ENTRY â”€â”€ */}
             {screen === 'advisor_otp' && (
               <div className="space-y-4">
                 <div className="mb-4">
@@ -443,12 +443,12 @@ export default function AdminLoginPage() {
                 <button onClick={handleSendOtp} disabled={loading || phone.length < 10}
                   className="w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 6px 18px rgba(212,175,55,0.3)' }}>
-                  {loading ? <><Loader2 size={17} className="animate-spin" /> Sending…</> : <><Smartphone size={17} /> Send OTP</>}
+                  {loading ? <><Loader2 size={17} className="animate-spin" /> Sendingâ€¦</> : <><Smartphone size={17} /> Send OTP</>}
                 </button>
               </div>
             )}
 
-            {/* ── ADVISOR OTP — CODE ENTRY ── */}
+            {/* â”€â”€ ADVISOR OTP â€” CODE ENTRY â”€â”€ */}
             {screen === 'advisor_otp_sent' && (
               <div className="space-y-5">
                 <div className="mb-2">
@@ -481,17 +481,17 @@ export default function AdminLoginPage() {
                 <button onClick={handleVerifyOtp} disabled={loading}
                   className="w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}>
-                  {loading ? <><Loader2 size={17} className="animate-spin" /> Verifying…</> : <><ShieldCheck size={17} /> Verify & Sign In</>}
+                  {loading ? <><Loader2 size={17} className="animate-spin" /> Verifyingâ€¦</> : <><ShieldCheck size={17} /> Verify & Sign In</>}
                 </button>
 
                 {otpCooldown > 0
                   ? <p className="text-center text-xs text-gray-400">Resend in {otpCooldown}s</p>
-                  : <button onClick={() => { setOtp(['','','','','','']); go('advisor_otp'); }} className="w-full text-xs text-[#B48C22]/70 hover:text-[#B48C22] transition-colors py-1">← Change number / Resend OTP</button>
+                  : <button onClick={() => { setOtp(['','','','','','']); go('advisor_otp'); }} className="w-full text-xs text-[#B48C22]/70 hover:text-[#B48C22] transition-colors py-1">â† Change number / Resend OTP</button>
                 }
               </div>
             )}
 
-            {/* ── ADVISOR EMAIL + PASSWORD ── */}
+            {/* â”€â”€ ADVISOR EMAIL + PASSWORD â”€â”€ */}
             {screen === 'advisor_password' && (
               <div className="space-y-4">
                 <div className="flex items-center gap-3 mb-5">
@@ -529,7 +529,7 @@ export default function AdminLoginPage() {
                 <button onClick={() => handlePasswordLogin('advisor')} disabled={loading}
                   className="w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50 mt-1"
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 6px 18px rgba(212,175,55,0.3)' }}>
-                  {loading ? <><Loader2 size={17} className="animate-spin" /> Signing in…</> : <><ArrowRight size={17} /> Sign In as Advisor</>}
+                  {loading ? <><Loader2 size={17} className="animate-spin" /> Signing inâ€¦</> : <><ArrowRight size={17} /> Sign In as Advisor</>}
                 </button>
 
                 <p className="text-center text-xs text-gray-400 pt-1">
@@ -544,7 +544,7 @@ export default function AdminLoginPage() {
           {/* Footer */}
           {screen !== 'success' && (
             <div className="px-6 py-3.5 text-center border-t shrink-0" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', borderColor: 'rgba(212,175,55,0.1)' }}>
-              <p className="text-[10px] text-white/30">Secure portal · Unauthorized access is prohibited · BrokerSaab © 2026</p>
+              <p className="text-[10px] text-white/30">Secure portal Â· Unauthorized access is prohibited Â· BrokerSaab Â© 2026</p>
             </div>
           )}
         </div>
@@ -552,7 +552,7 @@ export default function AdminLoginPage() {
         {/* Trust indicators */}
         <div className="flex items-center justify-center gap-4 mt-5 text-[11px] text-white/30">
           <span className="flex items-center gap-1"><ShieldCheck size={11} className="text-[#D4AF37]/50" /> SSL Encrypted</span>
-          <span className="text-white/15">•</span>
+          <span className="text-white/15">â€¢</span>
           <span className="flex items-center gap-1"><KeyRound size={11} className="text-[#D4AF37]/50" /> Role-Based Access</span>
         </div>
       </div>

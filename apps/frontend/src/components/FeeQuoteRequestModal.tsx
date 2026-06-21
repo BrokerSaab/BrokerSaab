@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { X, FileText, ChevronDown, CheckCircle2, Loader2, MessageSquare } from 'lucide-react';
@@ -57,7 +57,7 @@ export default function FeeQuoteRequestModal({ advisorId, advisorName, isOpen, o
     setLoading(true);
     setError('');
     try {
-      const token = localStorage.getItem('accessToken') || '';
+      const token = sessionStorage.getItem('accessToken') || '';
       const res = await fetch(`${API}/quotes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -134,7 +134,7 @@ export default function FeeQuoteRequestModal({ advisorId, advisorName, isOpen, o
                     className="w-full appearance-none bg-white/8 border border-white/15 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 transition-all"
                     style={{ background: 'rgba(255,255,255,0.06)' }}
                   >
-                    <option value="" className="bg-[#1a1040] text-white">— Select a category —</option>
+                    <option value="" className="bg-[#1a1040] text-white">â€” Select a category â€”</option>
                     {CATEGORIES.map(c => (
                       <option key={c.slug} value={c.slug} className="bg-[#1a1040] text-white">{c.name}</option>
                     ))}
@@ -172,7 +172,7 @@ export default function FeeQuoteRequestModal({ advisorId, advisorName, isOpen, o
                 className="w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: 'white', boxShadow: '0 6px 20px rgba(79,70,229,0.35)' }}
               >
-                {loading ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : <><FileText size={16} /> Send Quote Request</>}
+                {loading ? <><Loader2 size={16} className="animate-spin" /> Sendingâ€¦</> : <><FileText size={16} /> Send Quote Request</>}
               </button>
             </div>
           ) : (
@@ -190,10 +190,10 @@ export default function FeeQuoteRequestModal({ advisorId, advisorName, isOpen, o
               <div className="bg-white/5 rounded-xl px-4 py-3 text-left border border-white/10">
                 <p className="text-white/40 text-[10px] font-semibold uppercase tracking-wider mb-1">What happens next?</p>
                 <ul className="space-y-1 text-xs text-white/50">
-                  <li>• Advisor reviews your request</li>
-                  <li>• They send a detailed breakdown of all charges</li>
-                  <li>• You get notified and can compare advisor quotes</li>
-                  <li>• Decide and book when you're ready</li>
+                  <li>â€¢ Advisor reviews your request</li>
+                  <li>â€¢ They send a detailed breakdown of all charges</li>
+                  <li>â€¢ You get notified and can compare advisor quotes</li>
+                  <li>â€¢ Decide and book when you're ready</li>
                 </ul>
               </div>
               <button onClick={handleClose}

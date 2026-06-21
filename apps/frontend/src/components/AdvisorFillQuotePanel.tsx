@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import { X, Plus, Trash2, FileText, Loader2, ChevronRight, User, MessageSquare, Tag, Clock, CheckCircle2, Edit3 } from 'lucide-react';
@@ -72,7 +72,7 @@ export default function AdvisorFillQuotePanel({ request, isOpen, onClose, onSubm
     }
     setLoading(true);
     try {
-      const token = localStorage.getItem('accessToken') || '';
+      const token = sessionStorage.getItem('accessToken') || '';
       const lineItems = rows.map(r => ({ description: r.description.trim(), amount: parseFloat(r.amount) }));
 
       let url = `${API}/quotes/${request.id}/submit`;
@@ -144,7 +144,7 @@ export default function AdvisorFillQuotePanel({ request, isOpen, onClose, onSubm
 
         <div className="px-5 pb-5 overflow-y-auto flex-1">
 
-          {/* ── DETAIL VIEW (only for new requests) ── */}
+          {/* â”€â”€ DETAIL VIEW (only for new requests) â”€â”€ */}
           {view === 'detail' && !isEdit && !proactive && (
             <div className="space-y-4">
               <div className="bg-white/5 rounded-xl px-4 py-3 border border-white/10 flex items-center gap-3">
@@ -191,7 +191,7 @@ export default function AdvisorFillQuotePanel({ request, isOpen, onClose, onSubm
             </div>
           )}
 
-          {/* ── COMPOSE VIEW ── */}
+          {/* â”€â”€ COMPOSE VIEW â”€â”€ */}
           {view === 'compose' && (
             <div className="space-y-3.5">
               {/* Client banner for proactive */}
@@ -226,7 +226,7 @@ export default function AdvisorFillQuotePanel({ request, isOpen, onClose, onSubm
                       style={{ background: 'rgba(255,255,255,0.06)' }}
                     />
                     <div className="relative w-28 shrink-0">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/40">₹</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/40">â‚¹</span>
                       <input
                         type="number" min="1"
                         value={row.amount}
@@ -253,7 +253,7 @@ export default function AdvisorFillQuotePanel({ request, isOpen, onClose, onSubm
                   <div className="text-right">
                     <span className="text-xs text-white/40">Total: </span>
                     <span className="text-base font-black tabular-nums" style={{ color: '#D4AF37' }}>
-                      ₹{total.toLocaleString('en-IN')}
+                      â‚¹{total.toLocaleString('en-IN')}
                     </span>
                   </div>
                 )}
@@ -268,7 +268,7 @@ export default function AdvisorFillQuotePanel({ request, isOpen, onClose, onSubm
                   onChange={e => setAdvisorNote(e.target.value)}
                   rows={2}
                   maxLength={500}
-                  placeholder="Any additional info, payment terms, disclaimers…"
+                  placeholder="Any additional info, payment terms, disclaimersâ€¦"
                   className="w-full border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-indigo-500/60 transition-all resize-none"
                   style={{ background: 'rgba(255,255,255,0.06)' }}
                 />
@@ -307,7 +307,7 @@ export default function AdvisorFillQuotePanel({ request, isOpen, onClose, onSubm
                   className="flex-[2] py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110 disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 6px 20px rgba(212,175,55,0.30)' }}>
                   {loading
-                    ? <><Loader2 size={14} className="animate-spin" /> Sending…</>
+                    ? <><Loader2 size={14} className="animate-spin" /> Sendingâ€¦</>
                     : isEdit
                     ? <><Edit3 size={14} /> Update Quote</>
                     : <><FileText size={14} /> Send Quote</>}
@@ -316,7 +316,7 @@ export default function AdvisorFillQuotePanel({ request, isOpen, onClose, onSubm
             </div>
           )}
 
-          {/* ── SUCCESS VIEW ── */}
+          {/* â”€â”€ SUCCESS VIEW â”€â”€ */}
           {view === 'success' && (
             <div className="text-center space-y-4 py-4">
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
@@ -334,7 +334,7 @@ export default function AdvisorFillQuotePanel({ request, isOpen, onClose, onSubm
               <div className="bg-white/5 rounded-xl px-4 py-3 text-left border border-white/10">
                 <p className="text-white/40 text-[10px] font-semibold uppercase tracking-wider mb-1">Total Quoted</p>
                 <p className="text-2xl font-black tabular-nums" style={{ color: '#D4AF37' }}>
-                  ₹{total.toLocaleString('en-IN')}
+                  â‚¹{total.toLocaleString('en-IN')}
                 </p>
               </div>
               <button onClick={handleClose}

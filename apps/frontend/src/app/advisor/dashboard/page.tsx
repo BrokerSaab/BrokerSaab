@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -100,7 +100,7 @@ export default function AdvisorDashboard() {
 
   const fetchQuoteRequests = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       const res = await fetch(`${API}/quotes`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) setQuoteRequests(data.data);
@@ -109,7 +109,7 @@ export default function AdvisorDashboard() {
 
   const fetchUnreadCount = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       const res = await fetch(`${API}/quotes/unread-count`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) setUnreadQuoteCount(data.count);
@@ -119,7 +119,7 @@ export default function AdvisorDashboard() {
   const fetchConnectedClients = async () => {
     setConnectedLoading(true);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       const res = await fetch(`${API}/quotes/connected-clients`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) setConnectedClients(data.data);
@@ -130,7 +130,7 @@ export default function AdvisorDashboard() {
   const fetchTickets = async () => {
     setTicketsLoading(true);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       const res = await fetch(`${API}/tickets`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) setTickets(data.data);
@@ -157,15 +157,15 @@ export default function AdvisorDashboard() {
     socket.on('connect', () => socket.emit('join_advisor_room', user.id));
     socket.on('quote_requested', () => { fetchQuoteRequests(); fetchUnreadCount(); });
     socket.on('quote_viewed',    () => { fetchQuoteRequests(); });
-    socket.on('quote_accepted',  () => { fetchQuoteRequests(); fetchTickets(); });
-    socket.on('ticket_created',  () => { fetchTickets(); });
+    socket.on('quote_accepted',  () => { fetchQuoteRequests(); fetchTickets(); setShowTickets(true); });
+    socket.on('ticket_created',  () => { fetchTickets(); setShowTickets(true); });
     return () => { socket.disconnect(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn, user?.id]);
 
   const fetchSubscriptionValidity = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       const res = await fetch(`${API}/subscriptions/status`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) setSubValidity(data);
@@ -175,7 +175,7 @@ export default function AdvisorDashboard() {
   const fetchBookings = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       const res = await fetch(`${API}/bookings`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       setBookings(data.success ? data.data : DEMO_BOOKINGS);
@@ -186,7 +186,7 @@ export default function AdvisorDashboard() {
   const updateStatus = async (bookingId: string, status: BookingStatus) => {
     setUpdating(bookingId + status);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       await fetch(`${API}/bookings/${bookingId}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -225,8 +225,9 @@ export default function AdvisorDashboard() {
     setShowConnectedClients(false);
   };
 
-  const filtered = filter === 'ALL' ? bookings : bookings.filter(b => b.status === filter);
-  const counts   = bookings.reduce((acc, b) => { acc[b.status] = (acc[b.status] ?? 0) + 1; return acc; }, {} as Record<string, number>);
+  const filtered     = filter === 'ALL' ? bookings : bookings.filter(b => b.status === filter);
+  const counts       = bookings.reduce((acc, b) => { acc[b.status] = (acc[b.status] ?? 0) + 1; return acc; }, {} as Record<string, number>);
+  const quoteCounts  = quoteRequests.reduce((acc, q) => { acc[q.status] = (acc[q.status] ?? 0) + 1; return acc; }, {} as Record<string, number>);
 
   const TICKET_STATUS_COLOR: Record<string, string> = {
     OPEN:              'bg-blue-50 text-blue-700 border border-blue-200',
@@ -338,7 +339,7 @@ export default function AdvisorDashboard() {
                   <p className="text-xs text-slate-500">Renew to keep your badge visible to clients</p>
                 </div>
               </div>
-              <Link href="/advisors/onboarding"
+              <Link href="/advisor/badge"
                 className="px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all hover:scale-105"
                 style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}>
                 Get Badge
@@ -347,7 +348,7 @@ export default function AdvisorDashboard() {
           )
         )}
 
-        {/* ── Service Tickets panel ── */}
+        {/* â”€â”€ Service Tickets panel â”€â”€ */}
         {showTickets && (
           <div className="mb-5 bg-white border border-emerald-100 rounded-2xl overflow-hidden shadow-sm">
             <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100 bg-emerald-50">
@@ -382,11 +383,11 @@ export default function AdvisorDashboard() {
                           {t.status.replace('_', ' ')}
                         </span>
                         {t.status === 'AWAITING_CONFIRM' && (
-                          <span className="text-[10px] font-bold text-purple-600 animate-pulse">⏳ Confirm needed</span>
+                          <span className="text-[10px] font-bold text-purple-600 animate-pulse">â³ Confirm needed</span>
                         )}
                       </div>
                       <p className="text-sm font-bold text-slate-800 mt-0.5">{t.client?.fullName}</p>
-                      <p className="text-xs text-slate-500">₹{Number(t.totalAmount).toLocaleString('en-IN')} · {t.stages?.length ?? 0} stages</p>
+                      <p className="text-xs text-slate-500">â‚¹{Number(t.totalAmount).toLocaleString('en-IN')} Â· {t.stages?.length ?? 0} stages</p>
                     </div>
                     <Link href={`/tickets/${t.id}`}
                       className="px-3 py-1.5 rounded-xl text-xs font-bold text-white whitespace-nowrap"
@@ -400,7 +401,7 @@ export default function AdvisorDashboard() {
           </div>
         )}
 
-        {/* ── Connected Clients panel ── */}
+        {/* â”€â”€ Connected Clients panel â”€â”€ */}
         {showConnectedClients && (
           <div className="mb-5 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
             <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50">
@@ -451,7 +452,7 @@ export default function AdvisorDashboard() {
           </div>
         )}
 
-        {/* ── Quote Requests panel ── */}
+        {/* â”€â”€ Quote Requests panel â”€â”€ */}
         {showQuoteList && (
           <div className="mb-5 bg-white border border-indigo-100 rounded-2xl overflow-hidden shadow-sm">
             <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100"
@@ -489,9 +490,9 @@ export default function AdvisorDashboard() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-slate-800">{q.client.fullName}</p>
                         <p className="text-[11px] text-slate-500 truncate">
-                          {q.categorySlug?.toUpperCase() ?? 'General'} ·{' '}
+                          {q.categorySlug?.toUpperCase() ?? 'General'} Â·{' '}
                           {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                          {q.totalAmount && ` · ₹${parseFloat(q.totalAmount).toLocaleString('en-IN')}`}
+                          {q.totalAmount && ` Â· â‚¹${parseFloat(q.totalAmount).toLocaleString('en-IN')}`}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
@@ -531,7 +532,21 @@ export default function AdvisorDashboard() {
           </div>
         )}
 
-        {/* Stats row */}
+        {/* Quote Request Stats */}
+        <div className="grid grid-cols-3 gap-3 mb-3">
+          {[
+            { label: 'New Requests', key: 'REQUESTED', color: 'text-amber-600',  bg: 'bg-amber-50',   border: 'border-amber-100' },
+            { label: 'Quotes Sent',  key: 'QUOTED',    color: 'text-indigo-600', bg: 'bg-indigo-50',  border: 'border-indigo-100' },
+            { label: 'Quotes Won',   key: 'ACCEPTED',  color: 'text-emerald-600',bg: 'bg-emerald-50', border: 'border-emerald-100' },
+          ].map(s => (
+            <div key={s.key} className={`${s.bg} border ${s.border} rounded-xl p-3 text-center`}>
+              <p className={`text-xl font-extrabold ${s.color}`}>{quoteCounts[s.key] ?? 0}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5 font-medium">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Booking Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           {[
             { label: 'Pending',   count: counts['PENDING']   ?? 0, color: 'text-amber-600' },
@@ -542,6 +557,7 @@ export default function AdvisorDashboard() {
             <div key={s.label} className="bg-white shadow-sm border border-slate-100 rounded-xl p-4 text-center">
               <p className={`text-2xl font-extrabold ${s.color}`}>{s.count}</p>
               <p className="text-xs text-slate-500 mt-0.5">{s.label}</p>
+              <p className="text-[9px] text-slate-400">bookings</p>
             </div>
           ))}
         </div>
@@ -563,7 +579,7 @@ export default function AdvisorDashboard() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20 text-slate-500">
-            <Loader2 size={24} className="animate-spin mr-3" /> Loading bookings…
+            <Loader2 size={24} className="animate-spin mr-3" /> Loading bookingsâ€¦
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 space-y-3">
@@ -603,13 +619,13 @@ export default function AdvisorDashboard() {
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Clock size={12} className="text-indigo-400/60" />
-                      {booking.startTime} – {booking.endTime}
+                      {booking.startTime} â€“ {booking.endTime}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <MessageSquare size={12} className="text-indigo-400/60" />
                       {booking.mode}
                     </span>
-                    <span style={{ color: '#B48C22' }} className="font-bold">₹{booking.totalFee}</span>
+                    <span style={{ color: '#B48C22' }} className="font-bold">â‚¹{booking.totalFee}</span>
                   </div>
 
                   {booking.notes && (
@@ -640,7 +656,7 @@ export default function AdvisorDashboard() {
                     )}
                     {(booking.status === 'COMPLETED' || booking.status === 'CANCELLED') && (
                       <span className="text-xs text-slate-500 py-2">
-                        {booking.status === 'COMPLETED' ? '✓ Consultation closed' : '✗ Rejected/cancelled'}
+                        {booking.status === 'COMPLETED' ? 'âœ“ Consultation closed' : 'âœ— Rejected/cancelled'}
                       </span>
                     )}
                   </div>

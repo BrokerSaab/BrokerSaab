@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import Link from 'next/link';
@@ -12,7 +12,8 @@ import {
   FileHeart, UserCheck, Lightbulb, Car, Users, GraduationCap,
   HeartHandshake, TrendingUp, Globe, Zap, Sprout, Laptop,
   Flag, Plane, School, ClipboardList,
-  ChevronDown, ChevronRight, Sparkles, ArrowLeft, Printer, Download, Clock
+  ChevronDown, ChevronRight, Sparkles, ArrowLeft, Printer, Download, Clock,
+  Stethoscope, Package, CreditCard as IdCard
 } from 'lucide-react';
 
 import { MODULES_DATA, MODULE_COLORS, ICON_MAP } from '@/data/servicesData';
@@ -20,7 +21,7 @@ import { INDIA_STATES_SORTED } from '@/data/indiaStates';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
-// ── Types ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type Step = 'welcome' | 'phone_otp' | 'advisor_type' | 'account' | 'profile' | 'kyc' | 'services' | 'availability' | 'review' | 'payment' | 'success';
 
 interface Slot {
@@ -55,6 +56,9 @@ interface FormData {
   advisorType: 'REGULAR' | 'AUTHORIZED' | '';
   otpVerified: boolean;
   tempPhoneToken: string;
+  identityProofType: 'AADHAAR' | 'PAN' | 'DRIVING_LICENSE' | 'VOTER_ID' | 'PASSPORT' | '';
+  identityNumber: string;
+  identityFile: File | null;
   aadhaarNumber: string;
   aadhaarConsentGiven: boolean;
   aadhaarFile: File | null;
@@ -64,10 +68,10 @@ interface FormData {
   gstCertFile: File | null;
 }
 
-// ── Constants ──────────────────────────────────────────────────────────────────
+// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const STEP_ORDER: Step[] = ['welcome', 'phone_otp', 'advisor_type', 'account', 'profile', 'kyc', 'services', 'availability', 'review', 'payment', 'success'];
 
-// GST constants (display-only — backend computes the actual charge)
+// GST constants (display-only â€” backend computes the actual charge)
 const BASE_PRICE   = 1999;
 const ORIGINAL_PRICE = 19999;
 const DISCOUNT_AMT = ORIGINAL_PRICE - BASE_PRICE;
@@ -102,8 +106,10 @@ const ADVISOR_CATEGORIES = [
   { name: 'Domestic College Admission',    slug: 'm22', icon: School,        color: 'bg-indigo-100', iconColor: 'text-indigo-600', desc: 'NEET/JEE/CAT counseling, seat allotment & college enrollment help' },
   { name: 'Job Placement & Recruitment',   slug: 'm23', icon: ClipboardList, color: 'bg-teal-100',   iconColor: 'text-teal-600',   desc: 'Resume building, interview prep, offer negotiation & post-placement' },
   { name: 'Visa & PR Immigration',         slug: 'm24', icon: FileCheck,     color: 'bg-red-100',    iconColor: 'text-red-600',    desc: 'Canada/UK/Australia PR, work permits, EOI, ITA & landing support' },
-  { name: 'Others / Custom Service',       slug: 'm25', icon: Sparkles,      color: 'bg-indigo-100', iconColor: 'text-indigo-600', desc: 'Any unique expertise not listed above — describe your own specialisation' },
   { name: 'Tour & Travel',                 slug: 'm26', icon: MapPin,        color: 'bg-orange-100', iconColor: 'text-orange-600', desc: 'Bus, train & flight bookings, hotel stays, tour packages, cab services & travel insurance' },
+  { name: 'Local Medical Representative',  slug: 'm27', icon: Stethoscope,  color: 'bg-teal-100',   iconColor: 'text-teal-600',   desc: 'Doctor visits, sample distribution, product detailing & pharma marketing' },
+  { name: 'Local Distributors',            slug: 'm28', icon: Package,      color: 'bg-violet-100', iconColor: 'text-violet-600', desc: 'FMCG, pharma & agri-input wholesale distribution & last-mile delivery' },
+  { name: 'Others / Custom Service',       slug: 'm25', icon: Sparkles,      color: 'bg-indigo-100', iconColor: 'text-indigo-600', desc: 'Any unique expertise not listed above â€” describe your own specialisation' },
 ];
 
 const INITIAL_FORM: FormData = {
@@ -112,12 +118,33 @@ const INITIAL_FORM: FormData = {
   location: '', state: '', city: '', circle: '', subdivision: '', consultationFee: '', languages: [], bio: '',
   selectedSlugs: [], selectedSubSlugs: [], customSpecializations: {}, slots: [],
   advisorType: '', otpVerified: false, tempPhoneToken: '',
+  identityProofType: '', identityNumber: '', identityFile: null,
   aadhaarNumber: '', aadhaarConsentGiven: false,
   aadhaarFile: null, passportPhotoFile: null, licenseFile: null,
   gstNumber: '', gstCertFile: null,
 };
 
-// ── Validation ─────────────────────────────────────────────────────────────────
+// â”€â”€ Email validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const ALLOWED_TLD1 = ['com','in','org','net','edu','gov','info','biz','io','me','co','ai','uk','us','au','ca','nz','sg','ae','de','fr','jp','tv'];
+const ALLOWED_TLD2 = ['co.in','net.in','org.in','edu.in','gov.in','nic.in','ac.in','firm.in','gen.in','co.uk','com.au','co.nz','ac.uk','com.sg'];
+
+function validateEmailStr(email: string): string | null {
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed) return 'Email address is required.';
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._%+\-]*@[a-zA-Z0-9][a-zA-Z0-9.\-]*\.[a-zA-Z]{2,}$/.test(trimmed))
+    return 'Enter a valid email (e.g. name@example.com or name@firm.co.in).';
+  const domain = trimmed.split('@')[1];
+  const parts = domain.split('.');
+  if (parts.length >= 3) {
+    const tld2 = `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
+    if (ALLOWED_TLD2.includes(tld2)) return null;
+  }
+  const tld1 = parts[parts.length - 1];
+  if (ALLOWED_TLD1.includes(tld1)) return null;
+  return `Email domain not accepted. Use addresses ending in .com, .in, .co.in, .org, .net, .net.in, .edu, .gov.in, etc.`;
+}
+
+// â”€â”€ Validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function validate(step: Step, data: FormData, confirmed: boolean): string | null {
   if (step === 'phone_otp') {
     if (!data.otpVerified) return 'Please verify your mobile number with OTP first.';
@@ -126,14 +153,28 @@ function validate(step: Step, data: FormData, confirmed: boolean): string | null
     if (!data.advisorType) return 'Please select your advisor type to continue.';
   }
   if (step === 'account') {
-    if (!/.+@.+\..+/.test(data.email)) return 'Enter a valid email address.';
-    if (data.password.length < 6) return 'Password must be at least 6 characters.';
+    const emailErr = validateEmailStr(data.email);
+    if (emailErr) return emailErr;
+    if (data.password.length < 8) return 'Password must be at least 8 characters.';
+    if (!/[A-Za-z]/.test(data.password) || !/[0-9]/.test(data.password)) return 'Password must contain both letters and numbers.';
     if (data.password !== data.confirmPassword) return 'Passwords do not match.';
   }
   if (step === 'kyc') {
-    if (!data.aadhaarFile) return 'Please upload your Aadhaar card.';
-    if (!/^[2-9][0-9]{11}$/.test(data.aadhaarNumber.replace(/\D/g, ''))) return 'Enter a valid 12-digit Aadhaar number (must not start with 0 or 1).';
-    if (!data.aadhaarConsentGiven) return 'You must consent to Aadhaar data processing to continue.';
+    if (!data.identityProofType) return 'Please select an identity proof type.';
+    if (!data.identityFile) return 'Please upload your identity proof document.';
+    const idNum = data.identityNumber.replace(/[\s-]/g, '').toUpperCase();
+    if (data.identityProofType === 'AADHAAR') {
+      if (!/^[2-9][0-9]{11}$/.test(idNum)) return 'Enter a valid 12-digit Aadhaar number (must not start with 0 or 1).';
+      if (!data.aadhaarConsentGiven) return 'You must consent to Aadhaar data processing to continue.';
+    } else if (data.identityProofType === 'PAN') {
+      if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(idNum)) return 'Enter a valid PAN (e.g. ABCDE1234F â€” 5 letters, 4 digits, 1 letter).';
+    } else if (data.identityProofType === 'DRIVING_LICENSE') {
+      if (idNum.length < 10 || idNum.length > 16) return 'Enter a valid Driving License number (10â€“16 characters).';
+    } else if (data.identityProofType === 'VOTER_ID') {
+      if (!/^[A-Z]{3}[0-9]{7}$/.test(idNum)) return 'Enter a valid Voter ID (e.g. ABC1234567 â€” 3 letters + 7 digits).';
+    } else if (data.identityProofType === 'PASSPORT') {
+      if (!/^[A-Z][0-9]{7}$/.test(idNum)) return 'Enter a valid Passport number (e.g. A1234567 â€” 1 letter + 7 digits).';
+    }
     if (!data.passportPhotoFile) return 'Please upload your passport-size photo.';
     if (data.advisorType === 'AUTHORIZED') {
       if (!data.licenseFile) return 'License copy is mandatory for Authorized Advisors.';
@@ -142,17 +183,21 @@ function validate(step: Step, data: FormData, confirmed: boolean): string | null
   }
   if (step === 'profile') {
     if (!data.fullName.trim()) return 'Full name is required.';
+    if (data.fullName.trim().length > 100) return 'Full name must be 100 characters or less.';
+    if (data.businessName.length > 150) return 'Business name must be 150 characters or less.';
     const exp = parseInt(data.experienceYears);
-    if (isNaN(exp) || exp < 0) return 'Enter valid years of experience (0 or more).';
+    if (isNaN(exp) || exp < 0 || exp > 50) return 'Enter valid years of experience (0â€“50).';
     if (!data.state) return 'Please select your state.';
     if (!data.city.trim()) return 'Please enter your city or area.';
     if (data.consultationFee && (isNaN(parseFloat(data.consultationFee)) || parseFloat(data.consultationFee) < 0)) return 'Enter a valid consultation fee.';
     if (data.languages.length === 0) return 'Add at least one language.';
     if (data.bio.trim().length < 50) return 'Bio must be at least 50 characters.';
+    if (data.bio.trim().length > 500) return 'Bio must be 500 characters or less.';
+    if (data.gstNumber && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(data.gstNumber.toUpperCase())) return 'Enter a valid 15-digit GSTIN (e.g. 22AAAAA0000A1Z5).';
   }
   if (step === 'services') {
     if (data.selectedSlugs.length === 0) return 'Select at least one service category.';
-    const OPEN_SLUGS = ['m21', 'm22', 'm23', 'm24', 'm25'];
+    const OPEN_SLUGS = ['m21', 'm22', 'm23', 'm24', 'm27', 'm28', 'm25'];
     const hasRegularModules = data.selectedSlugs.some(s => !OPEN_SLUGS.includes(s));
     if (hasRegularModules && data.selectedSubSlugs.length === 0) return 'Select at least one specific sub-service from your chosen modules.';
     for (const slug of data.selectedSlugs.filter(s => OPEN_SLUGS.includes(s))) {
@@ -247,7 +292,7 @@ const getSubModuleIcon = (moduleId: string | null, subName: string) => {
   return FileText;
 };
 
-// ── Component ──────────────────────────────────────────────────────────────────
+// â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function AdvisorOnboarding() {
   const router = useRouter();
   const { t } = useLanguage();
@@ -255,6 +300,7 @@ export default function AdvisorOnboarding() {
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [tcAccepted, setTcAccepted] = useState(false);
   const [showTcDetail, setShowTcDetail] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -265,8 +311,66 @@ export default function AdvisorOnboarding() {
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
   const subModulesRef = useRef<HTMLDivElement>(null);
 
-  const update = (field: keyof FormData, value: any) =>
+  const update = (field: keyof FormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear the inline error for this field when user edits it
+    if (fieldErrors[field as string]) setFieldErrors(prev => { const n = { ...prev }; delete n[field as string]; return n; });
+  };
+
+  const setFE = (field: string, msg: string) => setFieldErrors(prev => ({ ...prev, [field]: msg }));
+  const clearFE = (field: string) => setFieldErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
+
+  const blurField = (field: string, value: string) => {
+    switch (field) {
+      case 'email': { const e = validateEmailStr(value); e ? setFE('email', e) : clearFE('email'); break; }
+      case 'password': {
+        if (value.length < 8) setFE('password', 'Min. 8 characters required.');
+        else if (!/[A-Za-z]/.test(value) || !/[0-9]/.test(value)) setFE('password', 'Must contain letters and numbers.');
+        else clearFE('password');
+        break;
+      }
+      case 'confirmPassword': {
+        if (value !== formData.password) setFE('confirmPassword', 'Passwords do not match.');
+        else clearFE('confirmPassword');
+        break;
+      }
+      case 'fullName': {
+        if (!value.trim()) setFE('fullName', 'Full name is required.');
+        else if (value.trim().length > 100) setFE('fullName', 'Max 100 characters.');
+        else clearFE('fullName');
+        break;
+      }
+      case 'businessName': {
+        if (value.length > 150) setFE('businessName', 'Max 150 characters.');
+        else clearFE('businessName');
+        break;
+      }
+      case 'bio': {
+        if (value.trim().length > 0 && value.trim().length < 50) setFE('bio', 'Write at least 50 characters.');
+        else if (value.trim().length > 500) setFE('bio', 'Max 500 characters.');
+        else clearFE('bio');
+        break;
+      }
+      case 'gstNumber': {
+        if (value && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(value.toUpperCase()))
+          setFE('gstNumber', 'Invalid GSTIN format (e.g. 22AAAAA0000A1Z5).');
+        else clearFE('gstNumber');
+        break;
+      }
+      case 'identityNumber': {
+        if (!value.trim()) { setFE('identityNumber', 'Enter your identity number.'); break; }
+        const v = value.replace(/[\s-]/g, '').toUpperCase();
+        const t = formData.identityProofType;
+        if (t === 'AADHAAR' && !/^[2-9][0-9]{11}$/.test(v)) setFE('identityNumber', 'Enter valid 12-digit Aadhaar (not starting with 0 or 1).');
+        else if (t === 'PAN' && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(v)) setFE('identityNumber', 'Invalid PAN format (e.g. ABCDE1234F).');
+        else if (t === 'DRIVING_LICENSE' && (v.length < 10 || v.length > 16)) setFE('identityNumber', 'DL number must be 10â€“16 characters.');
+        else if (t === 'VOTER_ID' && !/^[A-Z]{3}[0-9]{7}$/.test(v)) setFE('identityNumber', 'Invalid Voter ID (e.g. ABC1234567).');
+        else if (t === 'PASSPORT' && !/^[A-Z][0-9]{7}$/.test(v)) setFE('identityNumber', 'Invalid Passport no. (e.g. A1234567).');
+        else clearFE('identityNumber');
+        break;
+      }
+    }
+  };
 
   // Scroll to sub-modules smoothly when a module is selected/expanded
   useEffect(() => {
@@ -295,33 +399,33 @@ export default function AdvisorOnboarding() {
     }
   };
 
-  // ── Resume session state ─────────────────────────────────────────────────────
+  // â”€â”€ Resume session state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [resumeSession, setResumeSession] = useState<{
     currentStep: number;
     stepLabel: string;
     formSnapshot: any;
   } | null>(null);
 
-  // ── OTP sub-state ────────────────────────────────────────────────────────────
+  // â”€â”€ OTP sub-state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [otpSubStep, setOtpSubStep] = useState<'phone' | 'sent' | 'verified'>('phone');
   const [otpValue, setOtpValue] = useState('');
   const [otpCooldown, setOtpCooldown] = useState(0);
   const [otpLoading, setOtpLoading] = useState(false);
   const [devOtp, setDevOtp] = useState('');
 
-  // ── KYC upload state ──────────────────────────────────────────────────────────
+  // â”€â”€ KYC upload state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [kycUploading, setKycUploading] = useState(false);
   const [uploadedAdvisorId, setUploadedAdvisorId] = useState('');
   const [uploadedToken, setUploadedToken] = useState('');
 
-  // ── Payment state ─────────────────────────────────────────────────────────────
+  // â”€â”€ Payment state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
   const [invoiceData, setInvoiceData] = useState<{
     invoiceNo: string; paymentId: string; orderId: string; paidAt: Date;
   } | null>(null);
 
-  // ── Progress indicator step index ────────────────────────────────────────────
+  // â”€â”€ Progress indicator step index â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const progressIndex = (() => {
     const map: Partial<Record<Step, number>> = {
       phone_otp: 1, advisor_type: 2, account: 3, profile: 4, kyc: 5, services: 6, availability: 7, review: 8
@@ -329,10 +433,10 @@ export default function AdvisorOnboarding() {
     return map[step] ?? 0;
   })();
 
-  // AUTHORIZED advisors must pay before submit; payment step is inserted between review → success
+  // AUTHORIZED advisors must pay before submit; payment step is inserted between review â†’ success
   const isAuthorized = formData.advisorType === 'AUTHORIZED';
 
-  // ── Onboarding progress fire-and-forget ──────────────────────────────────────
+  // â”€â”€ Onboarding progress fire-and-forget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const trackProgress = (currentStep: Step) => {
     const idx = STEP_ORDER.indexOf(currentStep) + 1;
     const phone = formData.phoneNumber ? `+91${formData.phoneNumber}` : '';
@@ -368,7 +472,7 @@ export default function AdvisorOnboarding() {
     }).catch(() => {});
   };
 
-  // ── Resume check after OTP verification ─────────────────────────────────────
+  // â”€â”€ Resume check after OTP verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const checkResumeSession = async (phone: string) => {
     try {
       const encoded = encodeURIComponent(`+91${phone}`);
@@ -381,14 +485,15 @@ export default function AdvisorOnboarding() {
           formSnapshot: d.session.formSnapshot || {},
         });
       }
-    } catch { /* best-effort — ignore network errors */ }
+    } catch { /* best-effort â€” ignore network errors */ }
   };
 
-  // ── Navigation ───────────────────────────────────────────────────────────────
+  // â”€â”€ Navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const goNext = () => {
     const err = validate(step, formData, confirmed);
     if (err) { setError(err); return; }
     setError('');
+    setFieldErrors({});
     const idx = STEP_ORDER.indexOf(step);
     const next = STEP_ORDER[idx + 1];
     if (next) { setStep(next); trackProgress(next); }
@@ -396,11 +501,26 @@ export default function AdvisorOnboarding() {
 
   const goBack = () => {
     setError('');
+    setFieldErrors({});
     const idx = STEP_ORDER.indexOf(step);
     if (idx > 0) setStep(STEP_ORDER[idx - 1]);
   };
 
-  // ── Language chip handling ───────────────────────────────────────────────────
+  // Navigate back to any already-completed step by clicking its badge
+  const STEP_BY_INDEX: Partial<Record<number, Step>> = {
+    1: 'phone_otp', 2: 'advisor_type', 3: 'account', 4: 'profile',
+    5: 'kyc', 6: 'services', 7: 'availability', 8: 'review',
+  };
+  const goToStep = (num: number) => {
+    const target = STEP_BY_INDEX[num];
+    if (target && num < progressIndex) {
+      setError('');
+      setFieldErrors({});
+      setStep(target);
+    }
+  };
+
+  // â”€â”€ Language chip handling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const addLanguage = () => {
     const lang = langInput.trim();
     if (lang && !formData.languages.includes(lang)) {
@@ -417,7 +537,7 @@ export default function AdvisorOnboarding() {
   const removeLanguage = (lang: string) =>
     update('languages', formData.languages.filter(l => l !== lang));
 
-  // ── Availability slot helpers ────────────────────────────────────────────────
+  // â”€â”€ Availability slot helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const toggleDay = (day: number) => {
     const hasDay = formData.slots.some(s => s.dayOfWeek === day);
     if (hasDay) {
@@ -441,7 +561,7 @@ export default function AdvisorOnboarding() {
 
   const activeDays = [...new Set(formData.slots.map(s => s.dayOfWeek))].sort();
 
-  // ── Submit ───────────────────────────────────────────────────────────────────
+  // â”€â”€ Submit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleSubmit = async () => {
     const err = validate('review', formData, confirmed);
     if (err) { setError(err); return; }
@@ -489,9 +609,9 @@ export default function AdvisorOnboarding() {
       }
 
       const accessToken: string = signupData.tokens.accessToken;
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', signupData.tokens.refreshToken);
-      localStorage.setItem('user', JSON.stringify(signupData.user));
+      sessionStorage.setItem('accessToken', accessToken);
+      sessionStorage.setItem('refreshToken', signupData.tokens.refreshToken);
+      sessionStorage.setItem('user', JSON.stringify(signupData.user));
       setUploadedAdvisorId(signupData.user.advisorId || '');
       setUploadedToken(accessToken);
 
@@ -516,12 +636,21 @@ export default function AdvisorOnboarding() {
         }
       };
 
-      if (formData.aadhaarFile) await uploadDoc(formData.aadhaarFile, 'AADHAAR_CARD', { aadhaarNumber: formData.aadhaarNumber.replace(/\D/g, '') });
+      if (formData.identityFile) {
+        const idDocTypeMap: Record<string, string> = {
+          AADHAAR: 'AADHAAR_CARD', PAN: 'OTHER', DRIVING_LICENSE: 'LICENSE_COPY', VOTER_ID: 'OTHER', PASSPORT: 'OTHER',
+        };
+        const idDocType = idDocTypeMap[formData.identityProofType] ?? 'OTHER';
+        const idExtra = formData.identityProofType === 'AADHAAR'
+          ? { aadhaarNumber: formData.identityNumber.replace(/\D/g, '') }
+          : {};
+        await uploadDoc(formData.identityFile, idDocType, idExtra);
+      }
       if (formData.passportPhotoFile) await uploadDoc(formData.passportPhotoFile, 'PASSPORT_PHOTO');
       if (formData.licenseFile) await uploadDoc(formData.licenseFile, 'LICENSE_COPY');
       if (formData.gstCertFile) await uploadDoc(formData.gstCertFile, 'GST_CERTIFICATE');
 
-      // 3. Set categories — fatal: without this advisors won't appear in search
+      // 3. Set categories â€” fatal: without this advisors won't appear in search
       if (formData.selectedSlugs.length > 0) {
         const catRes = await fetch(`${API}/advisors/categories`, {
           method: 'POST',
@@ -531,7 +660,7 @@ export default function AdvisorOnboarding() {
         if (!catRes.ok) {
           const catData = await catRes.json().catch(() => ({}));
           console.error('[onboarding] Category save failed:', catData.message);
-          // Non-blocking — log but continue so advisor is still registered
+          // Non-blocking â€” log but continue so advisor is still registered
         }
       }
 
@@ -587,7 +716,7 @@ export default function AdvisorOnboarding() {
     }
   };
 
-  // ── Print / PDF download ─────────────────────────────────────────────────────
+  // â”€â”€ Print / PDF download â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const printApplication = () => {
     const selectedCats = ADVISOR_CATEGORIES.filter(c => formData.selectedSlugs.includes(c.slug));
     const subNames: string[] = formData.selectedSubSlugs.map(subId => {
@@ -613,13 +742,13 @@ export default function AdvisorOnboarding() {
     const availLines = DAYS.map((day, i) => {
       const slots = formData.slots.filter(s => s.dayOfWeek === i);
       if (!slots.length) return '';
-      return `<tr><td style="padding:6px 12px;font-weight:600;color:#374151;">${day}</td><td style="padding:6px 12px;color:#374151;">${slots.map(s => `${s.startTime} – ${s.endTime}`).join(', ')}</td></tr>`;
+      return `<tr><td style="padding:6px 12px;font-weight:600;color:#374151;">${day}</td><td style="padding:6px 12px;color:#374151;">${slots.map(s => `${s.startTime} â€“ ${s.endTime}`).join(', ')}</td></tr>`;
     }).filter(Boolean).join('');
 
     const printDate = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-<title>BrokerSaab Advisor Application — ${formData.fullName}</title>
+<title>BrokerSaab Advisor Application â€” ${formData.fullName}</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; color: #111827; background: #fff; padding: 32px; max-width: 800px; margin: 0 auto; }
@@ -648,7 +777,7 @@ export default function AdvisorOnboarding() {
     <img src="${window.location.origin}/logo-icon.png" alt="BrokerSaab" class="logo-img" />
     <div><span class="logo-text">Broker<span>Saab</span></span><span class="logo-sub">Advisor Application</span></div>
   </div>
-  ${formData.advisorType === 'AUTHORIZED' ? '<span class="badge">★ Authorized Advisor</span>' : '<span style="font-size:11px;color:#9ca3af;font-weight:600;">Regular Advisor</span>'}
+  ${formData.advisorType === 'AUTHORIZED' ? '<span class="badge">â˜… Authorized Advisor</span>' : '<span style="font-size:11px;color:#9ca3af;font-weight:600;">Regular Advisor</span>'}
 </div>
 
 <div class="section">
@@ -660,10 +789,10 @@ export default function AdvisorOnboarding() {
     ${formData.businessName ? `<div class="field"><label>Business / Firm</label><span>${formData.businessName}</span></div>` : ''}
     <div class="field"><label>Experience</label><span>${formData.experienceYears} years</span></div>
     <div class="field"><label>Location</label><span>${formData.location || `${formData.city}, ${formData.state}`}</span></div>
-    ${formData.consultationFee ? `<div class="field"><label>Consultation Fee</label><span>₹${formData.consultationFee} / session</span></div>` : ''}
+    ${formData.consultationFee ? `<div class="field"><label>Consultation Fee</label><span>â‚¹${formData.consultationFee} / session</span></div>` : ''}
     ${formData.licenseNumber ? `<div class="field"><label>License No.</label><span>${formData.licenseNumber}</span></div>` : ''}
     ${formData.gstNumber ? `<div class="field"><label>GST No.</label><span>${formData.gstNumber}</span></div>` : ''}
-    ${formData.aadhaarFile ? `<div class="field"><label>Aadhaar (masked)</label><span>XXXX-XXXX-${formData.aadhaarNumber.slice(-4) || '****'}</span></div>` : ''}
+    ${formData.identityFile ? `<div class="field"><label>Identity Proof</label><span>${({ AADHAAR: 'Aadhaar Card', PAN: 'PAN Card', DRIVING_LICENSE: 'Driving License', VOTER_ID: 'Voter ID', PASSPORT: 'Passport' } as any)[formData.identityProofType] ?? 'Identity Proof'} âœ“</span></div>` : ''}
     <div class="field" style="grid-column:1/-1"><label>Languages</label><span>${formData.languages.join(', ')}</span></div>
     ${formData.bio ? `<div class="field" style="grid-column:1/-1"><label>Professional Bio</label><span style="font-size:12px;">${formData.bio}</span></div>` : ''}
   </div></div>
@@ -698,7 +827,7 @@ ${availLines ? `<div class="section">
 </div>` : ''}
 
 <div class="footer">
-  <span>BrokerSaab Technology Pvt. Ltd. · Trusted Advisory Platform</span>
+  <span>BrokerSaab Technology Pvt. Ltd. Â· Trusted Advisory Platform</span>
   <span>Generated: ${printDate}</span>
 </div>
 </body></html>`;
@@ -711,13 +840,13 @@ ${availLines ? `<div class="section">
     setTimeout(() => win.print(), 400);
   };
 
-  // ── GST Invoice download ─────────────────────────────────────────────────────
+  // â”€â”€ GST Invoice download â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const downloadInvoice = () => {
     if (!invoiceData) return;
     const inv = invoiceData;
     const dateStr = inv.paidAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
-<title>Tax Invoice — BrokerSaab — ${inv.invoiceNo}</title>
+<title>Tax Invoice â€” BrokerSaab â€” ${inv.invoiceNo}</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
   body{font-family:'Segoe UI',Arial,sans-serif;color:#111827;background:#fff;padding:0;}
@@ -762,7 +891,7 @@ ${availLines ? `<div class="section">
       <div class="company-name">Broker<span>Saab</span></div>
       <div class="company-sub">BrokerSaab Technology Pvt. Ltd.</div>
       <div class="company-sub">GSTIN: 27AABCB1234A1Z5 &nbsp;|&nbsp; PAN: AABCB1234A</div>
-      <div class="company-sub">Mumbai, Maharashtra — 400001 &nbsp;|&nbsp; support@brokersaab.com</div>
+      <div class="company-sub">Mumbai, Maharashtra â€” 400001 &nbsp;|&nbsp; support@brokersaab.com</div>
     </div>
   </div>
   <div class="inv-title">
@@ -771,7 +900,7 @@ ${availLines ? `<div class="section">
     <p><strong>Date:</strong> ${dateStr}</p>
     <p><strong>Payment ID:</strong> ${inv.paymentId}</p>
     <p><strong>Order ID:</strong> ${inv.orderId}</p>
-    <span class="badge">PAID ✓</span>
+    <span class="badge">PAID âœ“</span>
   </div>
 </div>
 
@@ -779,7 +908,7 @@ ${availLines ? `<div class="section">
   <div class="box">
     <div class="box-label">From (Seller)</div>
     <h3>BrokerSaab Technology Pvt. Ltd.</h3>
-    <p>GSTIN: 27AABCB1234A1Z5<br/>SAC Code: 9983<br/>Mumbai, Maharashtra — 400001<br/>India</p>
+    <p>GSTIN: 27AABCB1234A1Z5<br/>SAC Code: 9983<br/>Mumbai, Maharashtra â€” 400001<br/>India</p>
   </div>
   <div class="box">
     <div class="box-label">Bill To (Buyer)</div>
@@ -794,53 +923,53 @@ ${availLines ? `<div class="section">
       <th style="width:50%">Description</th>
       <th>HSN/SAC</th>
       <th>Qty</th>
-      <th>Unit Price (₹)</th>
-      <th>Taxable Amt (₹)</th>
+      <th>Unit Price (â‚¹)</th>
+      <th>Taxable Amt (â‚¹)</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td>
-        <strong>Authorized Advisor Subscription — Annual Plan</strong><br/>
+        <strong>Authorized Advisor Subscription â€” Annual Plan</strong><br/>
         <span style="font-size:10px;color:#6b7280;">Platform access, Authorized badge &amp; priority search listing<br/>Validity: 12 months from activation</span>
       </td>
       <td>9983</td>
       <td>1</td>
-      <td>₹${BASE_PRICE.toLocaleString('en-IN')}.00</td>
-      <td>₹${BASE_PRICE.toLocaleString('en-IN')}.00</td>
+      <td>â‚¹${BASE_PRICE.toLocaleString('en-IN')}.00</td>
+      <td>â‚¹${BASE_PRICE.toLocaleString('en-IN')}.00</td>
     </tr>
   </tbody>
 </table>
 
 <div class="total-section">
   <div class="total-row" style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
-    <span>MRP / Original Price</span><span>₹${ORIGINAL_PRICE.toLocaleString('en-IN')}.00</span>
+    <span>MRP / Original Price</span><span>â‚¹${ORIGINAL_PRICE.toLocaleString('en-IN')}.00</span>
   </div>
   <div class="total-row discount" style="border-bottom:1px solid #e5e7eb;">
-    <span>Promotional Discount (90.005% off)</span><span>− ₹${DISCOUNT_AMT.toLocaleString('en-IN')}.00</span>
+    <span>Promotional Discount (90.005% off)</span><span>âˆ’ â‚¹${DISCOUNT_AMT.toLocaleString('en-IN')}.00</span>
   </div>
   <div class="total-row" style="font-weight:700;border-bottom:1px solid #e5e7eb;">
-    <span>Taxable Amount (after discount)</span><span>₹${BASE_PRICE.toFixed(2)}</span>
+    <span>Taxable Amount (after discount)</span><span>â‚¹${BASE_PRICE.toFixed(2)}</span>
   </div>
   <div class="total-row tax" style="border-bottom:1px solid #e5e7eb;">
-    <span>CGST @ 9% (Central GST)</span><span>₹${CGST_AMT.toFixed(2)}</span>
+    <span>CGST @ 9% (Central GST)</span><span>â‚¹${CGST_AMT.toFixed(2)}</span>
   </div>
   <div class="total-row tax" style="border-bottom:1px solid #e5e7eb;">
-    <span>SGST @ 9% (State GST — Maharashtra)</span><span>₹${SGST_AMT.toFixed(2)}</span>
+    <span>SGST @ 9% (State GST â€” Maharashtra)</span><span>â‚¹${SGST_AMT.toFixed(2)}</span>
   </div>
   <div class="total-row grand">
-    <span>TOTAL AMOUNT PAID (Inclusive of GST)</span><span>₹${TOTAL_PAYABLE.toFixed(2)}</span>
+    <span>TOTAL AMOUNT PAID (Inclusive of GST)</span><span>â‚¹${TOTAL_PAYABLE.toFixed(2)}</span>
   </div>
 </div>
 
 <div class="guarantee-box">
-  <strong>100% Refund Policy:</strong> If your advisor profile is rejected by the BrokerSaab review team, the full amount of ₹${TOTAL_PAYABLE.toFixed(2)} will be refunded to your original payment method within 3–5 business days. No deductions.
+  <strong>100% Refund Policy:</strong> If your advisor profile is rejected by the BrokerSaab review team, the full amount of â‚¹${TOTAL_PAYABLE.toFixed(2)} will be refunded to your original payment method within 3â€“5 business days. No deductions.
 </div>
 
 <div class="footer">
   <div>
     <p>This is a computer-generated invoice. No signature required.</p>
-    <p style="margin-top:4px;">BrokerSaab Technology Pvt. Ltd. · CIN: U72900MH2024PTC000000</p>
+    <p style="margin-top:4px;">BrokerSaab Technology Pvt. Ltd. Â· CIN: U72900MH2024PTC000000</p>
     <p style="margin-top:2px;">This invoice is valid subject to realization of payment.</p>
   </div>
   <div style="text-align:right;">
@@ -859,14 +988,19 @@ ${availLines ? `<div class="section">
     setTimeout(() => win.print(), 500);
   };
 
-  // ── Shared input style ───────────────────────────────────────────────────────
+  // â”€â”€ Shared input style â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const inputWrap = 'flex items-center border-2 border-gray-200 rounded-xl overflow-hidden focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all bg-white';
+  const inputWrapErr = 'flex items-center border-2 border-red-400 rounded-xl overflow-hidden focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-400/20 transition-all bg-white';
+  const fw = (field: string) => fieldErrors[field] ? inputWrapErr : inputWrap;
   const inputIcon = 'px-3 text-slate-400';
   const inputBase = 'flex-1 px-3 py-2.5 text-sm outline-none bg-transparent text-gray-800 placeholder-gray-400';
+  const FieldErr = ({ field }: { field: string }) => fieldErrors[field]
+    ? <p className="text-[11px] text-red-500 mt-1 flex items-center gap-1"><AlertCircle size={11} className="shrink-0"/>{fieldErrors[field]}</p>
+    : null;
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-3" style={{ background: 'linear-gradient(135deg,#0B1F3A 0%,#1a1040 50%,#0B1F3A 100%)' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center p-2 sm:p-3" style={{ background: 'linear-gradient(135deg,#0B1F3A 0%,#1a1040 50%,#0B1F3A 100%)' }}>
       {/* Subtle radial glows */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full opacity-[0.07]" style={{ background: 'radial-gradient(circle,#D4AF37,transparent 70%)' }} />
@@ -876,9 +1010,9 @@ ${availLines ? `<div class="section">
       {/* Card */}
       <div className="w-full max-w-2xl bg-white rounded-3xl overflow-hidden flex flex-col relative z-10" style={{ maxHeight: '95dvh', boxShadow: '0 25px 60px rgba(0,0,0,0.45), 0 0 0 1px rgba(212,175,55,0.2)' }}>
 
-        {/* Card Header — mirrors auth pages */}
+        {/* Card Header â€” mirrors auth pages */}
         {step !== 'success' && (
-          <div className="px-6 py-5 relative shrink-0" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
+          <div className="px-4 py-3 relative shrink-0" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
             <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg,transparent,#D4AF37 30%,#D4AF37 70%,transparent)' }} />
             {/* Horizontal logo */}
             <div className="flex items-center gap-2 mb-2">
@@ -903,7 +1037,7 @@ ${availLines ? `<div class="section">
           </div>
         )}
 
-        {/* Progress Bar (steps 2–6) */}
+        {/* Progress Bar (steps 2â€“6) */}
         {progressIndex > 0 && step !== 'success' && (
           <div className="flex items-center px-4 py-2.5 bg-gray-50 border-b border-gray-100 shrink-0">
             {PROGRESS_STEPS.map((label, i) => {
@@ -913,14 +1047,20 @@ ${availLines ? `<div class="section">
               return (
                 <React.Fragment key={label}>
                   <div className="flex flex-col items-center">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
-                      done ? 'bg-[#0B1F3A] text-white' :
-                      active ? 'bg-[#D4AF37] text-[#0B1F3A]' :
-                      'border-2 border-gray-200 text-gray-400 bg-white'
-                    }`}>
+                    <button
+                      type="button"
+                      onClick={() => goToStep(num)}
+                      disabled={!done}
+                      title={done ? `Go back to ${label}` : undefined}
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+                        done ? 'bg-[#0B1F3A] text-white cursor-pointer hover:bg-indigo-700 hover:scale-110 ring-2 ring-offset-1 ring-[#D4AF37]/60' :
+                        active ? 'bg-[#D4AF37] text-[#0B1F3A] cursor-default' :
+                        'border-2 border-gray-200 text-gray-400 bg-white cursor-default'
+                      }`}
+                    >
                       {done ? <Check size={11} /> : num}
-                    </div>
-                    <span className={`text-[9px] mt-0.5 font-medium hidden sm:block ${done ? 'text-[#B48C22]' : active ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
+                    </button>
+                    <span className={`text-[9px] mt-0.5 font-medium hidden sm:block ${done ? 'text-[#B48C22] cursor-pointer' : active ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
                       {label}
                     </span>
                   </div>
@@ -944,7 +1084,7 @@ ${availLines ? `<div class="section">
           </div>
         )}
 
-        {/* ── Step: Welcome ── */}
+        {/* â”€â”€ Step: Welcome â”€â”€ */}
         {step === 'welcome' && (
           <div className="p-4 sm:p-5">
             <div className="text-center mb-6">
@@ -1025,7 +1165,7 @@ ${availLines ? `<div class="section">
           </div>
         )}
 
-        {/* ── Step: Phone OTP ── */}
+        {/* â”€â”€ Step: Phone OTP â”€â”€ */}
         {step === 'phone_otp' && (
           <div className="p-4 sm:p-5 space-y-3">
             <div>
@@ -1048,7 +1188,7 @@ ${availLines ? `<div class="section">
               </div>
             )}
 
-            {/* T&C checkbox — shown only before OTP is sent */}
+            {/* T&C checkbox â€” shown only before OTP is sent */}
             {otpSubStep === 'phone' && (
               <div className="flex items-start gap-2.5">
                 <button
@@ -1160,7 +1300,7 @@ ${availLines ? `<div class="section">
               </div>
             )}
 
-            {/* Resume banner — shown when returning advisor has a saved session */}
+            {/* Resume banner â€” shown when returning advisor has a saved session */}
             {otpSubStep === 'verified' && resumeSession && (
               <div className="rounded-2xl border-2 border-indigo-200 bg-indigo-50 p-4 space-y-3">
                 <div className="flex items-start gap-3">
@@ -1223,7 +1363,7 @@ ${availLines ? `<div class="section">
           </div>
         )}
 
-        {/* ── Step: Advisor Type ── */}
+        {/* â”€â”€ Step: Advisor Type â”€â”€ */}
         {step === 'advisor_type' && (
           <div className="p-4 sm:p-5 space-y-3">
             <div>
@@ -1262,12 +1402,12 @@ ${availLines ? `<div class="section">
                   {formData.advisorType === 'AUTHORIZED' && <CheckCircle2 size={20} className="text-[#D4AF37]" />}
                 </div>
                 <div className="mb-3">
-                  <span className="text-xs text-white/50 line-through">₹19,999/year</span>
-                  <span className="text-lg font-black text-[#D4AF37] ml-2">₹1,999</span>
+                  <span className="text-xs text-white/50 line-through">â‚¹19,999/year</span>
+                  <span className="text-lg font-black text-[#D4AF37] ml-2">â‚¹1,999</span>
                   <span className="text-xs text-white/60">/year</span>
                 </div>
                 <ul className="space-y-1.5">
-                  {['All Regular Advisor benefits','Blue "Authorized" badge on profile','Priority placement in search results','License verification (mandatory)','GST number support (optional)','Preferred by clients — builds trust'].map(f => (
+                  {['All Regular Advisor benefits','Blue "Authorized" badge on profile','Priority placement in search results','License verification (mandatory)','GST number support (optional)','Preferred by clients â€” builds trust'].map(f => (
                     <li key={f} className="flex items-center gap-2 text-xs text-white/80"><Check size={13} className="text-[#D4AF37] shrink-0" />{f}</li>
                   ))}
                 </ul>
@@ -1283,7 +1423,7 @@ ${availLines ? `<div class="section">
           </div>
         )}
 
-        {/* ── Step: Account ── */}
+        {/* â”€â”€ Step: Account â”€â”€ */}
         {step === 'account' && (
           <div className="p-4 sm:p-5 space-y-3">
             <div>
@@ -1307,37 +1447,62 @@ ${availLines ? `<div class="section">
             {/* Email */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.account.emailLabel')}</label>
-              <div className={inputWrap}>
+              <div className={fw('email')}>
                 <Mail size={16} className={inputIcon} />
-                <input type="email" placeholder="you@example.com" value={formData.email}
-                  onChange={e => update('email', e.target.value)} className={inputBase} />
+                <input type="email" placeholder="name@example.com or name@firm.co.in"
+                  value={formData.email}
+                  onChange={e => update('email', e.target.value)}
+                  onBlur={e => blurField('email', e.target.value)}
+                  className={inputBase} />
               </div>
+              <FieldErr field="email" />
+              {!fieldErrors.email && (
+                <p className="text-[10px] text-gray-400 mt-1">Accepted: .com · .in · .co.in · .org · .net · .net.in · .edu · .gov.in · .info · .biz</p>
+              )}
             </div>
 
             {/* Password */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.account.pwdLabel')}</label>
-              <div className={inputWrap}>
+              <div className={fw('password')}>
                 <Lock size={16} className={inputIcon} />
-                <input type={showPassword ? 'text' : 'password'} placeholder="Min. 6 characters" value={formData.password}
-                  onChange={e => update('password', e.target.value)} className={inputBase} />
+                <input type={showPassword ? 'text' : 'password'} placeholder="Min. 8 characters — letters + numbers"
+                  value={formData.password}
+                  onChange={e => update('password', e.target.value)}
+                  onBlur={e => blurField('password', e.target.value)}
+                  className={inputBase} />
                 <button type="button" onClick={() => setShowPassword(p => !p)} className="pr-3 text-slate-400 hover:text-slate-600">
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              <FieldErr field="password" />
+              {!fieldErrors.password && formData.password.length > 0 && (
+                <div className="flex gap-2 mt-1">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${formData.password.length >= 8 ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'}`}>8+ chars</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${/[A-Za-z]/.test(formData.password) ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'}`}>letters</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${/[0-9]/.test(formData.password) ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'}`}>numbers</span>
+                </div>
+              )}
             </div>
 
             {/* Confirm Password */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.account.confirmPwdLabel')}</label>
-              <div className={inputWrap}>
+              <div className={fw('confirmPassword')}>
                 <Lock size={16} className={inputIcon} />
-                <input type={showConfirmPassword ? 'text' : 'password'} placeholder="Re-enter password" value={formData.confirmPassword}
-                  onChange={e => update('confirmPassword', e.target.value)} className={inputBase} />
+                <input type={showConfirmPassword ? 'text' : 'password'} placeholder="Re-enter password"
+                  value={formData.confirmPassword}
+                  onChange={e => update('confirmPassword', e.target.value)}
+                  onBlur={e => blurField('confirmPassword', e.target.value)}
+                  className={inputBase} />
                 <button type="button" onClick={() => setShowConfirmPassword(p => !p)} className="pr-3 text-slate-400 hover:text-slate-600">
                   {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              <FieldErr field="confirmPassword" />
+              {!fieldErrors.confirmPassword && formData.confirmPassword.length > 0 && formData.confirmPassword === formData.password && (
+                <p className="text-[10px] text-green-600 mt-1 flex items-center gap-1"><CheckCircle2 size={11}/>Passwords match</p>
+              )}
             </div>
 
             <div className="flex gap-3 pt-2">
@@ -1351,7 +1516,7 @@ ${availLines ? `<div class="section">
           </div>
         )}
 
-        {/* ── Step: Profile ── */}
+        {/* â”€â”€ Step: Profile â”€â”€ */}
         {step === 'profile' && (
           <div className="p-4 sm:p-5 space-y-3">
             <div>
@@ -1362,22 +1527,34 @@ ${availLines ? `<div class="section">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Full Name */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.nameLabel')}</label>
-                <div className={inputWrap}>
-                  <User size={16} className={inputIcon} />
-                  <input type="text" placeholder="As on your license" value={formData.fullName}
-                    onChange={e => update('fullName', e.target.value)} className={inputBase} />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-gray-600">{t('onboard.profile.nameLabel')}</label>
+                  <span className={`text-[10px] ${formData.fullName.length > 90 ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>{formData.fullName.length}/100</span>
                 </div>
+                <div className={fw('fullName')}>
+                  <User size={16} className={inputIcon} />
+                  <input type="text" maxLength={100} placeholder="As on your license" value={formData.fullName}
+                    onChange={e => update('fullName', e.target.value)}
+                    onBlur={e => blurField('fullName', e.target.value)}
+                    className={inputBase} />
+                </div>
+                <FieldErr field="fullName" />
               </div>
 
               {/* Business Name */}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.bizNameLabel')} <span className="text-gray-400 font-normal">(optional)</span></label>
-                <div className={inputWrap}>
-                  <Briefcase size={16} className={inputIcon} />
-                  <input type="text" placeholder="e.g. Sen & Associates" value={formData.businessName}
-                    onChange={e => update('businessName', e.target.value)} className={inputBase} />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-gray-600">{t('onboard.profile.bizNameLabel')} <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <span className={`text-[10px] ${formData.businessName.length > 140 ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>{formData.businessName.length}/150</span>
                 </div>
+                <div className={fw('businessName')}>
+                  <Briefcase size={16} className={inputIcon} />
+                  <input type="text" maxLength={150} placeholder="e.g. Sen & Associates" value={formData.businessName}
+                    onChange={e => update('businessName', e.target.value)}
+                    onBlur={e => blurField('businessName', e.target.value)}
+                    className={inputBase} />
+                </div>
+                <FieldErr field="businessName" />
               </div>
 
               {/* License */}
@@ -1415,7 +1592,7 @@ ${availLines ? `<div class="section">
                       }}
                       className={`${inputBase} cursor-pointer`}
                     >
-                      <option value="">Select your state…</option>
+                      <option value="">Select your stateâ€¦</option>
                       {INDIA_STATES_SORTED.map(st => (
                         <option key={st.id} value={st.name}>{st.name}</option>
                       ))}
@@ -1430,7 +1607,7 @@ ${availLines ? `<div class="section">
                       type="text"
                       placeholder={formData.state
                         ? `e.g. ${(INDIA_STATES_SORTED.find(s => s.name === formData.state)?.cities[0]) ?? 'Your city'}`
-                        : 'Select state first…'}
+                        : 'Select state firstâ€¦'}
                       value={formData.city}
                       onChange={e => {
                         const city = e.target.value;
@@ -1447,7 +1624,7 @@ ${availLines ? `<div class="section">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.feeLabel')} <span className="text-gray-400 font-normal">(optional)</span></label>
                 <div className={inputWrap}>
-                  <span className="px-3 py-3 bg-gray-50 border-r border-gray-200 text-sm text-gray-600 font-bold">₹</span>
+                  <span className="px-3 py-3 bg-gray-50 border-r border-gray-200 text-sm text-gray-600 font-bold">â‚¹</span>
                   <input type="number" min="0" placeholder="e.g. 1500" value={formData.consultationFee}
                     onChange={e => update('consultationFee', e.target.value)} className={inputBase} />
                 </div>
@@ -1474,7 +1651,7 @@ ${availLines ? `<div class="section">
                     value={formData.subdivision}
                     onChange={e => update('subdivision', e.target.value)} className={inputBase} />
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1">Revenue subdivision or district — used as a search keyword</p>
+                <p className="text-[10px] text-gray-400 mt-1">Revenue subdivision or district â€” used as a search keyword</p>
               </div>
             </div>
 
@@ -1505,11 +1682,16 @@ ${availLines ? `<div class="section">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.profile.bioLabel')}</label>
               <textarea rows={3} placeholder="Describe your expertise, approach, and what clients can expect when working with you. (minimum 50 characters)"
-                value={formData.bio} onChange={e => update('bio', e.target.value)}
-                className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none transition-all" />
+                value={formData.bio}
+                onChange={e => update('bio', e.target.value)}
+                onBlur={e => blurField('bio', e.target.value)}
+                className={`w-full border-2 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 outline-none resize-none transition-all ${fieldErrors.bio ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-400/20' : 'border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'}`} />
               <div className="flex justify-between mt-1">
-                <p className="text-xs text-gray-400">Minimum 50 characters</p>
-                <p className={`text-xs font-medium ${formData.bio.trim().length < 50 ? 'text-red-400' : 'text-emerald-600'}`}>
+                {fieldErrors.bio
+                  ? <p className="text-[11px] text-red-500 flex items-center gap-1"><AlertCircle size={11}/>{fieldErrors.bio}</p>
+                  : <p className="text-xs text-gray-400">Min 50 · Max 500 characters</p>
+                }
+                <p className={`text-xs font-medium ${formData.bio.trim().length < 50 ? 'text-red-400' : formData.bio.trim().length > 450 ? 'text-amber-500' : 'text-emerald-600'}`}>
                   {formData.bio.trim().length} / 500
                 </p>
               </div>
@@ -1526,7 +1708,7 @@ ${availLines ? `<div class="section">
           </div>
         )}
 
-        {/* ── Step: KYC Upload ── */}
+        {/* â”€â”€ Step: KYC Upload â”€â”€ */}
         {step === 'kyc' && (
           <div className="p-4 sm:p-5 space-y-3">
             <div>
@@ -1536,40 +1718,94 @@ ${availLines ? `<div class="section">
               </p>
             </div>
 
-            {/* Aadhaar consent notice */}
-            <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 space-y-2">
-              <div className="flex items-start gap-2">
-                <ShieldCheck size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-800 leading-relaxed">
-                  {t('onboard.kyc.consentNotice')}
-                </p>
+            {/* Identity Proof Type Selector */}
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-gray-700">Identity Proof Type <span className="text-red-500">*</span></label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {([
+                  { value: 'AADHAAR',         label: 'Aadhaar Card',     hint: '12-digit number', icon: ShieldCheck },
+                  { value: 'PAN',             label: 'PAN Card',         hint: 'e.g. ABCDE1234F', icon: CreditCard },
+                  { value: 'DRIVING_LICENSE', label: 'Driving License',  hint: '10â€“16 chars',     icon: Car },
+                  { value: 'VOTER_ID',        label: 'Voter ID (EPIC)',  hint: 'e.g. ABC1234567', icon: UserCheck },
+                  { value: 'PASSPORT',        label: 'Passport',         hint: 'e.g. A1234567',   icon: Globe },
+                ] as const).map(({ value, label, hint, icon: Icon }) => (
+                  <button key={value} type="button"
+                    onClick={() => { update('identityProofType', value); update('identityNumber', ''); update('identityFile', null); update('aadhaarConsentGiven', false); }}
+                    className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-xl border-2 text-left transition-all ${formData.identityProofType === value ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-300'}`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <Icon size={13} className={formData.identityProofType === value ? 'text-indigo-600' : 'text-gray-400'} />
+                      <span className={`text-xs font-bold ${formData.identityProofType === value ? 'text-indigo-700' : 'text-gray-700'}`}>{label}</span>
+                    </div>
+                    <span className="text-[10px] text-gray-400">{hint}</span>
+                  </button>
+                ))}
               </div>
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input type="checkbox" checked={formData.aadhaarConsentGiven}
-                  onChange={e => update('aadhaarConsentGiven', e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 accent-amber-500" />
-                <span className="text-xs text-amber-700 font-medium">{t('onboard.kyc.consentCheckbox')}</span>
-              </label>
             </div>
 
-            {/* Aadhaar card upload */}
-            <div className="space-y-2">
-              <label className="block text-xs font-semibold text-gray-600">{t('onboard.kyc.aadhaarLabel')}</label>
-              <div className={inputWrap}>
-                <FileCheck size={16} className={inputIcon} />
-                <input type="text" maxLength={14} placeholder="12-digit Aadhaar number"
-                  value={formData.aadhaarNumber}
-                  onChange={e => update('aadhaarNumber', e.target.value.replace(/\D/g, ''))}
-                  className={inputBase} />
+            {/* Aadhaar consent â€” only when Aadhaar selected */}
+            {formData.identityProofType === 'AADHAAR' && (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 space-y-2">
+                <div className="flex items-start gap-2">
+                  <ShieldCheck size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    {t('onboard.kyc.consentNotice')}
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input type="checkbox" checked={formData.aadhaarConsentGiven}
+                    onChange={e => update('aadhaarConsentGiven', e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 accent-amber-500" />
+                  <span className="text-xs text-amber-700 font-medium">{t('onboard.kyc.consentCheckbox')}</span>
+                </label>
               </div>
-              <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-indigo-400 transition-all bg-gray-50">
-                <FileText size={16} className="text-gray-400 shrink-0" />
-                <span className="text-sm text-gray-500 flex-1">{formData.aadhaarFile ? formData.aadhaarFile.name : t('onboard.kyc.uploadAadhaar')}</span>
-                {formData.aadhaarFile && <CheckCircle2 size={16} className="text-green-500 shrink-0" />}
-                <input type="file" accept="image/*,application/pdf" className="hidden"
-                  onChange={e => { if (e.target.files?.[0]) update('aadhaarFile', e.target.files[0]); }} />
-              </label>
-            </div>
+            )}
+
+            {/* Identity number + upload â€” shown once type is selected */}
+            {formData.identityProofType && (() => {
+              const cfg: Record<string, { label: string; placeholder: string; maxLen: number; pattern?: string }> = {
+                AADHAAR:         { label: 'Aadhaar Number', placeholder: 'XXXX XXXX XXXX (12 digits)', maxLen: 14 },
+                PAN:             { label: 'PAN Number',     placeholder: 'ABCDE1234F',                 maxLen: 10 },
+                DRIVING_LICENSE: { label: 'DL Number',      placeholder: 'e.g. MH0420230012345',       maxLen: 18 },
+                VOTER_ID:        { label: 'Voter ID (EPIC)',placeholder: 'e.g. ABC1234567',             maxLen: 10 },
+                PASSPORT:        { label: 'Passport No.',   placeholder: 'e.g. A1234567',              maxLen: 8  },
+              };
+              const c = cfg[formData.identityProofType];
+              const docLabels: Record<string, string> = {
+                AADHAAR: 'Aadhaar Card (front + back, JPG/PDF)', PAN: 'PAN Card (clear scan, JPG/PDF)',
+                DRIVING_LICENSE: 'Driving License (front side, JPG/PDF)', VOTER_ID: 'Voter ID Card (JPG/PDF)', PASSPORT: 'Passport bio-data page (JPG/PDF)',
+              };
+              return (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-gray-600">{c.label} <span className="text-red-500">*</span></label>
+                    <div className={fw('identityNumber')}>
+                      <IdCard size={16} className={inputIcon} />
+                      <input type="text" maxLength={c.maxLen} placeholder={c.placeholder}
+                        value={formData.identityNumber}
+                        onChange={e => {
+                          const v = formData.identityProofType === 'AADHAAR' ? e.target.value.replace(/\D/g, '') : e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                          update('identityNumber', v);
+                          if (formData.identityProofType === 'AADHAAR') update('aadhaarNumber', v);
+                        }}
+                        onBlur={e => blurField('identityNumber', e.target.value)}
+                        className={inputBase} />
+                    </div>
+                    <FieldErr field="identityNumber" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-gray-600">{docLabels[formData.identityProofType]} <span className="text-red-500">*</span></label>
+                    <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl px-4 py-3 hover:border-indigo-400 transition-all bg-gray-50">
+                      <FileText size={16} className="text-gray-400 shrink-0" />
+                      <span className="text-sm text-gray-500 flex-1">{formData.identityFile ? formData.identityFile.name : 'Click to upload document'}</span>
+                      {formData.identityFile && <CheckCircle2 size={16} className="text-green-500 shrink-0" />}
+                      <input type="file" accept="image/*,application/pdf" className="hidden"
+                        onChange={e => { if (e.target.files?.[0]) { update('identityFile', e.target.files[0]); update('aadhaarFile', e.target.files[0]); }}} />
+                    </label>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Passport photo upload */}
             <div className="space-y-2">
@@ -1583,7 +1819,7 @@ ${availLines ? `<div class="section">
               </label>
             </div>
 
-            {/* License — only for AUTHORIZED */}
+            {/* License â€” only for AUTHORIZED */}
             {formData.advisorType === 'AUTHORIZED' && (
               <>
                 <div className="space-y-2">
@@ -1606,14 +1842,19 @@ ${availLines ? `<div class="section">
                   </label>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <label className="block text-xs font-semibold text-gray-600">{t('onboard.kyc.gstNumLabel')}</label>
-                  <div className={inputWrap}>
+                  <div className={fw('gstNumber')}>
                     <Percent size={16} className={inputIcon} />
-                    <input type="text" placeholder="e.g. 27AAPFU0939F1ZV" value={formData.gstNumber}
-                      onChange={e => update('gstNumber', e.target.value.toUpperCase())}
+                    <input type="text" maxLength={15} placeholder="e.g. 27AAPFU0939F1ZV" value={formData.gstNumber}
+                      onChange={e => update('gstNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                      onBlur={e => blurField('gstNumber', e.target.value)}
                       className={inputBase} />
                   </div>
+                  {fieldErrors.gstNumber
+                    ? <FieldErr field="gstNumber" />
+                    : <p className="text-[10px] text-gray-400">15-character GSTIN format: 22AAAAA0000A1Z5</p>
+                  }
                 </div>
                 <div className="space-y-2">
                   <label className="block text-xs font-semibold text-gray-600">{t('onboard.kyc.gstLabel')}</label>
@@ -1637,7 +1878,7 @@ ${availLines ? `<div class="section">
           </div>
         )}
 
-        {/* ── Step: Services ── */}
+        {/* â”€â”€ Step: Services â”€â”€ */}
         {step === 'services' && (
           <div className="p-4 sm:p-5">
             <div className="mb-5">
@@ -1648,7 +1889,7 @@ ${availLines ? `<div class="section">
               <p className="text-sm text-gray-500">{t('onboard.services.sub')}</p>
             </div>
 
-            {/* ── Module Tiles Grid ── */}
+            {/* â”€â”€ Module Tiles Grid â”€â”€ */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
               {ADVISOR_CATEGORIES.map((cat, idx) => {
                 const Icon = cat.icon;
@@ -1716,7 +1957,7 @@ ${availLines ? `<div class="section">
               })}
             </div>
 
-            {/* ── Expanded Sub-Module Panel ── */}
+            {/* â”€â”€ Expanded Sub-Module Panel â”€â”€ */}
             {expandedModule && formData.selectedSlugs.includes(expandedModule) && (() => {
               const cat = ADVISOR_CATEGORIES.find(c => c.slug === expandedModule);
               const modData = MODULES_DATA.find(m => m.id === expandedModule);
@@ -1732,9 +1973,9 @@ ${availLines ? `<div class="section">
 
               const customText = formData.customSpecializations?.[expandedModule] ?? '';
               const OPEN_PLACEHOLDERS: Record<string, string> = {
-                m21: 'E.g., I guide students for UK, US, Canada admissions — IELTS coaching, SOP review, visa documentation.',
+                m21: 'E.g., I guide students for UK, US, Canada admissions â€” IELTS coaching, SOP review, visa documentation.',
                 m22: 'E.g., I help NEET/JEE aspirants with counseling rounds, college shortlisting and enrollment.',
-                m23: 'E.g., I place IT professionals in MNC jobs — resume building, LinkedIn, interview prep and offer negotiation.',
+                m23: 'E.g., I place IT professionals in MNC jobs â€” resume building, LinkedIn, interview prep and offer negotiation.',
                 m24: 'E.g., I specialize in Canada Express Entry, Australia PR, and UK Skilled Worker visa applications.',
                 m25: 'E.g., I provide CA services, MCA compliance, FEMA advisory for NRIs and export-import businesses.',
               };
@@ -1793,7 +2034,7 @@ ${availLines ? `<div class="section">
                         maxLength={300}
                         value={customText}
                         onChange={e => update('customSpecializations', { ...formData.customSpecializations, [expandedModule]: e.target.value })}
-                        placeholder={OPEN_PLACEHOLDERS[expandedModule] ?? 'Describe what you specifically offer in this service area…'}
+                        placeholder={OPEN_PLACEHOLDERS[expandedModule] ?? 'Describe what you specifically offer in this service areaâ€¦'}
                         className="w-full text-sm text-gray-900 border-2 border-gray-200 focus:border-indigo-400 rounded-xl px-3 py-2.5 resize-none outline-none transition-colors"
                       />
                       <p className="text-[11px] text-gray-400 mt-1 text-right">{customText.length}/300 characters</p>
@@ -1875,7 +2116,7 @@ ${availLines ? `<div class="section">
                       onClick={() => setExpandedModule(null)}
                       className="text-xs font-bold px-4 py-1.5 rounded-lg text-white transition-all hover:shadow-md"
                       style={{ background: colorSet.accent }}>
-                      Done ✓
+                      Done âœ“
                     </button>
                   </div>
                   </>
@@ -1884,13 +2125,13 @@ ${availLines ? `<div class="section">
               );
             })()}
 
-            {/* ── Remove module action ── */}
+            {/* â”€â”€ Remove module action â”€â”€ */}
             {formData.selectedSlugs.length > 0 && !expandedModule && (
               <div className="mb-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Selected Domains</h4>
                   <span className="text-[10px] font-semibold text-gray-400">
-                    {formData.selectedSlugs.length} domain{formData.selectedSlugs.length > 1 ? 's' : ''} · {formData.selectedSubSlugs.length} specialisation{formData.selectedSubSlugs.length !== 1 ? 's' : ''}
+                    {formData.selectedSlugs.length} domain{formData.selectedSlugs.length > 1 ? 's' : ''} Â· {formData.selectedSubSlugs.length} specialisation{formData.selectedSubSlugs.length !== 1 ? 's' : ''}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -1935,7 +2176,7 @@ ${availLines ? `<div class="section">
               </div>
             )}
 
-            {/* ── Summary Stats ── */}
+            {/* â”€â”€ Summary Stats â”€â”€ */}
             {formData.selectedSlugs.length > 0 && (
               <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100">
                 <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
@@ -1947,7 +2188,7 @@ ${availLines ? `<div class="section">
                   <span className={formData.selectedSubSlugs.length > 0 ? 'text-indigo-600' : 'text-red-500'}>
                     {formData.selectedSubSlugs.length > 0
                       ? `${formData.selectedSubSlugs.length} specialisation${formData.selectedSubSlugs.length > 1 ? 's' : ''} selected`
-                      : 'No specialisations yet — expand a module above to pick'}
+                      : 'No specialisations yet â€” expand a module above to pick'}
                   </span>
                 </div>
               </div>
@@ -1964,7 +2205,7 @@ ${availLines ? `<div class="section">
           </div>
         )}
 
-        {/* ── Step: Availability ── */}
+        {/* â”€â”€ Step: Availability â”€â”€ */}
         {step === 'availability' && (
           <div className="p-4 sm:p-5">
             <div className="mb-5">
@@ -2077,7 +2318,7 @@ ${availLines ? `<div class="section">
                           <input type="time" value={slot.startTime}
                             onChange={e => updateSlot(slot.id, 'startTime', e.target.value)}
                             className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-indigo-500 w-32" />
-                          <span className="text-gray-400 font-medium">→</span>
+                          <span className="text-gray-400 font-medium">â†’</span>
                           <input type="time" value={slot.endTime}
                             onChange={e => updateSlot(slot.id, 'endTime', e.target.value)}
                             className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-indigo-500 w-32" />
@@ -2106,7 +2347,7 @@ ${availLines ? `<div class="section">
           </div>
         )}
 
-        {/* ── Step: Review ── */}
+        {/* â”€â”€ Step: Review â”€â”€ */}
         {step === 'review' && (
           <div className="p-4 sm:p-5 space-y-3">
             <div className="flex items-start justify-between gap-3">
@@ -2117,12 +2358,12 @@ ${availLines ? `<div class="section">
               {formData.advisorType && (
                 <span className="shrink-0 px-3 py-1 rounded-full text-xs font-black"
                   style={{ background: formData.advisorType === 'AUTHORIZED' ? 'linear-gradient(135deg,#D4AF37,#B48C22)' : '#fffbf0', color: formData.advisorType === 'AUTHORIZED' ? '#0B1F3A' : '#92701a' }}>
-                  {formData.advisorType === 'AUTHORIZED' ? '★ Authorized' : 'Regular'}
+                  {formData.advisorType === 'AUTHORIZED' ? 'â˜… Authorized' : 'Regular'}
                 </span>
               )}
             </div>
 
-            {/* ── Account & Profile ── */}
+            {/* â”€â”€ Account & Profile â”€â”€ */}
             <div className="rounded-2xl border border-blue-100 overflow-hidden">
               <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-600" style={{ background: 'linear-gradient(90deg,#1e3a5f,#2d5a8e)' }}>
                 <User size={13} className="text-blue-200" />
@@ -2136,7 +2377,7 @@ ${availLines ? `<div class="section">
                   formData.businessName ? ['Firm / Business', formData.businessName] : null,
                   ['Experience', `${formData.experienceYears} years`],
                   ['Location', formData.location || `${formData.city}, ${formData.state}`],
-                  formData.consultationFee ? ['Consultation Fee', `₹${formData.consultationFee} / session`] : null,
+                  formData.consultationFee ? ['Consultation Fee', `â‚¹${formData.consultationFee} / session`] : null,
                   formData.licenseNumber ? ['License No.', formData.licenseNumber] : null,
                   formData.gstNumber ? ['GST No.', formData.gstNumber] : null,
                 ].filter(Boolean).map(([label, value]) => (
@@ -2164,8 +2405,8 @@ ${availLines ? `<div class="section">
               </div>
             </div>
 
-            {/* ── KYC Documents ── */}
-            {(formData.aadhaarFile || formData.passportPhotoFile || formData.licenseFile || formData.gstCertFile) && (
+            {/* â”€â”€ KYC Documents â”€â”€ */}
+            {(formData.identityFile || formData.passportPhotoFile || formData.licenseFile || formData.gstCertFile) && (
               <div className="rounded-2xl border border-amber-200 overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'linear-gradient(90deg,#78350f,#b45309)' }}>
                   <ShieldCheck size={13} className="text-amber-200" />
@@ -2173,7 +2414,7 @@ ${availLines ? `<div class="section">
                 </div>
                 <div className="p-4 bg-amber-50/40 flex flex-wrap gap-2">
                   {[
-                    formData.aadhaarFile ? { label: 'Aadhaar Card', file: formData.aadhaarFile, color: '#b45309' } : null,
+                    formData.identityFile ? { label: ({ AADHAAR: 'Aadhaar Card', PAN: 'PAN Card', DRIVING_LICENSE: 'Driving License', VOTER_ID: 'Voter ID', PASSPORT: 'Passport' } as any)[formData.identityProofType] ?? 'Identity Proof', file: formData.identityFile, color: '#b45309' } : null,
                     formData.passportPhotoFile ? { label: 'Passport Photo', file: formData.passportPhotoFile, color: '#065f46' } : null,
                     formData.licenseFile ? { label: 'License Copy', file: formData.licenseFile, color: '#1d4ed8' } : null,
                     formData.gstCertFile ? { label: 'GST Certificate', file: formData.gstCertFile, color: '#7c3aed' } : null,
@@ -2191,7 +2432,7 @@ ${availLines ? `<div class="section">
               </div>
             )}
 
-            {/* ── Services ── */}
+            {/* â”€â”€ Services â”€â”€ */}
             {formData.selectedSlugs.length > 0 && (
               <div className="rounded-2xl border border-emerald-200 overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'linear-gradient(90deg,#064e3b,#065f46)' }}>
@@ -2223,7 +2464,7 @@ ${availLines ? `<div class="section">
               </div>
             )}
 
-            {/* ── Specialisations (standard sub-services) ── */}
+            {/* â”€â”€ Specialisations (standard sub-services) â”€â”€ */}
             {formData.selectedSubSlugs.length > 0 && (
               <div className="rounded-2xl border border-violet-200 overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'linear-gradient(90deg,#3b0764,#5b21b6)' }}>
@@ -2269,7 +2510,7 @@ ${availLines ? `<div class="section">
               </div>
             )}
 
-            {/* ── Open-module custom specialisations ── */}
+            {/* â”€â”€ Open-module custom specialisations â”€â”€ */}
             {(() => {
               const OPEN_SLUGS_REVIEW = ['m21', 'm22', 'm23', 'm24', 'm25'];
               const openEntries = formData.selectedSlugs
@@ -2310,7 +2551,7 @@ ${availLines ? `<div class="section">
               );
             })()}
 
-            {/* ── Availability ── */}
+            {/* â”€â”€ Availability â”€â”€ */}
             {formData.slots.length > 0 && (
               <div className="rounded-2xl border border-sky-200 overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'linear-gradient(90deg,#0c4a6e,#0369a1)' }}>
@@ -2326,7 +2567,7 @@ ${availLines ? `<div class="section">
                         <div key={day} className="bg-white border-2 border-sky-200 rounded-xl px-3 py-2">
                           <p className="text-[10px] font-black text-sky-600 uppercase tracking-wider mb-1">{day}</p>
                           {daySlots.map(s => (
-                            <p key={s.id} className="text-xs font-semibold text-gray-700">{s.startTime} – {s.endTime}</p>
+                            <p key={s.id} className="text-xs font-semibold text-gray-700">{s.startTime} â€“ {s.endTime}</p>
                           ))}
                         </div>
                       );
@@ -2336,7 +2577,7 @@ ${availLines ? `<div class="section">
               </div>
             )}
 
-            {/* ── Confirm checkbox ── */}
+            {/* â”€â”€ Confirm checkbox â”€â”€ */}
             <label className="flex items-start gap-3 cursor-pointer rounded-2xl p-4 border-2"
               style={{ borderColor: confirmed ? '#D4AF37' : '#e5e7eb', background: confirmed ? 'linear-gradient(135deg,#fffbf0,#fef9e7)' : '#f9fafb' }}>
               <div className="mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all"
@@ -2368,7 +2609,7 @@ ${availLines ? `<div class="section">
           </div>
         )}
 
-        {/* ── Step: Payment (AUTHORIZED only) ── */}
+        {/* â”€â”€ Step: Payment (AUTHORIZED only) â”€â”€ */}
         {step === 'payment' && (
           <div className="p-4 sm:p-5 space-y-3">
 
@@ -2391,7 +2632,7 @@ ${availLines ? `<div class="section">
               <div>
                 <p className="text-sm font-black text-emerald-800">100% Money-Back Guarantee</p>
                 <p className="text-xs text-emerald-700 mt-0.5 leading-relaxed">
-                  Your money is completely safe. If your profile is rejected by our review team, <strong>100% of your payment will be refunded</strong> to your original payment method within 3–5 business days — no questions asked.
+                  Your money is completely safe. If your profile is rejected by our review team, <strong>100% of your payment will be refunded</strong> to your original payment method within 3â€“5 business days â€” no questions asked.
                 </p>
               </div>
             </div>
@@ -2408,7 +2649,7 @@ ${availLines ? `<div class="section">
                     <span className="text-white font-black text-base tracking-tight">Broker<span className="text-[#D4AF37]">Saab</span></span>
                   </div>
                   <p className="text-white/50 text-[10px]">BrokerSaab Technology Pvt. Ltd.</p>
-                  <p className="text-white/40 text-[10px]">GSTIN: 27AABCB1234A1Z5 · SAC: 9983</p>
+                  <p className="text-white/40 text-[10px]">GSTIN: 27AABCB1234A1Z5 Â· SAC: 9983</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[#D4AF37] font-black text-sm">PROFORMA INVOICE</p>
@@ -2422,7 +2663,7 @@ ${availLines ? `<div class="section">
                 <p className="text-[10px] font-black uppercase tracking-wider text-gray-500 mb-1">Bill To</p>
                 <p className="text-sm font-bold text-gray-800">{formData.fullName || 'Advisor Name'}</p>
                 <p className="text-xs text-gray-500">{formData.email}</p>
-                <p className="text-xs text-gray-500">+91 {formData.phoneNumber} · {formData.state}</p>
+                <p className="text-xs text-gray-500">+91 {formData.phoneNumber} Â· {formData.state}</p>
                 {formData.gstNumber && <p className="text-xs text-gray-500">GSTIN: {formData.gstNumber}</p>}
               </div>
 
@@ -2432,16 +2673,16 @@ ${availLines ? `<div class="section">
                   <thead>
                     <tr className="border-b-2 border-gray-200 pb-2">
                       <th className="text-left py-2 text-[10px] font-black uppercase tracking-wider text-gray-500">Description</th>
-                      <th className="text-right py-2 text-[10px] font-black uppercase tracking-wider text-gray-500">Amount (₹)</th>
+                      <th className="text-right py-2 text-[10px] font-black uppercase tracking-wider text-gray-500">Amount (â‚¹)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     <tr>
                       <td className="py-3">
-                        <p className="font-semibold text-gray-800">Authorized Advisor Subscription — Annual Plan (1 Year)</p>
-                        <p className="text-gray-500 text-[10px] mt-0.5">SAC 9983 · Platform access & authorized badge · Valid for 12 months</p>
+                        <p className="font-semibold text-gray-800">Authorized Advisor Subscription â€” Annual Plan (1 Year)</p>
+                        <p className="text-gray-500 text-[10px] mt-0.5">SAC 9983 Â· Platform access & authorized badge Â· Valid for 12 months</p>
                       </td>
-                      <td className="py-3 text-right text-gray-800 font-semibold align-top">₹{ORIGINAL_PRICE.toFixed(2)}</td>
+                      <td className="py-3 text-right text-gray-800 font-semibold align-top">â‚¹{ORIGINAL_PRICE.toFixed(2)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -2450,27 +2691,27 @@ ${availLines ? `<div class="section">
                 <div className="mt-4 space-y-1.5 border-t-2 border-gray-200 pt-4">
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>Original Price (MRP)</span>
-                    <span>₹{ORIGINAL_PRICE.toLocaleString('en-IN')}.00</span>
+                    <span>â‚¹{ORIGINAL_PRICE.toLocaleString('en-IN')}.00</span>
                   </div>
                   <div className="flex justify-between text-xs text-emerald-600 font-semibold">
                     <span>Promotional Discount (90.005%)</span>
-                    <span>− ₹{DISCOUNT_AMT.toLocaleString('en-IN')}.00</span>
+                    <span>âˆ’ â‚¹{DISCOUNT_AMT.toLocaleString('en-IN')}.00</span>
                   </div>
                   <div className="flex justify-between text-sm font-bold text-gray-800 border-t border-dashed border-gray-300 pt-2 mt-2">
                     <span>Taxable Amount (Base)</span>
-                    <span>₹{BASE_PRICE.toFixed(2)}</span>
+                    <span>â‚¹{BASE_PRICE.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-xs text-gray-600">
                     <span>CGST @ 9%</span>
-                    <span>₹{CGST_AMT.toFixed(2)}</span>
+                    <span>â‚¹{CGST_AMT.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-xs text-gray-600">
                     <span>SGST @ 9%</span>
-                    <span>₹{SGST_AMT.toFixed(2)}</span>
+                    <span>â‚¹{SGST_AMT.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-base font-black text-gray-900 border-t-2 border-gray-800 pt-3 mt-2">
                     <span>Total Payable (Incl. GST)</span>
-                    <span style={{ color: '#4F46E5' }}>₹{TOTAL_PAYABLE.toFixed(2)}</span>
+                    <span style={{ color: '#4F46E5' }}>â‚¹{TOTAL_PAYABLE.toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -2487,7 +2728,7 @@ ${availLines ? `<div class="section">
                 onClick={async () => {
                   setPaymentLoading(true); setError('');
                   try {
-                    const token = uploadedToken || localStorage.getItem('accessToken') || '';
+                    const token = uploadedToken || sessionStorage.getItem('accessToken') || '';
                     if (!token) { setError('Session token missing. Please go back and try again.'); return; }
                     const orderRes = await fetch(`${API}/subscriptions/create-order`, {
                       method: 'POST', headers: { Authorization: `Bearer ${token}` }
@@ -2508,14 +2749,14 @@ ${availLines ? `<div class="section">
                       amount: orderData.amount,
                       currency: 'INR',
                       name: 'BrokerSaab',
-                      description: 'Authorized Advisor Subscription — 1 Year',
+                      description: 'Authorized Advisor Subscription â€” 1 Year',
                       order_id: orderData.orderId,
                       theme: { color: '#4F46E5' },
                       prefill: { name: formData.fullName, email: formData.email, contact: `+91${formData.phoneNumber}` },
                       notes: { purpose: 'AUTHORIZED_ADVISOR_SUBSCRIPTION', advisorName: formData.fullName },
                       handler: async (response: any) => {
                         try {
-                          const verifyToken = uploadedToken || localStorage.getItem('accessToken') || '';
+                          const verifyToken = uploadedToken || sessionStorage.getItem('accessToken') || '';
                           const verifyRes = await fetch(`${API}/subscriptions/verify-payment`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${verifyToken}` },
@@ -2534,7 +2775,7 @@ ${availLines ? `<div class="section">
                               orderId: orderData.orderId,
                               paidAt: new Date(),
                             });
-                            // Account already created by "Proceed to Payment" → go to success
+                            // Account already created by "Proceed to Payment" â†’ go to success
                             setStep('success');
                           } else {
                             setError('Payment verification failed. Please contact support with your Payment ID: ' + response.razorpay_payment_id);
@@ -2550,8 +2791,8 @@ ${availLines ? `<div class="section">
                 className="w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-3 transition-all hover:scale-[1.01] active:scale-[0.99]"
                 style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 8px 24px rgba(212,175,55,0.35)', cursor: paymentLoading ? 'wait' : 'pointer' }}>
                 {paymentLoading
-                  ? <><Loader2 size={18} className="animate-spin" /> Processing Payment…</>
-                  : <><CreditCard size={18} /> Pay ₹{TOTAL_PAYABLE.toFixed(2)} — Secure Checkout <ShieldCheck size={16} /></>}
+                  ? <><Loader2 size={18} className="animate-spin" /> Processing Paymentâ€¦</>
+                  : <><CreditCard size={18} /> Pay â‚¹{TOTAL_PAYABLE.toFixed(2)} â€” Secure Checkout <ShieldCheck size={16} /></>}
               </button>
             ) : (
               <div className="flex items-center gap-3 p-4 bg-emerald-50 border-2 border-emerald-300 rounded-2xl">
@@ -2564,10 +2805,10 @@ ${availLines ? `<div class="section">
             )}
 
             <p className="text-[11px] text-gray-400 text-center flex items-center justify-center gap-1">
-              <ShieldCheck size={12} /> Secured by Razorpay · UPI, Cards, Net Banking accepted · 100% refund if rejected
+              <ShieldCheck size={12} /> Secured by Razorpay Â· UPI, Cards, Net Banking accepted Â· 100% refund if rejected
             </p>
 
-            {/* Test mode bypass — remove before go-live */}
+            {/* Test mode bypass â€” remove before go-live */}
             {!paymentDone && (
               <button
                 type="button"
@@ -2575,7 +2816,7 @@ ${availLines ? `<div class="section">
                 onClick={() => {
                   // Test mode: skip backend payment entirely
                   // Advisor type (AUTHORIZED) is already saved on the account created
-                  // during "Proceed to Payment" — subscription record is only for billing
+                  // during "Proceed to Payment" â€” subscription record is only for billing
                   setPaymentDone(true);
                   setInvoiceData({
                     invoiceNo: `BS-TEST-${Date.now().toString().slice(-8)}`,
@@ -2587,13 +2828,13 @@ ${availLines ? `<div class="section">
                 }}
                 className="w-full py-3 rounded-xl border-2 border-dashed border-amber-300 text-amber-700 bg-amber-50 text-xs font-semibold hover:bg-amber-100 transition-all flex items-center justify-center gap-2"
               >
-                🧪 Test Mode — Skip Payment (Dev/Testing Only)
+                ðŸ§ª Test Mode â€” Skip Payment (Dev/Testing Only)
               </button>
             )}
           </div>
         )}
 
-        {/* ── Step: Success ── */}
+        {/* â”€â”€ Step: Success â”€â”€ */}
         {step === 'success' && (
           <div className="p-6 sm:p-10 text-center">
             <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: 'rgba(212,175,55,0.1)', border: '2px solid rgba(212,175,55,0.35)' }}>
@@ -2624,7 +2865,7 @@ ${availLines ? `<div class="section">
               })}
             </div>
 
-            {/* ── Print / Download Application ── */}
+            {/* â”€â”€ Print / Download Application â”€â”€ */}
             <div className="rounded-2xl border-2 border-dashed border-gray-200 p-4 bg-gray-50">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 text-center">{t('onboard.success.saveApp')}</p>
               <div className="flex gap-3">
@@ -2649,9 +2890,9 @@ ${availLines ? `<div class="section">
               <div className="rounded-2xl border-2 border-indigo-300 p-4" style={{ background: 'linear-gradient(135deg,#eef2ff,#f0f4ff)' }}>
                 <div className="flex items-center gap-2 mb-3">
                   <Award size={16} className="text-indigo-600 shrink-0" />
-                  <span className="font-black text-gray-800 text-sm">Payment Confirmed · Authorized Badge Pending Approval</span>
+                  <span className="font-black text-gray-800 text-sm">Payment Confirmed Â· Authorized Badge Pending Approval</span>
                 </div>
-                <p className="text-xs text-gray-600 mb-3">Invoice No: <strong>{invoiceData.invoiceNo}</strong> · Payment ID: <span className="font-mono text-[10px]">{invoiceData.paymentId}</span></p>
+                <p className="text-xs text-gray-600 mb-3">Invoice No: <strong>{invoiceData.invoiceNo}</strong> Â· Payment ID: <span className="font-mono text-[10px]">{invoiceData.paymentId}</span></p>
                 <button
                   onClick={downloadInvoice}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all"
@@ -2684,7 +2925,7 @@ ${availLines ? `<div class="section">
 
         </div>{/* end scrollable */}
 
-        {/* ── T&C Detail Panel (slides over the card) ── */}
+        {/* â”€â”€ T&C Detail Panel (slides over the card) â”€â”€ */}
         {showTcDetail && (
           <div className="absolute inset-0 z-20 bg-white flex flex-col rounded-3xl overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3 shrink-0">
@@ -2694,13 +2935,13 @@ ${availLines ? `<div class="section">
               </button>
               <div>
                 <h3 className="font-bold text-gray-900 text-base">Advisor Terms & Conditions</h3>
-                <p className="text-[11px] text-gray-400">BrokerSaab Platform · Effective June 2026</p>
+                <p className="text-[11px] text-gray-400">BrokerSaab Platform Â· Effective June 2026</p>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
               {[
                 { color: '#ef4444', title: 'No Platform Liability', body: 'BrokerSaab is not liable for any fraud, misconduct, misrepresentation, negligence, or financial harm caused by you or any other advisor on this platform. Clients engage you entirely at their own risk, and you are solely responsible for the advice and services you provide.' },
-                { color: '#f59e0b', title: 'Disputes — Indian Judiciary', body: 'All disputes, claims, or legal proceedings arising from your advisory services or from use of BrokerSaab shall be subject exclusively to the jurisdiction of the competent courts of India.' },
+                { color: '#f59e0b', title: 'Disputes â€” Indian Judiciary', body: 'All disputes, claims, or legal proceedings arising from your advisory services or from use of BrokerSaab shall be subject exclusively to the jurisdiction of the competent courts of India.' },
                 { color: '#3b82f6', title: 'Genuine KYC & Credentials', body: 'All KYC documents, professional credentials, licenses, and qualifications you submit during registration must be authentic, accurate, and up-to-date. Submission of false documents will result in immediate account termination and may lead to legal action.' },
                 { color: '#8b5cf6', title: 'Your Responsibility for Advice', body: 'You are solely and entirely responsible for the quality, accuracy, completeness, and legality of all advice and services you provide to clients. BrokerSaab does not review, endorse, or validate the content of any advice given.' },
                 { color: '#10b981', title: 'Commission & No Off-Platform Solicitation', body: 'A 15% platform commission is deducted from all completed consultations. You agree not to solicit clients for off-platform transactions or direct payments outside BrokerSaab. Violations will result in permanent account suspension.' },

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -10,7 +10,7 @@ type AuthStep = 'phone' | 'otp' | 'register' | 'set_password' | 'success';
 
 const TC_CLAUSES_AUTH = [
   { color: '#ef4444', title: 'No Liability for Fraud or Misconduct', body: 'BrokerSaab is a third-party technology marketplace. We are NOT responsible or liable for any fraudulent activity, misrepresentation, negligence, professional misconduct, or financial harm caused by any advisor, agent, or dealer on this platform. Users engage professionals entirely at their own risk.' },
-  { color: '#f59e0b', title: 'Disputes — Indian Judiciary', body: 'All disputes, claims, or legal proceedings arising from use of BrokerSaab or from any transaction between a user and an advisor shall be subject exclusively to the jurisdiction of the competent courts of India.' },
+  { color: '#f59e0b', title: 'Disputes â€” Indian Judiciary', body: 'All disputes, claims, or legal proceedings arising from use of BrokerSaab or from any transaction between a user and an advisor shall be subject exclusively to the jurisdiction of the competent courts of India.' },
   { color: '#10b981', title: 'Escrow Payment Protection', body: 'Payments are held in escrow and released to advisors only upon consultation completion. While escrow protects your funds, BrokerSaab does NOT guarantee the quality, accuracy, or outcome of any professional advice or service rendered.' },
   { color: '#3b82f6', title: 'User Responsibilities', body: "You are responsible for independently verifying the credentials, qualifications, and suitability of any professional before acting on their advice. BrokerSaab's internal verification is not a government certification." },
   { color: '#8b5cf6', title: 'Platform Role', body: 'BrokerSaab acts as a neutral intermediary only. No advisor-client relationship, fiduciary duty, or professional liability is created with BrokerSaab. The platform may suspend accounts that violate conduct policies without prior notice.' },
@@ -24,8 +24,8 @@ export default function AuthPage() {
   // Redirect already-authenticated users to their destination
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('user');
-      const token  = localStorage.getItem('accessToken');
+      const stored = sessionStorage.getItem('user');
+      const token  = sessionStorage.getItem('accessToken');
       if (!stored || !token) return;
       const u = JSON.parse(stored);
       if (u?.role === 'CLIENT')                                    { window.location.replace('/bookings'); return; }
@@ -50,7 +50,7 @@ export default function AuthPage() {
 
   const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
-  // ── Step 1: Send OTP ──
+  // â”€â”€ Step 1: Send OTP â”€â”€
   const handleSendOtp = async () => {
     if (phoneNumber.length < 10) {
       setError('Please enter a valid 10-digit phone number');
@@ -79,7 +79,7 @@ export default function AuthPage() {
     setLoading(false);
   };
 
-  // ── Step 2: Verify OTP ──
+  // â”€â”€ Step 2: Verify OTP â”€â”€
   const handleVerifyOtp = async () => {
     const otpString = otp.join('');
     if (otpString.length !== 6) {
@@ -97,12 +97,12 @@ export default function AuthPage() {
       const data = await res.json();
       if (data.success) {
         if (data.isNewUser) {
-          localStorage.setItem('tempToken', data.tempToken);
+          sessionStorage.setItem('tempToken', data.tempToken);
           setStep('register');
         } else {
-          localStorage.setItem('accessToken', data.tokens.accessToken);
-          localStorage.setItem('refreshToken', data.tokens.refreshToken);
-          localStorage.setItem('user', JSON.stringify(data.user));
+          sessionStorage.setItem('accessToken', data.tokens.accessToken);
+          sessionStorage.setItem('refreshToken', data.tokens.refreshToken);
+          sessionStorage.setItem('user', JSON.stringify(data.user));
           const role = data.user?.role ?? 'CLIENT';
           setUserRole(role);
           // If CLIENT has never set a password, offer them to set one now
@@ -121,13 +121,13 @@ export default function AuthPage() {
         setError(data.message || 'Invalid OTP');
       }
     } catch {
-      // Demo mode — simulate new user
+      // Demo mode â€” simulate new user
       setStep('register');
     }
     setLoading(false);
   };
 
-  // ── Step 3: Complete Registration ──
+  // â”€â”€ Step 3: Complete Registration â”€â”€
   const handleRegister = async () => {
     if (!fullName.trim()) {
       setError('Please enter your full name');
@@ -136,7 +136,7 @@ export default function AuthPage() {
     setLoading(true);
     setError('');
     try {
-      const tempToken = localStorage.getItem('tempToken') || 'demo-token';
+      const tempToken = sessionStorage.getItem('tempToken') || 'demo-token';
       const res = await fetch(`${API}/auth/register/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -144,9 +144,9 @@ export default function AuthPage() {
       });
       const data = await res.json();
       if (data.success) {
-        localStorage.setItem('accessToken', data.tokens.accessToken);
-        localStorage.setItem('refreshToken', data.tokens.refreshToken);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        sessionStorage.setItem('accessToken', data.tokens.accessToken);
+        sessionStorage.setItem('refreshToken', data.tokens.refreshToken);
+        sessionStorage.setItem('user', JSON.stringify(data.user));
         setUserRole(data.user?.role ?? 'CLIENT');
         setStep('set_password');
         setTimeout(() => router.push('/services'), 3000);
@@ -155,14 +155,14 @@ export default function AuthPage() {
       }
     } catch {
       // Demo mode
-      localStorage.setItem('user', JSON.stringify({ fullName, phoneNumber, role: 'CLIENT' }));
+      sessionStorage.setItem('user', JSON.stringify({ fullName, phoneNumber, role: 'CLIENT' }));
       setStep('set_password');
       setTimeout(() => router.push('/services'), 3000);
     }
     setLoading(false);
   };
 
-  // ── Step 4: Set Password (optional) ──
+  // â”€â”€ Step 4: Set Password (optional) â”€â”€
   const handleSetPassword = async () => {
     if (newPassword.length < 8) {
       setError('Password must be at least 8 characters');
@@ -179,7 +179,7 @@ export default function AuthPage() {
     setLoading(true);
     setError('');
     try {
-      const token = localStorage.getItem('accessToken') || '';
+      const token = sessionStorage.getItem('accessToken') || '';
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api/v1'}/auth/password/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -193,14 +193,14 @@ export default function AuthPage() {
         setError(data.message || 'Failed to set password');
       }
     } catch {
-      // Demo mode — proceed anyway
+      // Demo mode â€” proceed anyway
       setStep('success');
       setTimeout(() => router.push('/services'), 1500);
     }
     setLoading(false);
   };
 
-  // ── OTP Input Handler ──
+  // â”€â”€ OTP Input Handler â”€â”€
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return;
     const newOtp = [...otp];
@@ -247,11 +247,11 @@ export default function AuthPage() {
 
       <div className="w-full max-w-md relative z-10">
 
-        {/* Card — same structure as LoginModal */}
+        {/* Card â€” same structure as LoginModal */}
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col relative"
           style={{ border: '1px solid rgba(212,175,55,0.25)', boxShadow: '0 25px 60px rgba(0,0,0,0.4)', maxHeight: '95dvh' }}>
 
-          {/* ── Header ── */}
+          {/* â”€â”€ Header â”€â”€ */}
           <div className="px-6 py-5 relative shrink-0"
             style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
             {step === 'set_password' && (
@@ -276,17 +276,17 @@ export default function AuthPage() {
             </Link>
           </div>
 
-          {/* Body — scrollable flex-1 so card never exceeds viewport */}
+          {/* Body â€” scrollable flex-1 so card never exceeds viewport */}
           <div className="p-6 sm:p-7 overflow-y-auto flex-1 min-h-0">
 
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-5 flex items-start gap-2">
-                <span className="text-red-400 mt-0.5">⚠</span>
+                <span className="text-red-400 mt-0.5">âš </span>
                 <span>{error}</span>
               </div>
             )}
 
-            {/* ── STEP: Phone Number ── */}
+            {/* â”€â”€ STEP: Phone Number â”€â”€ */}
             {step === 'phone' && (
               <div className="space-y-5">
                 <div>
@@ -356,7 +356,7 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* ── STEP: OTP Verification ── */}
+            {/* â”€â”€ STEP: OTP Verification â”€â”€ */}
             {step === 'otp' && (
               <div className="space-y-5">
                 {devOtp && (
@@ -405,7 +405,7 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* ── STEP: Registration ── */}
+            {/* â”€â”€ STEP: Registration â”€â”€ */}
             {step === 'register' && (
               <div className="space-y-5">
                 <div>
@@ -448,7 +448,7 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* ── STEP: Set Password ── */}
+            {/* â”€â”€ STEP: Set Password â”€â”€ */}
             {step === 'set_password' && (
               <div className="space-y-5">
                 <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
@@ -483,7 +483,7 @@ export default function AuthPage() {
                         { label: t('auth.pwdReq.number'), ok: /\d/.test(newPassword) },
                       ].map(r => (
                         <span key={r.label} className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${r.ok ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'}`}>
-                          {r.ok ? '✓' : '·'} {r.label}
+                          {r.ok ? 'âœ“' : 'Â·'} {r.label}
                         </span>
                       ))}
                     </div>
@@ -532,7 +532,7 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* ── STEP: Success — role-aware ── */}
+            {/* â”€â”€ STEP: Success â€” role-aware â”€â”€ */}
             {step === 'success' && (
               <div className="text-center space-y-5 py-4">
                 <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${
@@ -590,12 +590,12 @@ export default function AuthPage() {
               style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', borderColor: 'rgba(212,175,55,0.12)' }}>
               <p className="text-[10px] text-white/30">
                 <button onClick={() => setShowTcDetail(true)} className="text-[#D4AF37]/60 hover:text-[#D4AF37] underline">{t('auth.terms.title')}</button>
-                {' '}· BrokerSaab is not liable for advisor fraud
+                {' '}Â· BrokerSaab is not liable for advisor fraud
               </p>
             </div>
           )}
 
-          {/* ── T&C Detail Panel (slide-over inside card) ── */}
+          {/* â”€â”€ T&C Detail Panel (slide-over inside card) â”€â”€ */}
           {showTcDetail && (
             <div className="absolute inset-0 z-20 bg-white flex flex-col rounded-3xl overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3 shrink-0">
@@ -605,7 +605,7 @@ export default function AuthPage() {
                 </button>
                 <div>
                   <h3 className="font-bold text-gray-900 text-base">Terms & Conditions</h3>
-                  <p className="text-[11px] text-gray-400">BrokerSaab Platform · Effective June 2026</p>
+                  <p className="text-[11px] text-gray-400">BrokerSaab Platform Â· Effective June 2026</p>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
@@ -643,7 +643,7 @@ export default function AuthPage() {
         {/* Trust row below card */}
         <div className="flex items-center justify-center gap-4 mt-4 text-[11px] text-white/30">
           <span className="flex items-center gap-1"><ShieldCheck size={11} className="text-[#D4AF37]/50" /> 256-bit encrypted</span>
-          <span className="text-white/15">•</span>
+          <span className="text-white/15">â€¢</span>
           <span className="flex items-center gap-1"><CheckCircle2 size={11} className="text-[#D4AF37]/50" /> Escrow protected</span>
         </div>
       </div>

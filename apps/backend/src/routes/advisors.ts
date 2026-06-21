@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
 import { authenticateJWT, requireRole, AuthenticatedRequest } from '../middlewares/auth';
 import { validateRequest } from '../middlewares/validate';
-import { kycUpload } from '../middlewares/upload';
+import { kycUpload, fileUrl } from '../middlewares/upload';
 import { validateAadhaar, maskAadhaar, hashAadhaar } from '../utils/aadhaar';
 
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'brokersaab_secret_access_token_12345_dev_super_secret';
@@ -330,6 +330,9 @@ router.get('/me', authenticateJWT, requireRole([Role.ADVISOR]), async (req: Auth
         id: true,
         fullName: true,
         businessName: true,
+        location: true,
+        city: true,
+        state: true,
         verificationStatus: true,
         categories: { include: { category: { select: { slug: true, name: true } } } },
         specializations: { include: { specialization: { select: { slug: true, name: true } } } },
@@ -351,6 +354,7 @@ router.get('/me', authenticateJWT, requireRole([Role.ADVISOR]), async (req: Auth
         id: advisor.id,
         fullName: advisor.fullName,
         businessName: advisor.businessName,
+        location: advisor.location ?? (advisor.city && advisor.state ? `${advisor.city}, ${advisor.state}` : advisor.city ?? advisor.state ?? ''),
         verificationStatus: advisor.verificationStatus,
         categorySlugs: advisor.categories.map(c => c.category.slug),
         specializations: advisor.specializations.map(s => ({
@@ -536,7 +540,7 @@ router.post(
         return;
       }
 
-      const documentUrl = `/uploads/kyc/${req.file.filename}`;
+      const documentUrl = fileUrl(req.file);
 
       // Handle Aadhaar-specific logic
       if (documentType === DocumentType.AADHAAR_CARD) {
@@ -592,7 +596,7 @@ router.post(
       if (!advisorId) { res.status(400).json({ success: false, message: 'Advisor profile not found' }); return; }
       if (!req.file) { res.status(400).json({ success: false, message: 'No file uploaded' }); return; }
 
-      const avatarUrl = `/uploads/kyc/${req.file.filename}`;
+      const avatarUrl = fileUrl(req.file);
       await (prisma.advisor as any).update({
         where: { id: advisorId },
         data: { avatarUrl },
@@ -620,7 +624,7 @@ router.post(
       if (!advisorId) { res.status(400).json({ success: false, message: 'Advisor profile not found' }); return; }
       if (!req.file) { res.status(400).json({ success: false, message: 'No file uploaded' }); return; }
 
-      const coverImageUrl = `/uploads/kyc/${req.file.filename}`;
+      const coverImageUrl = fileUrl(req.file);
       await (prisma.advisor as any).update({
         where: { id: advisorId },
         data: { coverImageUrl },

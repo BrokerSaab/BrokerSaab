@@ -22,15 +22,16 @@ export const AdvisorQRScreen: React.FC = () => {
   const qrRef = useRef<any>(null);
   const qrRefLarge = useRef<any>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['advisor-me'],
     queryFn: () => advisorRepository.getMe(),
-    staleTime: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+    retry: 2,
   });
 
   const advisor = data?.data as any;
   const advisorId = advisor?.id ?? '';
-  const profileUrl = `${FRONTEND_URL}/advisors/${advisorId}`;
+  const profileUrl = advisorId ? `${FRONTEND_URL}/advisors/${advisorId}` : FRONTEND_URL;
   const advisorName = advisor?.fullName ?? user?.fullName ?? 'Advisor';
   const businessName = advisor?.businessName ?? '';
   const location = advisor?.location ?? '';
@@ -65,6 +66,28 @@ export const AdvisorQRScreen: React.FC = () => {
         <View style={s.loadingWrap}>
           <ActivityIndicator size="large" color={Palette.primary} />
           <Text style={s.loadingText}>Loading your QR code…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isError || (!isLoading && !advisorId)) {
+    return (
+      <SafeAreaView style={s.safe}>
+        <View style={s.loadingWrap}>
+          <Text style={{ fontSize: 40, marginBottom: 12 }}>⚠️</Text>
+          <Text style={[s.loadingText, { textAlign: 'center', fontWeight: '700', marginBottom: 8 }]}>
+            Advisor profile not found
+          </Text>
+          <Text style={[s.loadingText, { textAlign: 'center', fontSize: 12, marginBottom: 20 }]}>
+            Your advisor account may still be under review, or there was a network error.
+          </Text>
+          <TouchableOpacity
+            onPress={() => refetch()}
+            style={{ backgroundColor: Palette.primary, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Try Again</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );

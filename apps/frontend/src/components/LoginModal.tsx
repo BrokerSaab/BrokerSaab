@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
 import {
@@ -20,7 +20,7 @@ interface LoginModalProps {
 
 const TC_CLAUSES = [
   { color: '#ef4444', title: 'No Liability for Fraud or Misconduct', body: 'BrokerSaab is a third-party technology marketplace. We are NOT responsible or liable for any fraudulent activity, misrepresentation, negligence, professional misconduct, or financial harm caused by any advisor, agent, or dealer on this platform. Users engage professionals entirely at their own risk.' },
-  { color: '#f59e0b', title: 'Disputes — Indian Judiciary', body: 'All disputes, claims, or legal proceedings arising from use of BrokerSaab or from any transaction between a user and an advisor shall be subject exclusively to the jurisdiction of the competent courts of India.' },
+  { color: '#f59e0b', title: 'Disputes â€” Indian Judiciary', body: 'All disputes, claims, or legal proceedings arising from use of BrokerSaab or from any transaction between a user and an advisor shall be subject exclusively to the jurisdiction of the competent courts of India.' },
   { color: '#10b981', title: 'Escrow Payment Protection', body: 'Payments are held in escrow and released to advisors only upon consultation completion. While escrow protects your funds, BrokerSaab does NOT guarantee the quality, accuracy, or outcome of any professional advice or service rendered.' },
   { color: '#3b82f6', title: 'User Responsibilities', body: "You are responsible for independently verifying the credentials, qualifications, and suitability of any professional before acting on their advice. BrokerSaab's internal verification is not a government certification." },
   { color: '#8b5cf6', title: 'Platform Role', body: 'BrokerSaab acts as a neutral intermediary only. No advisor-client relationship, fiduciary duty, or professional liability is created with BrokerSaab. The platform may suspend accounts that violate conduct policies without prior notice.' },
@@ -114,10 +114,10 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
       });
       const data = await res.json();
       if (data.success) {
-        if (data.isNewUser) { localStorage.setItem('tempToken', data.tempToken); setStep('register'); }
+        if (data.isNewUser) { sessionStorage.setItem('tempToken', data.tempToken); setStep('register'); }
         else {
-          localStorage.setItem('accessToken', data.tokens.accessToken);
-          localStorage.setItem('refreshToken', data.tokens.refreshToken);
+          sessionStorage.setItem('accessToken', data.tokens.accessToken);
+          sessionStorage.setItem('refreshToken', data.tokens.refreshToken);
           onLoginSuccess(data.user); setStep('success');
         }
       } else setError(data.message || 'Invalid OTP. Please try again.');
@@ -147,8 +147,8 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
     try { data = await res.json(); } catch { }
     if (data.success) {
       setPwdRetryCount(0);
-      localStorage.setItem('accessToken', data.tokens.accessToken);
-      localStorage.setItem('refreshToken', data.tokens.refreshToken);
+      sessionStorage.setItem('accessToken', data.tokens.accessToken);
+      sessionStorage.setItem('refreshToken', data.tokens.refreshToken);
       onLoginSuccess(data.user); setStep('success');
     } else {
       setError(data.message || (res.ok ? 'Login failed. Please try again.' : `Server error (${res.status}). Please try again.`));
@@ -160,15 +160,15 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
     if (!fullName.trim()) { setError('Full name is required to create your account.'); return; }
     setLoading(true); setError('');
     try {
-      const tempToken = localStorage.getItem('tempToken') || 'demo-token';
+      const tempToken = sessionStorage.getItem('tempToken') || 'demo-token';
       const res = await fetch(`${API}/auth/register/complete`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tempToken, fullName: fullName.trim(), email: email || undefined }),
       });
       const data = await res.json();
       if (data.success) {
-        localStorage.setItem('accessToken', data.tokens.accessToken);
-        localStorage.setItem('refreshToken', data.tokens.refreshToken);
+        sessionStorage.setItem('accessToken', data.tokens.accessToken);
+        sessionStorage.setItem('refreshToken', data.tokens.refreshToken);
         setPendingUser(data.user);
         setStep('set_password');
       } else setError(data.message || 'Registration failed. Please try again.');
@@ -185,7 +185,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
     if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
     setLoading(true); setError('');
     try {
-      const token = localStorage.getItem('accessToken') || '';
+      const token = sessionStorage.getItem('accessToken') || '';
       const res = await fetch(`${API}/auth/password/set`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -235,7 +235,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
       <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden"
         style={{ maxHeight: '95dvh', display: 'flex', flexDirection: 'column' }}>
 
-        {/* ── Header ── */}
+        {/* â”€â”€ Header â”€â”€ */}
         <div className={`px-6 py-5 relative shrink-0 bg-gradient-to-r from-navy-800 to-navy-700 ${step === 'set_password' ? '' : ''}`}>
           {step === 'set_password' && (
             <div className="absolute top-0 left-0 right-0 h-[3px]"
@@ -264,7 +264,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
           )}
         </div>
 
-        {/* ── Body ── */}
+        {/* â”€â”€ Body â”€â”€ */}
         <div className="p-6 sm:p-7 overflow-y-auto flex-1">
           {error && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-5">
@@ -273,7 +273,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             </div>
           )}
 
-          {/* ── PHONE STEP ── */}
+          {/* â”€â”€ PHONE STEP â”€â”€ */}
           {step === 'phone' && (
             <div className="space-y-4">
               {/* Login method toggle */}
@@ -373,12 +373,12 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             </div>
           )}
 
-          {/* ── OTP STEP ── */}
+          {/* â”€â”€ OTP STEP â”€â”€ */}
           {step === 'otp' && (
             <div className="space-y-5">
               {devOtp && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-700 font-medium flex items-center gap-2">
-                  <span>🔑</span> Demo OTP: <strong className="text-lg tracking-widest">{devOtp}</strong>
+                  <span>ðŸ”‘</span> Demo OTP: <strong className="text-lg tracking-widest">{devOtp}</strong>
                 </div>
               )}
               <div>
@@ -402,7 +402,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             </div>
           )}
 
-          {/* ── REGISTER STEP ── */}
+          {/* â”€â”€ REGISTER STEP â”€â”€ */}
           {step === 'register' && (
             <div className="space-y-4">
               <div>
@@ -430,7 +430,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             </div>
           )}
 
-          {/* ── SET PASSWORD STEP ── */}
+          {/* â”€â”€ SET PASSWORD STEP â”€â”€ */}
           {step === 'set_password' && (
             <div className="space-y-4">
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-start gap-2">
@@ -484,7 +484,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             </div>
           )}
 
-          {/* ── SUCCESS STEP ── */}
+          {/* â”€â”€ SUCCESS STEP â”€â”€ */}
           {step === 'success' && (
             <div className="text-center py-4">
               <div className="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mx-auto mb-4">
@@ -496,7 +496,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
           )}
         </div>
 
-        {/* ── Footer: Admin Login ── */}
+        {/* â”€â”€ Footer: Admin Login â”€â”€ */}
         {step !== 'success' && step !== 'set_password' && (
           <div className="px-6 pb-5 shrink-0 space-y-3">
             <div className="relative">
@@ -505,7 +505,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             </div>
             <a href="/auth/admin"
               className="w-full flex items-center justify-center gap-2 border-2 border-gray-200 text-gray-700 font-semibold py-3 rounded-xl text-sm hover:border-gray-300 hover:bg-gray-50 transition-all">
-              <span>🔑</span> {t('auth.adminLogin')}
+              <span>ðŸ”‘</span> {t('auth.adminLogin')}
             </a>
           </div>
         )}
@@ -514,7 +514,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
           <div className="w-12 h-1 bg-gray-200 rounded-full" />
         </div>
 
-        {/* ── T&C Detail Panel (slide-over inside modal) ── */}
+        {/* â”€â”€ T&C Detail Panel (slide-over inside modal) â”€â”€ */}
         {showTcDetail && (
           <div className="absolute inset-0 z-20 bg-white flex flex-col rounded-t-3xl sm:rounded-3xl overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3 shrink-0">
@@ -524,7 +524,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
               </button>
               <div>
                 <h3 className="font-bold text-gray-900 text-base">Terms & Conditions</h3>
-                <p className="text-[11px] text-gray-400">BrokerSaab Platform · Effective June 2026</p>
+                <p className="text-[11px] text-gray-400">BrokerSaab Platform Â· Effective June 2026</p>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">

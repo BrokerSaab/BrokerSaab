@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -68,7 +68,7 @@ export default function AdvisorProfilePage() {
   const [showQuoteModal,  setShowQuoteModal]  = useState(false);
   const [quoteRequested,  setQuoteRequested]  = useState(false);
 
-  const token = () => typeof localStorage !== 'undefined' ? localStorage.getItem('accessToken') || '' : '';
+  const token = () => typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('accessToken') || '' : '';
 
   const fetchData = useCallback(async () => {
     setLoading(true);

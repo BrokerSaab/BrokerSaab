@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -22,9 +22,9 @@ import StatePickerPopup from '@/components/StatePickerPopup';
 import ServiceDetailModal from '@/components/ServiceDetailModal';
 import ContactUnlockModal from '@/components/ContactUnlockModal';
 
-/* ═══════════════════════════════════════════════
-   DATA — Mock Advisors
-   ═══════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   DATA â€” Mock Advisors
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 interface AdvisorCard {
   id: string;
   fullName: string;
@@ -114,7 +114,7 @@ const SLUG_TO_CATEGORY_NAME: Record<string, string> = {
   'real-estate-advisory': 'Property & Land Papers',
 };
 
-/* 19 distinct vibrant accents — one per submodule position within any expanded panel */
+/* 19 distinct vibrant accents â€” one per submodule position within any expanded panel */
 const SUB_PALETTE = [
   '#F43F5E','#14B8A6','#8B5CF6','#F59E0B','#10B981',
   '#3B82F6','#EAB308','#0EA5E9','#6366F1','#F97316',
@@ -136,11 +136,11 @@ const AVATAR_COLORS = [
   'from-amber-500 to-amber-600', 'from-cyan-500 to-cyan-600',
 ];
 
-// No mock advisors — only real approved advisors from the API are shown
+// No mock advisors â€” only real approved advisors from the API are shown
 
-/* ═══════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    COMPONENT
-   ═══════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 // Fetch function lives outside component so React Query can cache it properly
 async function fetchAdvisors(categories: string[], search: string, state?: string, district?: string): Promise<AdvisorCard[]> {
   const params = new URLSearchParams({ limit: '50' });
@@ -177,69 +177,69 @@ async function fetchAdvisors(categories: string[], search: string, state?: strin
         avatarUrl: adv.avatarUrl || null,
       }));
     }
-  } catch { /* network error — return empty */ }
+  } catch { /* network error â€” return empty */ }
   return [];
 }
 const HINDI_TILES: Record<string, { title: string; description: string; popularTag: string }> = {
   'Property Brokerage': {
-    title: 'प्रॉपर्टी ब्रोकरेज',
-    description: 'RERA-सत्यापित ब्रोकरों के साथ वाणिज्यिक और आवासीय संपत्तियां खरीदें, बेचें या किराए पर लें।',
-    popularTag: 'सर्वाधिक लोकप्रिय'
+    title: 'à¤ªà¥à¤°à¥‰à¤ªà¤°à¥à¤Ÿà¥€ à¤¬à¥à¤°à¥‹à¤•à¤°à¥‡à¤œ',
+    description: 'RERA-à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¿à¤¤ à¤¬à¥à¤°à¥‹à¤•à¤°à¥‹à¤‚ à¤•à¥‡ à¤¸à¤¾à¤¥ à¤µà¤¾à¤£à¤¿à¤œà¥à¤¯à¤¿à¤• à¤”à¤° à¤†à¤µà¤¾à¤¸à¥€à¤¯ à¤¸à¤‚à¤ªà¤¤à¥à¤¤à¤¿à¤¯à¤¾à¤‚ à¤–à¤°à¥€à¤¦à¥‡à¤‚, à¤¬à¥‡à¤šà¥‡à¤‚ à¤¯à¤¾ à¤•à¤¿à¤°à¤¾à¤ à¤ªà¤° à¤²à¥‡à¤‚à¥¤',
+    popularTag: 'à¤¸à¤°à¥à¤µà¤¾à¤§à¤¿à¤• à¤²à¥‹à¤•à¤ªà¥à¤°à¤¿à¤¯'
   },
   'Legal Court Advisor': {
-    title: 'कानूनी न्यायालय सलाहकार',
-    description: 'दीवानी और आपराधिक रक्षा, जमानत की सुनवाई और विशेषज्ञ मुकदमेबाजी वकील।',
-    popularTag: 'विश्वसनीय'
+    title: 'à¤•à¤¾à¤¨à¥‚à¤¨à¥€ à¤¨à¥à¤¯à¤¾à¤¯à¤¾à¤²à¤¯ à¤¸à¤²à¤¾à¤¹à¤•à¤¾à¤°',
+    description: 'à¤¦à¥€à¤µà¤¾à¤¨à¥€ à¤”à¤° à¤†à¤ªà¤°à¤¾à¤§à¤¿à¤• à¤°à¤•à¥à¤·à¤¾, à¤œà¤®à¤¾à¤¨à¤¤ à¤•à¥€ à¤¸à¥à¤¨à¤µà¤¾à¤ˆ à¤”à¤° à¤µà¤¿à¤¶à¥‡à¤·à¤œà¥à¤ž à¤®à¥à¤•à¤¦à¤®à¥‡à¤¬à¤¾à¤œà¥€ à¤µà¤•à¥€à¤²à¥¤',
+    popularTag: 'à¤µà¤¿à¤¶à¥à¤µà¤¸à¤¨à¥€à¤¯'
   },
   'Property Registry': {
-    title: 'संपत्ति पंजीकरण',
-    description: 'स्टाम्प शुल्क, उप-पंजीयक फाइलिंग और पूर्ण रजिस्ट्री निष्पादन।',
-    popularTag: 'आवश्यक'
+    title: 'à¤¸à¤‚à¤ªà¤¤à¥à¤¤à¤¿ à¤ªà¤‚à¤œà¥€à¤•à¤°à¤£',
+    description: 'à¤¸à¥à¤Ÿà¤¾à¤®à¥à¤ª à¤¶à¥à¤²à¥à¤•, à¤‰à¤ª-à¤ªà¤‚à¤œà¥€à¤¯à¤• à¤«à¤¾à¤‡à¤²à¤¿à¤‚à¤— à¤”à¤° à¤ªà¥‚à¤°à¥à¤£ à¤°à¤œà¤¿à¤¸à¥à¤Ÿà¥à¤°à¥€ à¤¨à¤¿à¤·à¥à¤ªà¤¾à¤¦à¤¨à¥¤',
+    popularTag: 'à¤†à¤µà¤¶à¥à¤¯à¤•'
   },
   'Corporate Law': {
-    title: 'कॉर्पोरेट कानून',
-    description: 'कंपनी निगमन, एलएलपी पंजीकरण, अनुपालन और शासन।',
-    popularTag: 'बिजनेस'
+    title: 'à¤•à¥‰à¤°à¥à¤ªà¥‹à¤°à¥‡à¤Ÿ à¤•à¤¾à¤¨à¥‚à¤¨',
+    description: 'à¤•à¤‚à¤ªà¤¨à¥€ à¤¨à¤¿à¤—à¤®à¤¨, à¤à¤²à¤à¤²à¤ªà¥€ à¤ªà¤‚à¤œà¥€à¤•à¤°à¤£, à¤…à¤¨à¥à¤ªà¤¾à¤²à¤¨ à¤”à¤° à¤¶à¤¾à¤¸à¤¨à¥¤',
+    popularTag: 'à¤¬à¤¿à¤œà¤¨à¥‡à¤¸'
   },
   'Tax Consultancy': {
-    title: 'कर सलाहकार',
-    description: 'जीएसटी फाइलिंग, आयकर रिटर्न दाखिल करना और कर योजना।',
-    popularTag: 'कर बचत'
+    title: 'à¤•à¤° à¤¸à¤²à¤¾à¤¹à¤•à¤¾à¤°',
+    description: 'à¤œà¥€à¤à¤¸à¤Ÿà¥€ à¤«à¤¾à¤‡à¤²à¤¿à¤‚à¤—, à¤†à¤¯à¤•à¤° à¤°à¤¿à¤Ÿà¤°à¥à¤¨ à¤¦à¤¾à¤–à¤¿à¤² à¤•à¤°à¤¨à¤¾ à¤”à¤° à¤•à¤° à¤¯à¥‹à¤œà¤¨à¤¾à¥¤',
+    popularTag: 'à¤•à¤° à¤¬à¤šà¤¤'
   },
   'Documentation Drafting': {
-    title: 'दस्तावेज़ीकरण प्रारूपण',
-    description: 'डीड, एग्रीमेंट, वसीयत, पावर ऑफ अटॉर्नी और समझौतों का ड्राफ्टिंग।',
-    popularTag: 'फास्ट ट्रैक'
+    title: 'à¤¦à¤¸à¥à¤¤à¤¾à¤µà¥‡à¤œà¤¼à¥€à¤•à¤°à¤£ à¤ªà¥à¤°à¤¾à¤°à¥‚à¤ªà¤£',
+    description: 'à¤¡à¥€à¤¡, à¤à¤—à¥à¤°à¥€à¤®à¥‡à¤‚à¤Ÿ, à¤µà¤¸à¥€à¤¯à¤¤, à¤ªà¤¾à¤µà¤° à¤‘à¤« à¤…à¤Ÿà¥‰à¤°à¥à¤¨à¥€ à¤”à¤° à¤¸à¤®à¤à¥Œà¤¤à¥‹à¤‚ à¤•à¤¾ à¤¡à¥à¤°à¤¾à¤«à¥à¤Ÿà¤¿à¤‚à¤—à¥¤',
+    popularTag: 'à¤«à¤¾à¤¸à¥à¤Ÿ à¤Ÿà¥à¤°à¥ˆà¤•'
   },
   'Capital & Loans': {
-    title: 'पूंजी और ऋण',
-    description: 'गृह ऋण, व्यवसाय ऋण, संपत्ति पर ऋण और वित्तीय वित्तपोषण।',
-    popularTag: 'आसान वित्त'
+    title: 'à¤ªà¥‚à¤‚à¤œà¥€ à¤”à¤° à¤‹à¤£',
+    description: 'à¤—à¥ƒà¤¹ à¤‹à¤£, à¤µà¥à¤¯à¤µà¤¸à¤¾à¤¯ à¤‹à¤£, à¤¸à¤‚à¤ªà¤¤à¥à¤¤à¤¿ à¤ªà¤° à¤‹à¤£ à¤”à¤° à¤µà¤¿à¤¤à¥à¤¤à¥€à¤¯ à¤µà¤¿à¤¤à¥à¤¤à¤ªà¥‹à¤·à¤£à¥¤',
+    popularTag: 'à¤†à¤¸à¤¾à¤¨ à¤µà¤¿à¤¤à¥à¤¤'
   },
   'Wealth Management': {
-    title: 'धन प्रबंधन',
-    description: 'म्युचुअल फंड, परिवार ट्रस्ट, पोर्टफोलियो प्रबंधन और संपत्ति योजना।',
-    popularTag: 'सुरक्षित निवेश'
+    title: 'à¤§à¤¨ à¤ªà¥à¤°à¤¬à¤‚à¤§à¤¨',
+    description: 'à¤®à¥à¤¯à¥à¤šà¥à¤…à¤² à¤«à¤‚à¤¡, à¤ªà¤°à¤¿à¤µà¤¾à¤° à¤Ÿà¥à¤°à¤¸à¥à¤Ÿ, à¤ªà¥‹à¤°à¥à¤Ÿà¤«à¥‹à¤²à¤¿à¤¯à¥‹ à¤ªà¥à¤°à¤¬à¤‚à¤§à¤¨ à¤”à¤° à¤¸à¤‚à¤ªà¤¤à¥à¤¤à¤¿ à¤¯à¥‹à¤œà¤¨à¤¾à¥¤',
+    popularTag: 'à¤¸à¥à¤°à¤•à¥à¤·à¤¿à¤¤ à¤¨à¤¿à¤µà¥‡à¤¶'
   },
   'Family Law': {
-    title: 'पारिवारिक कानून',
-    description: 'तलाक, बाल हिरासत, भरण-पोषण और गोद लेने के मामले।',
-    popularTag: 'संवेदनशील'
+    title: 'à¤ªà¤¾à¤°à¤¿à¤µà¤¾à¤°à¤¿à¤• à¤•à¤¾à¤¨à¥‚à¤¨',
+    description: 'à¤¤à¤²à¤¾à¤•, à¤¬à¤¾à¤² à¤¹à¤¿à¤°à¤¾à¤¸à¤¤, à¤­à¤°à¤£-à¤ªà¥‹à¤·à¤£ à¤”à¤° à¤—à¥‹à¤¦ à¤²à¥‡à¤¨à¥‡ à¤•à¥‡ à¤®à¤¾à¤®à¤²à¥‡à¥¤',
+    popularTag: 'à¤¸à¤‚à¤µà¥‡à¤¦à¤¨à¤¶à¥€à¤²'
   },
   'Criminal Defence': {
-    title: 'आपराधिक बचाव',
-    description: 'जमानत अर्जी, पुलिस मुकदमेबाजी, और सत्र/उच्च न्यायालय रक्षा।',
-    popularTag: 'तत्काल सहायता'
+    title: 'à¤†à¤ªà¤°à¤¾à¤§à¤¿à¤• à¤¬à¤šà¤¾à¤µ',
+    description: 'à¤œà¤®à¤¾à¤¨à¤¤ à¤…à¤°à¥à¤œà¥€, à¤ªà¥à¤²à¤¿à¤¸ à¤®à¥à¤•à¤¦à¤®à¥‡à¤¬à¤¾à¤œà¥€, à¤”à¤° à¤¸à¤¤à¥à¤°/à¤‰à¤šà¥à¤š à¤¨à¥à¤¯à¤¾à¤¯à¤¾à¤²à¤¯ à¤°à¤•à¥à¤·à¤¾à¥¤',
+    popularTag: 'à¤¤à¤¤à¥à¤•à¤¾à¤² à¤¸à¤¹à¤¾à¤¯à¤¤à¤¾'
   },
   'Real Estate Advisory': {
-    title: 'रियल एस्टेट सलाह',
-    description: 'शीर्षक खोज, संपत्ति मूल्यांकन और भूमि विवाद कानूनी जांच।',
-    popularTag: 'सत्यापन'
+    title: 'à¤°à¤¿à¤¯à¤² à¤à¤¸à¥à¤Ÿà¥‡à¤Ÿ à¤¸à¤²à¤¾à¤¹',
+    description: 'à¤¶à¥€à¤°à¥à¤·à¤• à¤–à¥‹à¤œ, à¤¸à¤‚à¤ªà¤¤à¥à¤¤à¤¿ à¤®à¥‚à¤²à¥à¤¯à¤¾à¤‚à¤•à¤¨ à¤”à¤° à¤­à¥‚à¤®à¤¿ à¤µà¤¿à¤µà¤¾à¤¦ à¤•à¤¾à¤¨à¥‚à¤¨à¥€ à¤œà¤¾à¤‚à¤šà¥¤',
+    popularTag: 'à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¨'
   },
   'Insurance Claims': {
-    title: 'बीमा दावे',
-    description: 'अस्वीकृत बीमा दावों का निपटान, दुर्घटना दावों और कानूनी सहायता।',
-    popularTag: 'दावा समर्थन'
+    title: 'à¤¬à¥€à¤®à¤¾ à¤¦à¤¾à¤µà¥‡',
+    description: 'à¤…à¤¸à¥à¤µà¥€à¤•à¥ƒà¤¤ à¤¬à¥€à¤®à¤¾ à¤¦à¤¾à¤µà¥‹à¤‚ à¤•à¤¾ à¤¨à¤¿à¤ªà¤Ÿà¤¾à¤¨, à¤¦à¥à¤°à¥à¤˜à¤Ÿà¤¨à¤¾ à¤¦à¤¾à¤µà¥‹à¤‚ à¤”à¤° à¤•à¤¾à¤¨à¥‚à¤¨à¥€ à¤¸à¤¹à¤¾à¤¯à¤¤à¤¾à¥¤',
+    popularTag: 'à¤¦à¤¾à¤µà¤¾ à¤¸à¤®à¤°à¥à¤¥à¤¨'
   }
 };
 
@@ -317,7 +317,7 @@ const getSubModuleIcon = (moduleId: string | null, subName: string) => {
   return FileText;
 };
 
-/* ── Ticker segment — rendered twice for seamless seamless loop ── */
+/* â”€â”€ Ticker segment â€” rendered twice for seamless seamless loop â”€â”€ */
 function TickerContent() {
   return (
     <span className="inline-flex items-center gap-6 px-8">
@@ -325,16 +325,16 @@ function TickerContent() {
       {/* Badge: Launching */}
       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-[11px] tracking-widest uppercase"
         style={{ background: '#facc15', color: '#1e0a3c' }}>
-        🚀 LAUNCHING OFFER
+        ðŸš€ LAUNCHING OFFER
       </span>
 
       {/* User offer */}
       <span className="inline-flex items-center gap-2">
-        <span className="text-white font-bold text-sm">👤 Users</span>
-        <span className="text-purple-300 line-through text-xs">₹999</span>
+        <span className="text-white font-bold text-sm">ðŸ‘¤ Users</span>
+        <span className="text-purple-300 line-through text-xs">â‚¹999</span>
         <span className="font-black text-xl leading-none"
           style={{ color: '#facc15', textShadow: '0 0 16px rgba(250,204,21,0.9)' }}>
-          ₹99
+          â‚¹99
         </span>
         <span className="text-purple-200 text-xs font-semibold">/yr</span>
         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black"
@@ -344,15 +344,15 @@ function TickerContent() {
       </span>
 
       {/* Dot separator */}
-      <span style={{ color: '#a78bfa', fontSize: '22px', lineHeight: 1, fontWeight: 900 }}>•</span>
+      <span style={{ color: '#a78bfa', fontSize: '22px', lineHeight: 1, fontWeight: 900 }}>â€¢</span>
 
       {/* Advisor offer */}
       <span className="inline-flex items-center gap-2">
-        <span className="text-white font-bold text-sm">🤝 Advisors</span>
-        <span className="text-purple-300 line-through text-xs">₹4,999</span>
+        <span className="text-white font-bold text-sm">ðŸ¤ Advisors</span>
+        <span className="text-purple-300 line-through text-xs">â‚¹4,999</span>
         <span className="font-black text-xl leading-none"
           style={{ color: '#facc15', textShadow: '0 0 16px rgba(250,204,21,0.9)' }}>
-          ₹499
+          â‚¹499
         </span>
         <span className="text-purple-200 text-xs font-semibold">/yr</span>
         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black"
@@ -362,14 +362,14 @@ function TickerContent() {
       </span>
 
       {/* Dot separator */}
-      <span style={{ color: '#a78bfa', fontSize: '22px', lineHeight: 1, fontWeight: 900 }}>•</span>
+      <span style={{ color: '#a78bfa', fontSize: '22px', lineHeight: 1, fontWeight: 900 }}>â€¢</span>
 
       {/* Validity + CTA hint */}
       <span className="inline-flex items-center gap-2">
-        <span className="text-purple-100 font-semibold text-sm">✅ Valid <strong className="text-white">1 Full Year</strong></span>
+        <span className="text-purple-100 font-semibold text-sm">âœ… Valid <strong className="text-white">1 Full Year</strong></span>
         <span className="px-3 py-0.5 rounded-full text-[11px] font-black text-purple-900"
           style={{ background: 'rgba(250,204,21,0.9)', border: '1px solid rgba(250,204,21,0.5)' }}>
-          👆 Click to Grab
+          ðŸ‘† Click to Grab
         </span>
       </span>
 
@@ -377,31 +377,31 @@ function TickerContent() {
   );
 }
 
-/* ── Hero slideshow — 4 AI-style professional photos, rotate every 5 s ── */
+/* â”€â”€ Hero slideshow â€” 4 AI-style professional photos, rotate every 5 s â”€â”€ */
 const HERO_SLIDES = [
   {
     src: '/hero-professionals.png',
     alt: 'Verified professionals collaborating',
-    labelEN: 'Collaborating Advisors',  labelHI: 'सहयोगी सलाहकार',
-    titleEN: 'Verified Experts',        titleHI: 'सत्यापित विशेषज्ञ',
+    labelEN: 'Collaborating Advisors',  labelHI: 'à¤¸à¤¹à¤¯à¥‹à¤—à¥€ à¤¸à¤²à¤¾à¤¹à¤•à¤¾à¤°',
+    titleEN: 'Verified Experts',        titleHI: 'à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¿à¤¤ à¤µà¤¿à¤¶à¥‡à¤·à¤œà¥à¤ž',
   },
   {
     src: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80',
     alt: 'Property & real estate advisory',
-    labelEN: 'Property Experts',        labelHI: 'संपत्ति विशेषज्ञ',
-    titleEN: 'Verified Brokers',        titleHI: 'सत्यापित ब्रोकर',
+    labelEN: 'Property Experts',        labelHI: 'à¤¸à¤‚à¤ªà¤¤à¥à¤¤à¤¿ à¤µà¤¿à¤¶à¥‡à¤·à¤œà¥à¤ž',
+    titleEN: 'Verified Brokers',        titleHI: 'à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¿à¤¤ à¤¬à¥à¤°à¥‹à¤•à¤°',
   },
   {
     src: 'https://images.unsplash.com/photo-1589578228447-e1a4e481c6c8?w=800&q=80',
     alt: 'Legal & court advisory',
-    labelEN: 'Legal Advisors',          labelHI: 'कानूनी सलाहकार',
-    titleEN: 'Licensed Advocates',      titleHI: 'लाइसेंसी अधिवक्ता',
+    labelEN: 'Legal Advisors',          labelHI: 'à¤•à¤¾à¤¨à¥‚à¤¨à¥€ à¤¸à¤²à¤¾à¤¹à¤•à¤¾à¤°',
+    titleEN: 'Licensed Advocates',      titleHI: 'à¤²à¤¾à¤‡à¤¸à¥‡à¤‚à¤¸à¥€ à¤…à¤§à¤¿à¤µà¤•à¥à¤¤à¤¾',
   },
   {
     src: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&q=80',
     alt: 'Financial & tax advisory',
-    labelEN: 'Financial Advisors',      labelHI: 'वित्तीय सलाहकार',
-    titleEN: 'CA & Tax Experts',        titleHI: 'CA और टैक्स विशेषज्ञ',
+    labelEN: 'Financial Advisors',      labelHI: 'à¤µà¤¿à¤¤à¥à¤¤à¥€à¤¯ à¤¸à¤²à¤¾à¤¹à¤•à¤¾à¤°',
+    titleEN: 'CA & Tax Experts',        titleHI: 'CA à¤”à¤° à¤Ÿà¥ˆà¤•à¥à¤¸ à¤µà¤¿à¤¶à¥‡à¤·à¤œà¥à¤ž',
   },
 ];
 
@@ -496,7 +496,7 @@ export default function DiscoverPage() {
     }
   }, [searchQuery, filteredModules]);
 
-  // Listen to select-module event from navbar — open full-screen modal
+  // Listen to select-module event from navbar â€” open full-screen modal
   React.useEffect(() => {
     const handleSelectModule = (e: Event) => {
       const { moduleId } = (e as CustomEvent).detail;
@@ -541,30 +541,30 @@ export default function DiscoverPage() {
     debounceRef.current = setTimeout(() => setDebouncedSearch(value), 300);
   }, []);
 
-  /* ── Location state — must be declared before useQuery ── */
+  /* â”€â”€ Location state â€” must be declared before useQuery â”€â”€ */
   const [selectedState, setSelectedState] = useState<string>(() => {
-    if (typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem('bs_user_state');
+    if (typeof sessionStorage !== 'undefined') {
+      const saved = sessionStorage.getItem('bs_user_state');
       return (saved && saved !== 'All India') ? saved : '';
     }
     return '';
   });
 
   const [selectedDistrict, setSelectedDistrict] = useState<string>(() => {
-    if (typeof localStorage !== 'undefined') {
-      return localStorage.getItem('bs_user_district') || '';
+    if (typeof sessionStorage !== 'undefined') {
+      return sessionStorage.getItem('bs_user_district') || '';
     }
     return '';
   });
 
-  // React Query: cached, deduped, auto-retried — staleTime from QueryClient default (5 min)
+  // React Query: cached, deduped, auto-retried â€” staleTime from QueryClient default (5 min)
   const { data: queryAdvisors, isLoading: loadingAdvisors } = useQuery({
     queryKey: ['advisors', selectedCategories, debouncedSearch, selectedState, selectedDistrict],
     queryFn: () => fetchAdvisors(selectedCategories, debouncedSearch, selectedState, selectedDistrict),
     placeholderData: (prev) => prev,
   });
 
-  // Real advisors only — API already filters by status=APPROVED and category/search
+  // Real advisors only â€” API already filters by status=APPROVED and category/search
   const advisors = useMemo<AdvisorCard[]>(() => queryAdvisors ?? [], [queryAdvisors]);
 
   const handleBookNow = useCallback((advisorId: string) => {
@@ -572,14 +572,14 @@ export default function DiscoverPage() {
     else openLoginModal(() => router.push(`/advisors/${advisorId}`));
   }, [isLoggedIn, router, openLoginModal]);
 
-  // ── Connect flow (inline contact reveal on home page cards) ──
+  // â”€â”€ Connect flow (inline contact reveal on home page cards) â”€â”€
   const [connectLoading, setConnectLoading] = useState<string | null>(null);
   const [revealedContacts, setRevealedContacts] = useState<Record<string, { phone: string; email: string }>>({});
   const [unlockModal, setUnlockModal] = useState<{ id: string; name: string } | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [mockToast, setMockToast] = useState(false);
 
-  // Real advisors have UUID format; mock ones have simple numeric IDs ('1'–'6')
+  // Real advisors have UUID format; mock ones have simple numeric IDs ('1'â€“'6')
   const isMockAdvisor = useCallback((id: string) => /^\d{1,3}$/.test(id), []);
 
   const copyText = useCallback((text: string, key: string) => {
@@ -589,7 +589,7 @@ export default function DiscoverPage() {
   }, []);
 
   const handleConnect = useCallback(async (advisorId: string, advisorName: string) => {
-    // Mock advisors are sample data — no real profile in DB
+    // Mock advisors are sample data â€” no real profile in DB
     if (isMockAdvisor(advisorId)) {
       setMockToast(true);
       setTimeout(() => setMockToast(false), 4000);
@@ -602,7 +602,7 @@ export default function DiscoverPage() {
     if (revealedContacts[advisorId]) return;
     setConnectLoading(advisorId);
     try {
-      const token = localStorage.getItem('accessToken') || '';
+      const token = sessionStorage.getItem('accessToken') || '';
       const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
       const res   = await fetch(`${API_URL}/contacts/unlock/${advisorId}`, {
         method: 'POST',
@@ -625,7 +625,7 @@ export default function DiscoverPage() {
 
   const handleTileClick = useCallback((moduleId: string) => {
     const mod = MODULES_DATA.find(m => m.id === moduleId);
-    // Modules with no sub-services → skip modal, filter advisors directly
+    // Modules with no sub-services â†’ skip modal, filter advisors directly
     if (mod && mod.subModules.length === 0) {
       const categoryName = SLUG_TO_CATEGORY_NAME[moduleId];
       if (categoryName) {
@@ -666,13 +666,13 @@ export default function DiscoverPage() {
   return (
     <div>
 
-      {/* ── Launch Offer Popup (auto on load + click on ticker) ── */}
+      {/* â”€â”€ Launch Offer Popup (auto on load + click on ticker) â”€â”€ */}
       <LaunchOfferPopup forceOpen={showOffer} onForceClose={() => setShowOffer(false)} />
 
-      {/* ── India State Picker Popup (auto after 1.2s + button trigger) ── */}
+      {/* â”€â”€ India State Picker Popup (auto after 1.2s + button trigger) â”€â”€ */}
       <StatePickerPopup forceOpen={showStatePicker} onForceClose={() => setShowStatePicker(false)} />
 
-      {/* ── Contact Unlock Modal (when credits run out during Connect flow) ── */}
+      {/* â”€â”€ Contact Unlock Modal (when credits run out during Connect flow) â”€â”€ */}
       {unlockModal && (
         <ContactUnlockModal
           advisorId={unlockModal.id}
@@ -686,14 +686,14 @@ export default function DiscoverPage() {
         />
       )}
 
-      {/* ══════════════════════════════════════════════════════════
-          OFFER TICKER — Click anywhere to open the plan popup
-          ══════════════════════════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          OFFER TICKER â€” Click anywhere to open the plan popup
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <button
         type="button"
         onClick={() => setShowOffer(true)}
         className="w-full overflow-hidden cursor-pointer select-none block"
-        aria-label="Launching Offer — Click to view plan"
+        aria-label="Launching Offer â€” Click to view plan"
         style={{
           background: '#0f0a1e',
           borderTop: '1px solid rgba(250,204,21,0.25)',
@@ -707,26 +707,26 @@ export default function DiscoverPage() {
             background: 'linear-gradient(90deg, #1e0a3c 0%, #2d0a6e 25%, #4c1d95 50%, #2d0a6e 75%, #1e0a3c 100%)',
           }}>
 
-          {/* Diagonal shine sweep — purely decorative, doesn't block text */}
+          {/* Diagonal shine sweep â€” purely decorative, doesn't block text */}
           <span className="animate-tickerShine absolute top-0 bottom-0 pointer-events-none z-0"
             style={{ width: '80px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
 
-          {/* ── THE SCROLLING TEXT ──
+          {/* â”€â”€ THE SCROLLING TEXT â”€â”€
               Content is duplicated so the second copy fills the gap seamlessly
-              when the first exits. translateX(0→-50%) moves exactly one copy width. */}
+              when the first exits. translateX(0â†’-50%) moves exactly one copy width. */}
           <div className="animate-offerTicker z-10">
 
             {/* Copy A */}
             <TickerContent />
 
-            {/* Copy B — identical, immediately follows A for seamless loop */}
+            {/* Copy B â€” identical, immediately follows A for seamless loop */}
             <TickerContent />
 
           </div>
         </div>
       </button>
 
-      {/* ── Persistent Location Bar — always visible ── */}
+      {/* â”€â”€ Persistent Location Bar â€” always visible â”€â”€ */}
       <div className="flex items-center justify-between px-4 sm:px-6 py-2.5"
         style={{
           background: selectedState
@@ -743,7 +743,7 @@ export default function DiscoverPage() {
           onClick={() => setShowStatePicker(true)}
           className="flex items-center gap-2.5 group transition-all"
         >
-          {/* Pulsing ring — only when no location set */}
+          {/* Pulsing ring â€” only when no location set */}
           {!selectedState && (
             <span className="relative flex shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-40"
@@ -775,7 +775,7 @@ export default function DiscoverPage() {
             <span className="text-[10px] text-white/40 hidden sm:inline">Change location</span>
           ) : (
             <span className="text-[11px] font-semibold hidden sm:inline" style={{ color: 'rgba(212,175,55,0.75)' }}>
-              — tap to filter advisors by state
+              â€” tap to filter advisors by state
             </span>
           )}
         </button>
@@ -792,7 +792,7 @@ export default function DiscoverPage() {
           )}
           {selectedDistrict && (
             <button
-              onClick={() => { setSelectedDistrict(''); localStorage.removeItem('bs_user_district'); }}
+              onClick={() => { setSelectedDistrict(''); sessionStorage.removeItem('bs_user_district'); }}
               className="text-[10px] text-white/35 hover:text-white/70 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-white/5"
             >
               <X size={11} /> District
@@ -803,8 +803,8 @@ export default function DiscoverPage() {
               onClick={() => {
                 setSelectedState('');
                 setSelectedDistrict('');
-                localStorage.removeItem('bs_user_state');
-                localStorage.removeItem('bs_user_district');
+                sessionStorage.removeItem('bs_user_state');
+                sessionStorage.removeItem('bs_user_district');
               }}
               className="text-[10px] text-white/35 hover:text-white/70 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-white/5"
             >
@@ -814,9 +814,9 @@ export default function DiscoverPage() {
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════
-          HERO — Dark navy gradient
-          ═══════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          HERO â€” Dark navy gradient
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <section className={`relative transition-colors duration-300 ${
         theme === 'light' ? 'bg-[#F4F6FB] text-slate-800 border-b border-slate-200' : 'navy-gradient-bg text-white'
       }`}>
@@ -885,7 +885,7 @@ export default function DiscoverPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             {/* Left Content Column */}
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left flex flex-col items-center lg:items-start min-w-0">
-              {/* Heading — English uses large sizing; Hindi uses smaller size + looser line-height
+              {/* Heading â€” English uses large sizing; Hindi uses smaller size + looser line-height
                   because Devanagari glyphs are visually taller and words are longer */}
               <h1 className={`font-black tracking-tight w-full ${
                 theme === 'light' ? 'text-slate-900' : 'text-white'
@@ -897,7 +897,7 @@ export default function DiscoverPage() {
                 {language === 'EN' ? (
                   <>Find your <span className="gold-gradient-text">Agents</span></>
                 ) : (
-                  <>अपने <span className="gold-gradient-text">एजेंट</span> खोजें</>
+                  <>à¤…à¤ªà¤¨à¥‡ <span className="gold-gradient-text">à¤à¤œà¥‡à¤‚à¤Ÿ</span> à¤–à¥‹à¤œà¥‡à¤‚</>
                 )}
               </h1>
 
@@ -909,7 +909,7 @@ export default function DiscoverPage() {
               }`}>
                 {language === 'EN'
                   ? 'Find verified professionals by service, document type, or keyword.'
-                  : 'सेवा, दस्तावेज़ या शब्द से सत्यापित पेशेवर खोजें।'}
+                  : 'à¤¸à¥‡à¤µà¤¾, à¤¦à¤¸à¥à¤¤à¤¾à¤µà¥‡à¤œà¤¼ à¤¯à¤¾ à¤¶à¤¬à¥à¤¦ à¤¸à¥‡ à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¿à¤¤ à¤ªà¥‡à¤¶à¥‡à¤µà¤° à¤–à¥‹à¤œà¥‡à¤‚à¥¤'}
               </p>
 
               {/* Search Bar */}
@@ -922,7 +922,7 @@ export default function DiscoverPage() {
                   <Search className="text-gold-400 ml-3 shrink-0" size={15} />
                   <input
                     type="text"
-                    placeholder={language === 'EN' ? 'Search services, e.g. "GST", "registry", "DL"…' : 'खोजें: "जीएसटी", "रजिस्ट्री"…'}
+                    placeholder={language === 'EN' ? 'Search services, e.g. "GST", "registry", "DL"â€¦' : 'à¤–à¥‹à¤œà¥‡à¤‚: "à¤œà¥€à¤à¤¸à¤Ÿà¥€", "à¤°à¤œà¤¿à¤¸à¥à¤Ÿà¥à¤°à¥€"â€¦'}
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value);
@@ -950,7 +950,7 @@ export default function DiscoverPage() {
                     }}
                     className="bg-[#0C4EAA] text-white font-bold px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-all shrink-0 mr-0.5 shadow-sm active:scale-95"
                   >
-                    {language === 'EN' ? 'Search' : 'खोजें'}
+                    {language === 'EN' ? 'Search' : 'à¤–à¥‹à¤œà¥‡à¤‚'}
                   </button>
                 </div>
 
@@ -991,18 +991,18 @@ export default function DiscoverPage() {
               {/* "Try:" popular tags */}
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 pt-2 text-xs">
                 <span className={`font-bold mr-1 ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
-                  {language === 'EN' ? 'Try:' : 'जैसे:'}
+                  {language === 'EN' ? 'Try:' : 'à¤œà¥ˆà¤¸à¥‡:'}
                 </span>
                 {([
-                  { en: 'Registry',    hi: 'रजिस्ट्री' },
-                  { en: 'Bainama',     hi: 'बैनामा' },
-                  { en: 'Sale Deed',   hi: 'सेल डीड' },
-                  { en: 'GST Filing',  hi: 'जीएसटी' },
-                  { en: 'DL Renewal',  hi: 'DL नवीनीकरण' },
-                  { en: 'Aadhaar',     hi: 'आधार' },
-                  { en: 'ITR',         hi: 'आईटीआर' },
-                  { en: 'Notary',      hi: 'नोटरी' },
-                  { en: 'Labour Card', hi: 'लेबर कार्ड' },
+                  { en: 'Registry',    hi: 'à¤°à¤œà¤¿à¤¸à¥à¤Ÿà¥à¤°à¥€' },
+                  { en: 'Bainama',     hi: 'à¤¬à¥ˆà¤¨à¤¾à¤®à¤¾' },
+                  { en: 'Sale Deed',   hi: 'à¤¸à¥‡à¤² à¤¡à¥€à¤¡' },
+                  { en: 'GST Filing',  hi: 'à¤œà¥€à¤à¤¸à¤Ÿà¥€' },
+                  { en: 'DL Renewal',  hi: 'DL à¤¨à¤µà¥€à¤¨à¥€à¤•à¤°à¤£' },
+                  { en: 'Aadhaar',     hi: 'à¤†à¤§à¤¾à¤°' },
+                  { en: 'ITR',         hi: 'à¤†à¤ˆà¤Ÿà¥€à¤†à¤°' },
+                  { en: 'Notary',      hi: 'à¤¨à¥‹à¤Ÿà¤°à¥€' },
+                  { en: 'Labour Card', hi: 'à¤²à¥‡à¤¬à¤° à¤•à¤¾à¤°à¥à¤¡' },
                 ] as { en: string; hi: string }[]).map((tag) => (
                   <button
                     key={tag.en}
@@ -1026,9 +1026,9 @@ export default function DiscoverPage() {
               </div>
             </div>
 
-            {/* Right Column — Auto-rotating image carousel */}
+            {/* Right Column â€” Auto-rotating image carousel */}
             <div className="lg:col-span-5 relative w-full flex justify-center lg:justify-end mt-6 lg:mt-0">
-              {/* Background glow orbs — hidden on mobile to reduce visual noise */}
+              {/* Background glow orbs â€” hidden on mobile to reduce visual noise */}
               <div className="absolute w-72 h-72 bg-gold-500/10 rounded-full blur-3xl -top-12 -right-12 pointer-events-none animate-pulse hidden sm:block" />
               <div className="absolute w-72 h-72 bg-blue-500/10 rounded-full blur-3xl -bottom-12 -left-12 pointer-events-none animate-pulse hidden sm:block" />
 
@@ -1055,7 +1055,7 @@ export default function DiscoverPage() {
                   {/* Persistent dark gradient overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-[#050E1B]/85 via-transparent to-transparent pointer-events-none" style={{ zIndex: 2 }} />
 
-                  {/* Floating info card — label updates per slide */}
+                  {/* Floating info card â€” label updates per slide */}
                   <div className="absolute bottom-4 left-4 right-4 bg-navy-900/90 backdrop-blur-md border border-gold-500/20 p-4 rounded-xl flex items-center justify-between" style={{ zIndex: 3 }}>
                     <div>
                       <div className="text-[10px] text-gold-400 font-bold uppercase tracking-wider transition-all duration-500">
@@ -1099,20 +1099,20 @@ export default function DiscoverPage() {
       </section>
 
 
-      {/* ═══════════════════════════════════════
-          SERVICES — Light white/gray background with colorful tiles
-          ═══════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          SERVICES â€” Light white/gray background with colorful tiles
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <section id="services-section" className="py-14 sm:py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10 sm:mb-12">
             <span className="inline-block text-[11px] font-bold uppercase tracking-widest text-gold-600 bg-gold-500/10 border border-gold-500/20 px-4 py-1.5 rounded-full mb-4">
-              {language === 'EN' ? 'Our Services' : 'हमारी सेवाएं'}
+              {language === 'EN' ? 'Our Services' : 'à¤¹à¤®à¤¾à¤°à¥€ à¤¸à¥‡à¤µà¤¾à¤à¤‚'}
             </span>
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900 mb-3">
-              {language === 'EN' ? 'Professional Service Categories' : 'पेशेवर सेवा श्रेणियां'}
+              {language === 'EN' ? 'Professional Service Categories' : 'à¤ªà¥‡à¤¶à¥‡à¤µà¤° à¤¸à¥‡à¤µà¤¾ à¤¶à¥à¤°à¥‡à¤£à¤¿à¤¯à¤¾à¤‚'}
             </h2>
             <p className="text-gray-500 text-sm sm:text-base max-w-xl mx-auto">
-              {language === 'EN' ? 'Select a service to find verified professionals near you.' : 'अपने पास सत्यापित पेशेवरों को खोजने के लिए सेवा का चयन करें।'}
+              {language === 'EN' ? 'Select a service to find verified professionals near you.' : 'à¤…à¤ªà¤¨à¥‡ à¤ªà¤¾à¤¸ à¤¸à¤¤à¥à¤¯à¤¾à¤ªà¤¿à¤¤ à¤ªà¥‡à¤¶à¥‡à¤µà¤°à¥‹à¤‚ à¤•à¥‹ à¤–à¥‹à¤œà¤¨à¥‡ à¤•à¥‡ à¤²à¤¿à¤ à¤¸à¥‡à¤µà¤¾ à¤•à¤¾ à¤šà¤¯à¤¨ à¤•à¤°à¥‡à¤‚à¥¤'}
             </p>
           </div>
 
@@ -1158,8 +1158,8 @@ export default function DiscoverPage() {
                     <div className={`flex items-center justify-between w-full text-[10px] sm:text-xs font-bold pt-2 sm:pt-3 border-t border-slate-200/60 ${isExpanded ? colors.text : 'text-slate-600 group-hover:text-slate-800'}`}>
                       <span>
                         {isExpanded
-                          ? (language === 'EN' ? '✓ Selected' : '✓ चयनित')
-                          : (language === 'EN' ? 'Explore →' : 'खोजें →')}
+                          ? (language === 'EN' ? 'âœ“ Selected' : 'âœ“ à¤šà¤¯à¤¨à¤¿à¤¤')
+                          : (language === 'EN' ? 'Explore â†’' : 'à¤–à¥‹à¤œà¥‡à¤‚ â†’')}
                       </span>
                       <ChevronDown
                         size={14}
@@ -1168,7 +1168,7 @@ export default function DiscoverPage() {
                     </div>
                   </button>
 
-                  {/* ── EXPANDED SUBMODULE PANEL ── */}
+                  {/* â”€â”€ EXPANDED SUBMODULE PANEL â”€â”€ */}
                   {isExpanded && (
                     <div
                       className="col-span-2 sm:col-span-3 lg:col-span-4 rounded-2xl border animate-expandPanel overflow-hidden shadow-2xl"
@@ -1202,7 +1202,7 @@ export default function DiscoverPage() {
                         <div className="flex items-center gap-2 self-start sm:self-auto">
                           <span className="text-[10px] font-bold px-3 py-1.5 rounded-full"
                             style={{ background: `${colors.accent}12`, color: colors.accent, border: `1px solid ${colors.accent}25` }}>
-                            {mod.subModules.length} {language === 'EN' ? 'services' : 'सेवाएं'}
+                            {mod.subModules.length} {language === 'EN' ? 'services' : 'à¤¸à¥‡à¤µà¤¾à¤à¤‚'}
                           </span>
                           <button onClick={(e) => { e.stopPropagation(); setExpandedModule(null); }}
                             className="p-1.5 rounded-lg transition-colors"
@@ -1317,7 +1317,7 @@ export default function DiscoverPage() {
                                 style={{ borderColor: `${subAccent}15` }}>
                                 <div className="flex items-center gap-1 text-[11px] font-black transition-all duration-200 group-hover/sub:translate-x-0.5"
                                   style={{ color: subAccent }}>
-                                  <span>{language === 'EN' ? 'Find Expert' : 'विशेषज्ञ खोजें'}</span>
+                                  <span>{language === 'EN' ? 'Find Expert' : 'à¤µà¤¿à¤¶à¥‡à¤·à¤œà¥à¤ž à¤–à¥‹à¤œà¥‡à¤‚'}</span>
                                   <ArrowRight size={12} className="group-hover/sub:translate-x-1 transition-transform" />
                                 </div>
                                 <div className="w-5 h-5 rounded-full flex items-center justify-center"
@@ -1342,13 +1342,13 @@ export default function DiscoverPage() {
       </section>
 
 
-      {/* ═══════════════════════════════════════
-          ADVISORS — White background with clean cards
-          ═══════════════════════════════════════ */}
-      {/* ── Mock advisor toast ── */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          ADVISORS â€” White background with clean cards
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* â”€â”€ Mock advisor toast â”€â”€ */}
       {mockToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] bg-navy-800 text-white text-xs font-semibold px-5 py-3 rounded-2xl shadow-2xl border border-gold-500/30 flex items-center gap-2 animate-popIn max-w-sm text-center">
-          <span>🧪</span>
+          <span>ðŸ§ª</span>
           <span>These are <strong>sample advisors</strong>. Onboard a real advisor to test the Connect flow with actual contact details.</span>
         </div>
       )}
@@ -1441,7 +1441,7 @@ export default function DiscoverPage() {
                     <div className="-mx-5 sm:-mx-6 -mt-5 sm:-mt-6 mb-0 px-5 sm:px-6 py-2 bg-gradient-to-r from-amber-50 to-yellow-50 border-b border-amber-200 rounded-t-2xl flex items-center gap-2">
                       <BadgeCheck size={13} className="text-amber-600 shrink-0" />
                       <span className="text-amber-700 text-[10px] font-bold uppercase tracking-widest">
-                        {language === 'EN' ? 'BrokerSaab Authorised Dealer' : 'BrokerSaab अधिकृत डीलर'}
+                        {language === 'EN' ? 'BrokerSaab Authorised Dealer' : 'BrokerSaab à¤…à¤§à¤¿à¤•à¥ƒà¤¤ à¤¡à¥€à¤²à¤°'}
                       </span>
                     </div>
                   )}
@@ -1500,9 +1500,9 @@ export default function DiscoverPage() {
                   {/* Footer */}
                   <div className="border-t border-gray-100 pt-4 shrink-0 space-y-3">
                     {revealedContacts[advisor.id] ? (
-                      /* ── Contact revealed inline ── */
+                      /* â”€â”€ Contact revealed inline â”€â”€ */
                       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 space-y-2">
-                        <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Contact Revealed ✓</p>
+                        <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Contact Revealed âœ“</p>
                         <div className="flex items-center gap-2 text-xs text-gray-800">
                           <Phone size={12} className="text-emerald-600 shrink-0" />
                           <span className="font-mono font-semibold">{revealedContacts[advisor.id].phone}</span>
@@ -1525,7 +1525,7 @@ export default function DiscoverPage() {
                         <div>
                           <p className="text-[10px] text-gray-400 uppercase tracking-widest">Consultation Fee</p>
                           <p className="text-lg sm:text-xl font-extrabold text-gray-900">
-                            ₹{advisor.consultationFee}
+                            â‚¹{advisor.consultationFee}
                             <span className="text-xs font-normal text-gray-400 ml-1">/ session</span>
                           </p>
                         </div>
@@ -1543,7 +1543,7 @@ export default function DiscoverPage() {
                           className="flex-1 bg-gold-500 text-navy-800 font-semibold flex items-center justify-center gap-1.5 text-xs px-3 py-2.5 rounded-lg shadow-md hover:bg-gold-400 hover:shadow-lg transition-all disabled:opacity-70"
                         >
                           {connectLoading === advisor.id
-                            ? <><Loader2 size={13} className="animate-spin" /> Connecting…</>
+                            ? <><Loader2 size={13} className="animate-spin" /> Connectingâ€¦</>
                             : <><Phone size={13} /> Connect</>}
                         </button>
                         </div>
@@ -1558,9 +1558,9 @@ export default function DiscoverPage() {
       </section>
 
 
-      {/* ═══════════════════════════════════════
-          HOW IT WORKS — Light gray background
-          ═══════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          HOW IT WORKS â€” Light gray background
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <section className="py-14 sm:py-16 bg-gray-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
           <span className="inline-block text-[11px] font-bold uppercase tracking-widest text-gold-600 bg-gold-500/10 border border-gold-500/20 px-4 py-1.5 rounded-full mb-4">
@@ -1595,9 +1595,9 @@ export default function DiscoverPage() {
       </section>
 
 
-      {/* ═══════════════════════════════════════
-          CTA — Dark banner
-          ═══════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          CTA â€” Dark banner
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <section className="py-14 sm:py-16 navy-gradient-bg relative overflow-hidden">
         <div className="absolute inset-0 animate-shimmer" />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
@@ -1623,7 +1623,7 @@ export default function DiscoverPage() {
         </div>
       </section>
 
-      {/* ── Service Detail Modal — full-screen on service click ── */}
+      {/* â”€â”€ Service Detail Modal â€” full-screen on service click â”€â”€ */}
       {serviceModal && (() => {
         const mod = MODULES_DATA.find(m => m.id === serviceModal) ?? null;
         const colorIdx = MODULES_DATA.findIndex(m => m.id === serviceModal);
@@ -1636,7 +1636,7 @@ export default function DiscoverPage() {
             onClose={() => setServiceModal(null)}
             onSelectSubs={(slugs) => {
               setServiceModal(null);
-              // Use the parent module's category name directly (mod.id = 'm17' → 'Electricity, Water & Gas')
+              // Use the parent module's category name directly (mod.id = 'm17' â†’ 'Electricity, Water & Gas')
               // Sub-service slugs (s17-1, s17-2) are NOT in SLUG_TO_CATEGORY_NAME
               const moduleCategoryName = mod ? SLUG_TO_CATEGORY_NAME[mod.id] : null;
               const categoryNames = moduleCategoryName

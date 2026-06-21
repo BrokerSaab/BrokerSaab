@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -28,7 +28,7 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-// LoginModal is imported here to avoid circular dep — we import the component lazily
+// LoginModal is imported here to avoid circular dep â€” we import the component lazily
 // by accepting it as a prop via the children pattern inside AuthProvider's JSX.
 // Instead, we render it directly below after importing.
 import LoginModal from '@/components/LoginModal';
@@ -39,16 +39,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const afterLoginCallbackRef = useRef<(() => void) | null>(null);
 
-  // Hydrate from localStorage after mount (avoids SSR mismatch).
+  // Hydrate from sessionStorage after mount (avoids SSR mismatch).
   // authReady stays false until this runs, so pages that redirect on
   // `!isLoggedIn` don't bounce an already-logged-in user before we've
-  // had a chance to read their session back out of localStorage.
+  // had a chance to read their session back out of sessionStorage.
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('user');
+      const stored = sessionStorage.getItem('user');
       if (stored) setUser(JSON.parse(stored));
     } catch {
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('user');
     } finally {
       setAuthReady(true);
     }
@@ -67,19 +67,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('tempToken');
+    sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('tempToken');
     setUser(null);
     setIsModalOpen(false);
     afterLoginCallbackRef.current = null;
     if (typeof document !== 'undefined') document.body.style.overflow = '';
   };
 
-  // Private — passed directly to LoginModal, not exposed through context
+  // Private â€” passed directly to LoginModal, not exposed through context
   const handleLoginSuccess = (userData: AuthUser) => {
-    localStorage.setItem('user', JSON.stringify(userData));
+    sessionStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
     setIsModalOpen(false);
     if (typeof document !== 'undefined') document.body.style.overflow = '';

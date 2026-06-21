@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -88,6 +88,7 @@ export default function TicketDetailPage() {
   const [closeRating,    setCloseRating]    = useState(0);
   const [closeReview,    setCloseReview]    = useState('');
   const [closing,        setClosing]        = useState(false);
+  const [closeError,     setCloseError]     = useState('');
 
   // Dispute
   const [showDispute,    setShowDispute]    = useState(false);
@@ -96,7 +97,7 @@ export default function TicketDetailPage() {
 
   const fetchTicket = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       const res   = await fetch(`${API}/tickets/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       const data  = await res.json();
       if (data.success) setTicket(data.data);
@@ -126,7 +127,7 @@ export default function TicketDetailPage() {
     if (!comment.trim()) return;
     setSending(true);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       await fetch(`${API}/tickets/${id}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -142,7 +143,7 @@ export default function TicketDetailPage() {
     if (!stageTitle.trim()) return;
     setAddingStage(true);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       await fetch(`${API}/tickets/${id}/stages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -157,7 +158,7 @@ export default function TicketDetailPage() {
   const updateStageStatus = async (stageId: string, status: 'IN_PROGRESS' | 'AWAITING_CONFIRM') => {
     setUpdatingStage(stageId + status);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       await fetch(`${API}/tickets/${id}/stages/${stageId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -172,7 +173,7 @@ export default function TicketDetailPage() {
   const confirmStage = async (stageId: string) => {
     setUpdatingStage(stageId + 'CONFIRM');
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       await fetch(`${API}/tickets/${id}/stages/${stageId}/confirm`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -185,8 +186,9 @@ export default function TicketDetailPage() {
   const closeTicket = async () => {
     if (!closeComment.trim() || closeRating === 0) return;
     setClosing(true);
+    setCloseError('');
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       const res   = await fetch(`${API}/tickets/${id}/close`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -194,14 +196,15 @@ export default function TicketDetailPage() {
       });
       const data = await res.json();
       if (data.success) { setShowClose(false); fetchTicket(); }
-    } catch { /* ignore */ }
+      else setCloseError(data.message || 'Failed to close ticket. Please try again.');
+    } catch { setCloseError('Network error. Please try again.'); }
     finally { setClosing(false); }
   };
 
   const raiseDispute = async () => {
     setDisputing(true);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = sessionStorage.getItem('accessToken');
       await fetch(`${API}/tickets/${id}/dispute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -573,8 +576,14 @@ export default function TicketDetailPage() {
                   rows={2}
                   className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none transition-all resize-none"
                 />
+                {closeError && (
+                  <div className="flex items-center gap-2 bg-red-500/15 border border-red-500/30 rounded-xl px-3 py-2">
+                    <AlertCircle size={13} className="text-red-400 shrink-0" />
+                    <p className="text-xs text-red-300">{closeError}</p>
+                  </div>
+                )}
                 <div className="flex gap-2">
-                  <button onClick={() => setShowClose(false)}
+                  <button onClick={() => { setShowClose(false); setCloseError(''); }}
                     className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-white/40 border border-white/10 hover:bg-white/5 transition-all">Cancel</button>
                   <button onClick={closeTicket} disabled={closing || !closeComment.trim() || closeRating === 0}
                     className="flex-[2] py-2.5 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1.5 disabled:opacity-50 transition-all hover:brightness-110"

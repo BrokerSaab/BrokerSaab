@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageCircle, X, ArrowLeft, Send, Loader2, CheckCircle2, AlertCircle, ChevronRight } from 'lucide-react';
@@ -26,42 +26,42 @@ interface Message {
 
 const FAQ_HOW = `BrokerSaab connects you with verified advisors in 5 steps:
 
-1️⃣ Search for a service (property, legal, tax, vehicle, etc.)
-2️⃣ Browse verified advisor profiles with ratings & reviews
-3️⃣ Connect — your 1st contact is completely FREE
-4️⃣ Book a consultation via escrow-protected payment
-5️⃣ Get expert guidance from a verified professional
+1ï¸âƒ£ Search for a service (property, legal, tax, vehicle, etc.)
+2ï¸âƒ£ Browse verified advisor profiles with ratings & reviews
+3ï¸âƒ£ Connect â€” your 1st contact is completely FREE
+4ï¸âƒ£ Book a consultation via escrow-protected payment
+5ï¸âƒ£ Get expert guidance from a verified professional
 
-All payments are held in escrow and released only after your consultation is completed. BrokerSaab does not guarantee advice quality — please verify advisor credentials independently.`;
+All payments are held in escrow and released only after your consultation is completed. BrokerSaab does not guarantee advice quality â€” please verify advisor credentials independently.`;
 
-const FAQ_PLANS = `📦 Contact Unlock Pack — ₹99/year
-• Original price: ₹999 (90% OFF launch offer)
-• ₹116.82 including 18% GST
-• Unlocks 20 advisor phone numbers + emails
-• Valid for 1 full year from purchase
-• 100% refund guarantee within 7 days
+const FAQ_PLANS = `ðŸ“¦ Contact Unlock Pack â€” â‚¹99/year
+â€¢ Original price: â‚¹999 (90% OFF launch offer)
+â€¢ â‚¹116.82 including 18% GST
+â€¢ Unlocks 20 advisor phone numbers + emails
+â€¢ Valid for 1 full year from purchase
+â€¢ 100% refund guarantee within 7 days
 
-🛡️ Advisor Subscription — ₹499/year
-• Original price: ₹4,999 (90% OFF launch offer)
-• Authorised Dealer badge on your profile
-• Enhanced visibility to users
-• Valid for 1 full year
+ðŸ›¡ï¸ Advisor Subscription â€” â‚¹499/year
+â€¢ Original price: â‚¹4,999 (90% OFF launch offer)
+â€¢ Authorised Dealer badge on your profile
+â€¢ Enhanced visibility to users
+â€¢ Valid for 1 full year
 
-💡 Your 1st advisor contact is always FREE — no payment needed to try the platform.`;
+ðŸ’¡ Your 1st advisor contact is always FREE â€” no payment needed to try the platform.`;
 
 const FAQ_ONBOARDING = `To register as an advisor on BrokerSaab:
 
-1️⃣ Go to Advisors → Register as Advisor
-2️⃣ Enter your phone number → verify with OTP
-3️⃣ Fill in business details (name, license, location, consultation fee)
-4️⃣ Upload KYC documents (Aadhaar, passport photo, license copy)
-5️⃣ Select your service categories & weekly availability
-6️⃣ Complete subscription payment (₹499/year)
-7️⃣ Wait for admin review & approval (24–48 hours)
+1ï¸âƒ£ Go to Advisors â†’ Register as Advisor
+2ï¸âƒ£ Enter your phone number â†’ verify with OTP
+3ï¸âƒ£ Fill in business details (name, license, location, consultation fee)
+4ï¸âƒ£ Upload KYC documents (Aadhaar, passport photo, license copy)
+5ï¸âƒ£ Select your service categories & weekly availability
+6ï¸âƒ£ Complete subscription payment (â‚¹499/year)
+7ï¸âƒ£ Wait for admin review & approval (24â€“48 hours)
 
 Once approved, your profile goes live and users can find and contact you.
 
-⚠️ BrokerSaab is a neutral marketplace. You are responsible for the accuracy of your profile.`;
+âš ï¸ BrokerSaab is a neutral marketplace. You are responsible for the accuracy of your profile.`;
 
 export default function ChatbotWidget() {
   const { isLoggedIn, openLoginModal } = useAuth();
@@ -76,7 +76,7 @@ export default function ChatbotWidget() {
   const [hasUnread, setHasUnread]   = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const token = () => (typeof localStorage !== 'undefined' ? localStorage.getItem('accessToken') || '' : '');
+  const token = () => (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('accessToken') || '' : '');
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -87,7 +87,7 @@ export default function ChatbotWidget() {
   // On open, show the home welcome message
   useEffect(() => {
     if (isOpen && messages.length === 0) {
-      setMessages([{ from: 'bot', text: `Hi there! 👋 I'm the BrokerSaab assistant.\n\nHow can I help you today? Please choose an option below.` }]);
+      setMessages([{ from: 'bot', text: `Hi there! ðŸ‘‹ I'm the BrokerSaab assistant.\n\nHow can I help you today? Please choose an option below.` }]);
     }
     if (isOpen) setHasUnread(false);
   }, [isOpen, messages.length]);
@@ -167,14 +167,14 @@ export default function ChatbotWidget() {
         const tId = `BS-${data.ticket.id.slice(-8).toUpperCase()}`;
         setTicketId(tId);
         setChatState('ticket_success');
-        addMsg({ from: 'bot', text: `✅ Ticket created successfully!\n\nTicket ID: ${tId}\n\nOur support team will get back to you within 24 hours. Thank you for reaching out!` });
+        addMsg({ from: 'bot', text: `âœ… Ticket created successfully!\n\nTicket ID: ${tId}\n\nOur support team will get back to you within 24 hours. Thank you for reaching out!` });
       } else {
         setChatState('ticket_error');
-        addMsg({ from: 'bot', text: `❌ Something went wrong: ${data.message || 'Please try again.'}` });
+        addMsg({ from: 'bot', text: `âŒ Something went wrong: ${data.message || 'Please try again.'}` });
       }
     } catch {
       setChatState('ticket_error');
-      addMsg({ from: 'bot', text: `❌ Could not connect to the server. Please check your connection and try again.` });
+      addMsg({ from: 'bot', text: `âŒ Could not connect to the server. Please check your connection and try again.` });
     } finally {
       setSubmitting(false);
       setSubject('');
@@ -189,11 +189,11 @@ export default function ChatbotWidget() {
   }, [otherText, handleSubmitTicket]);
 
   const HOME_OPTIONS = [
-    { label: 'How BrokerSaab works', icon: '🔍' },
-    { label: 'Subscription plans', icon: '💰' },
-    { label: 'Advisor onboarding', icon: '📋' },
-    { label: 'Raise a support ticket', icon: '🎫' },
-    { label: 'Other question', icon: '💬' },
+    { label: 'How BrokerSaab works', icon: 'ðŸ”' },
+    { label: 'Subscription plans', icon: 'ðŸ’°' },
+    { label: 'Advisor onboarding', icon: 'ðŸ“‹' },
+    { label: 'Raise a support ticket', icon: 'ðŸŽ«' },
+    { label: 'Other question', icon: 'ðŸ’¬' },
   ];
 
   return (
@@ -221,7 +221,7 @@ export default function ChatbotWidget() {
                 <p className="text-white font-bold text-sm">BrokerSaab Support</p>
                 <p className="text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                  Online · Typically replies in minutes
+                  Online Â· Typically replies in minutes
                 </p>
               </div>
             </div>
@@ -266,7 +266,7 @@ export default function ChatbotWidget() {
           {/* Quick reply buttons / forms */}
           <div className="px-4 pb-4 space-y-2 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
 
-            {/* HOME — option buttons */}
+            {/* HOME â€” option buttons */}
             {chatState === 'home' && (
               <div className="pt-3 space-y-1.5">
                 {HOME_OPTIONS.map(({ label, icon }) => (
@@ -286,7 +286,7 @@ export default function ChatbotWidget() {
               </div>
             )}
 
-            {/* FAQ states — back button */}
+            {/* FAQ states â€” back button */}
             {(chatState === 'faq_how' || chatState === 'faq_plans' || chatState === 'faq_onboarding') && (
               <div className="pt-3 flex gap-2">
                 <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={goHome}
@@ -298,12 +298,12 @@ export default function ChatbotWidget() {
                   onClick={() => { handleOption('Raise a support ticket'); }}
                   className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all"
                   style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.3)', color: '#D4AF37' }}>
-                  🎫 Raise a ticket
+                  ðŸŽ« Raise a ticket
                 </button>
               </div>
             )}
 
-            {/* TICKET CHECK — not logged in */}
+            {/* TICKET CHECK â€” not logged in */}
             {chatState === 'ticket_check' && !isLoggedIn && (
               <div className="pt-3 flex gap-2">
                 <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={goHome}
@@ -314,7 +314,7 @@ export default function ChatbotWidget() {
                 <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={handleSignIn}
                   className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all"
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}>
-                  Sign In to Continue →
+                  Sign In to Continue â†’
                 </button>
               </div>
             )}
@@ -326,7 +326,7 @@ export default function ChatbotWidget() {
                   type="text"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Subject (e.g. Payment issue, Profile not approved…)"
+                  placeholder="Subject (e.g. Payment issue, Profile not approvedâ€¦)"
                   maxLength={200}
                   className="w-full px-3 py-2 rounded-xl text-xs outline-none text-white placeholder-white/30"
                   style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
@@ -334,7 +334,7 @@ export default function ChatbotWidget() {
                 <textarea
                   value={description}
                   onChange={(e) => setDesc(e.target.value)}
-                  placeholder="Describe your issue in detail…"
+                  placeholder="Describe your issue in detailâ€¦"
                   maxLength={2000}
                   rows={3}
                   className="w-full px-3 py-2 rounded-xl text-xs outline-none text-white placeholder-white/30 resize-none"
@@ -354,7 +354,7 @@ export default function ChatbotWidget() {
                     className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
                     style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}
                   >
-                    {submitting ? <><Loader2 size={12} className="animate-spin" /> Submitting…</> : <><Send size={12} /> Submit Ticket</>}
+                    {submitting ? <><Loader2 size={12} className="animate-spin" /> Submittingâ€¦</> : <><Send size={12} /> Submit Ticket</>}
                   </button>
                 </div>
               </div>
@@ -366,7 +366,7 @@ export default function ChatbotWidget() {
                 <textarea
                   value={otherText}
                   onChange={(e) => setOther(e.target.value)}
-                  placeholder="Type your question or issue here…"
+                  placeholder="Type your question or issue hereâ€¦"
                   maxLength={2000}
                   rows={3}
                   className="w-full px-3 py-2 rounded-xl text-xs outline-none text-white placeholder-white/30 resize-none"
@@ -392,13 +392,13 @@ export default function ChatbotWidget() {
                     className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
                     style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}
                   >
-                    {submitting ? <><Loader2 size={12} className="animate-spin" /> Sending…</> : <><Send size={12} /> Send</>}
+                    {submitting ? <><Loader2 size={12} className="animate-spin" /> Sendingâ€¦</> : <><Send size={12} /> Send</>}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* SUCCESS / ERROR — back to menu */}
+            {/* SUCCESS / ERROR â€” back to menu */}
             {(chatState === 'ticket_success' || chatState === 'ticket_error') && (
               <div className="pt-3 flex gap-2">
                 <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={goHome}

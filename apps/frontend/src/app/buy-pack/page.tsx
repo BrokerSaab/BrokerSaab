@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -12,7 +12,7 @@ import {
 const API     = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 const IS_DEV  = process.env.NODE_ENV !== 'production';
 
-// Pack constants — mirror backend
+// Pack constants â€” mirror backend
 const BASE    = 99;
 const ORIG    = 999;
 const CGST    = Math.round(BASE * 0.09 * 100) / 100;   // 8.91
@@ -23,11 +23,11 @@ const DISC    = Math.round((1 - BASE / ORIG) * 100);
 
 const WHAT_YOU_GET = [
   { icon: Eye,         text: `Reveal ${CREDITS} verified advisor contacts (phone + email)` },
-  { icon: Clock,       text: '1-year validity — use credits any time within 12 months' },
+  { icon: Clock,       text: '1-year validity â€” use credits any time within 12 months' },
   { icon: ShieldCheck, text: 'Every advisor is KYC-verified by our review team' },
-  { icon: Phone,       text: 'Call or WhatsApp directly — skip the booking queue' },
+  { icon: Phone,       text: 'Call or WhatsApp directly â€” skip the booking queue' },
   { icon: Zap,         text: 'Credits appear in your account instantly after payment' },
-  { icon: BadgeCheck,  text: 'First advisor contact is always FREE — no pack needed' },
+  { icon: BadgeCheck,  text: 'First advisor contact is always FREE â€” no pack needed' },
 ];
 
 export default function BuyPackPage() {
@@ -38,9 +38,9 @@ export default function BuyPackPage() {
   const [success,  setSuccess]  = useState(false);
   const [invoice,  setInvoice]  = useState('');
 
-  const token = () => typeof window !== 'undefined' ? localStorage.getItem('accessToken') || '' : '';
+  const token = () => typeof window !== 'undefined' ? sessionStorage.getItem('accessToken') || '' : '';
 
-  // ── Razorpay payment ─────────────────────────────────────────────
+  // â”€â”€ Razorpay payment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handlePay = async () => {
     if (!token()) { router.push('/auth'); return; }
     setLoading(true); setError('');
@@ -60,10 +60,10 @@ export default function BuyPackPage() {
         });
       }
 
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const user = JSON.parse(sessionStorage.getItem('user') || '{}');
       new (window as any).Razorpay({
         key: od.keyId, amount: od.amount, currency: 'INR',
-        name: 'BrokerSaab', description: `Contact Pack — ${CREDITS} Advisor Contacts`,
+        name: 'BrokerSaab', description: `Contact Pack â€” ${CREDITS} Advisor Contacts`,
         order_id: od.orderId, theme: { color: '#D4AF37' },
         prefill: { name: user.fullName, contact: user.phoneNumber },
         handler: async (rp: any) => {
@@ -88,7 +88,7 @@ export default function BuyPackPage() {
     } catch (e: any) { setError(e.message || 'Payment failed.'); setLoading(false); }
   };
 
-  // ── Dev-mode instant activation ──────────────────────────────────
+  // â”€â”€ Dev-mode instant activation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleDevActivate = async () => {
     if (!token()) { router.push('/auth'); return; }
     setDevLoad(true); setError('');
@@ -103,7 +103,7 @@ export default function BuyPackPage() {
     finally { setDevLoad(false); }
   };
 
-  // ── Success screen ───────────────────────────────────────────────
+  // â”€â”€ Success screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4"
@@ -125,7 +125,7 @@ export default function BuyPackPage() {
                 ['Invoice', invoice],
                 ['Credits', `${CREDITS} contacts`],
                 ['Validity', '1 Year'],
-                ['Amount Paid', `₹${TOTAL.toFixed(2)}`],
+                ['Amount Paid', `â‚¹${TOTAL.toFixed(2)}`],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between">
                   <span className="text-gray-500">{k}</span>
@@ -150,7 +150,7 @@ export default function BuyPackPage() {
     );
   }
 
-  // ── Main page ────────────────────────────────────────────────────
+  // â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <div className="min-h-screen overflow-y-auto"
       style={{ background: 'linear-gradient(135deg,#0B1F3A 0%,#1a1040 50%,#0B1F3A 100%)' }}>
@@ -175,20 +175,20 @@ export default function BuyPackPage() {
         <div className="text-center mb-7">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-3 text-[10px] font-black uppercase tracking-widest"
             style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.3)', color: '#D4AF37' }}>
-            <Star size={11} /> {DISC}% Off — Limited Offer
+            <Star size={11} /> {DISC}% Off â€” Limited Offer
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">
-            Contact Pack — {CREDITS} Advisor Contacts
+            Contact Pack â€” {CREDITS} Advisor Contacts
           </h1>
           <p className="text-white/40 text-sm max-w-lg mx-auto">
-            Reveal direct phone &amp; email of verified advisors. Call them instantly — no booking queue.
+            Reveal direct phone &amp; email of verified advisors. Call them instantly â€” no booking queue.
           </p>
         </div>
 
         {/* Two-column grid */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
-          {/* ── LEFT: What you get (3/5 cols) ── */}
+          {/* â”€â”€ LEFT: What you get (3/5 cols) â”€â”€ */}
           <div className="lg:col-span-3 space-y-4">
 
             {/* Features */}
@@ -217,9 +217,9 @@ export default function BuyPackPage() {
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}>
               <span className="text-[11px] font-black text-[#D4AF37] uppercase tracking-widest">Common Questions</span>
               {[
-                { q: 'Is the first contact free?', a: "Yes — your very first advisor contact is always free, no pack needed." },
+                { q: 'Is the first contact free?', a: "Yes â€” your very first advisor contact is always free, no pack needed." },
                 { q: 'What if I don\'t use all 20?', a: 'Unused credits expire after 1 year. Refunds available within 7 days if no contact was unlocked.' },
-                { q: 'Can I use 1 credit per advisor?', a: 'Exactly — 1 credit reveals one advisor. Mix and match any 20 advisors you like.' },
+                { q: 'Can I use 1 credit per advisor?', a: 'Exactly â€” 1 credit reveals one advisor. Mix and match any 20 advisors you like.' },
               ].map(item => (
                 <div key={item.q} className="border-t pt-3 first:border-t-0 first:pt-0"
                   style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
@@ -230,7 +230,7 @@ export default function BuyPackPage() {
             </div>
           </div>
 
-          {/* ── RIGHT: Pricing card (2/5 cols) ── */}
+          {/* â”€â”€ RIGHT: Pricing card (2/5 cols) â”€â”€ */}
           <div className="lg:col-span-2">
             <div className="rounded-2xl overflow-hidden"
               style={{ border: '1px solid rgba(212,175,55,0.3)', boxShadow: '0 20px 50px rgba(0,0,0,0.4)' }}>
@@ -244,10 +244,10 @@ export default function BuyPackPage() {
                   <Award size={9} /> Best Value
                 </div>
                 <div className="flex items-end justify-center gap-2">
-                  <span className="text-white/30 text-xs line-through">₹{ORIG}</span>
-                  <span className="text-3xl font-black text-white">₹{TOTAL.toFixed(2)}</span>
+                  <span className="text-white/30 text-xs line-through">â‚¹{ORIG}</span>
+                  <span className="text-3xl font-black text-white">â‚¹{TOTAL.toFixed(2)}</span>
                 </div>
-                <p className="text-white/40 text-[10px] mt-0.5">Incl. 18% GST · One-time payment</p>
+                <p className="text-white/40 text-[10px] mt-0.5">Incl. 18% GST Â· One-time payment</p>
               </div>
 
               {/* Card body */}
@@ -264,10 +264,10 @@ export default function BuyPackPage() {
                 {/* Price breakdown */}
                 <div className="space-y-1 text-xs">
                   {[
-                    { label: 'Base Price',                  val: `₹${BASE}.00`,             cls: 'text-gray-600' },
-                    { label: `Discount (${DISC}% off ₹${ORIG})`, val: `– ₹${ORIG-BASE}.00`,cls: 'text-emerald-600 font-semibold' },
-                    { label: 'CGST @ 9%',                   val: `₹${CGST.toFixed(2)}`,    cls: 'text-gray-400' },
-                    { label: 'SGST @ 9%',                   val: `₹${SGST.toFixed(2)}`,    cls: 'text-gray-400' },
+                    { label: 'Base Price',                  val: `â‚¹${BASE}.00`,             cls: 'text-gray-600' },
+                    { label: `Discount (${DISC}% off â‚¹${ORIG})`, val: `â€“ â‚¹${ORIG-BASE}.00`,cls: 'text-emerald-600 font-semibold' },
+                    { label: 'CGST @ 9%',                   val: `â‚¹${CGST.toFixed(2)}`,    cls: 'text-gray-400' },
+                    { label: 'SGST @ 9%',                   val: `â‚¹${SGST.toFixed(2)}`,    cls: 'text-gray-400' },
                   ].map(r => (
                     <div key={r.label} className={`flex justify-between ${r.cls}`}>
                       <span>{r.label}</span><span>{r.val}</span>
@@ -275,14 +275,14 @@ export default function BuyPackPage() {
                   ))}
                   <div className="flex justify-between font-black text-sm border-t-2 border-gray-200 pt-2 mt-1">
                     <span className="text-gray-900">Total Payable</span>
-                    <span style={{ color: '#B48C22' }}>₹{TOTAL.toFixed(2)}</span>
+                    <span style={{ color: '#B48C22' }}>â‚¹{TOTAL.toFixed(2)}</span>
                   </div>
                 </div>
 
                 {/* Error */}
                 {error && (
                   <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-red-700 text-xs">
-                    <span className="mt-0.5 shrink-0">⚠</span><span>{error}</span>
+                    <span className="mt-0.5 shrink-0">âš </span><span>{error}</span>
                   </div>
                 )}
 
@@ -291,8 +291,8 @@ export default function BuyPackPage() {
                   className="w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 6px 18px rgba(212,175,55,0.35)' }}>
                   {loading
-                    ? <><Loader2 size={16} className="animate-spin" /> Processing…</>
-                    : <><CreditCard size={15} /> Pay ₹{TOTAL.toFixed(2)} Securely</>}
+                    ? <><Loader2 size={16} className="animate-spin" /> Processingâ€¦</>
+                    : <><CreditCard size={15} /> Pay â‚¹{TOTAL.toFixed(2)} Securely</>}
                 </button>
 
                 {/* Dev mode test button */}
@@ -301,8 +301,8 @@ export default function BuyPackPage() {
                     className="w-full py-2.5 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 transition-all hover:brightness-105 disabled:opacity-50 border-2"
                     style={{ borderColor: 'rgba(79,70,229,0.4)', color: '#4F46E5', background: 'rgba(79,70,229,0.06)' }}>
                     {devLoad
-                      ? <><Loader2 size={13} className="animate-spin" /> Activating…</>
-                      : <><FlaskConical size={13} /> Test Mode — Simulate Payment</>}
+                      ? <><Loader2 size={13} className="animate-spin" /> Activatingâ€¦</>
+                      : <><FlaskConical size={13} /> Test Mode â€” Simulate Payment</>}
                   </button>
                 )}
 
@@ -311,11 +311,11 @@ export default function BuyPackPage() {
                   <div className="flex items-center gap-1 text-[10px] text-gray-400">
                     <Lock size={10} className="text-emerald-500" /> Encrypted
                   </div>
-                  <span className="text-gray-200 text-xs">·</span>
+                  <span className="text-gray-200 text-xs">Â·</span>
                   <div className="flex items-center gap-1 text-[10px] text-gray-400">
                     <ShieldCheck size={10} className="text-[#D4AF37]" /> Razorpay
                   </div>
-                  <span className="text-gray-200 text-xs">·</span>
+                  <span className="text-gray-200 text-xs">Â·</span>
                   <div className="flex items-center gap-1 text-[10px] text-gray-400">
                     <CheckCircle2 size={10} className="text-blue-400" /> Refundable
                   </div>

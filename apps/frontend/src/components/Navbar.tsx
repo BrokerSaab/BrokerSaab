@@ -9,7 +9,7 @@ import {
   Scale, Building2, CreditCard, Languages, ArrowRight,
   FileHeart, UserCheck, Award, Lightbulb, Car, Users, GraduationCap,
   HeartHandshake, TrendingUp, Globe, Zap, Sprout, Laptop,
-  Flag, Plane, School, ClipboardList, Sparkles, MapPin
+  Flag, Plane, School, ClipboardList, Sparkles, MapPin, Stethoscope, Package
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -50,16 +50,18 @@ const NAV_MODULES: NavModule[] = [
   { id: 'm22', titleEn: 'Domestic College Admission', titleHi: 'भारत में कॉलेज दाखिला',         icon: School         },
   { id: 'm23', titleEn: 'Job Placement & Recruit',    titleHi: 'नौकरी और रोजगार',               icon: ClipboardList  },
   { id: 'm24', titleEn: 'Visa & PR Immigration',      titleHi: 'वीज़ा और PR',                   icon: FileCheck      },
-  { id: 'm25', titleEn: 'Others / Custom Service',    titleHi: 'अन्य / कस्टम सेवा',             icon: Sparkles       },
   { id: 'm26', titleEn: 'Tour & Travel',              titleHi: 'टूर और ट्रैवल',                 icon: MapPin         },
+  { id: 'm27', titleEn: 'Local Medical Rep',          titleHi: 'लोकल मेडिकल प्रतिनिधि',        icon: Stethoscope    },
+  { id: 'm28', titleEn: 'Local Distributors',         titleHi: 'लोकल वितरक',                    icon: Package        },
+  { id: 'm25', titleEn: 'Others / Custom Service',    titleHi: 'अन्य / कस्टम सेवा',             icon: Sparkles       },
 ];
 
-// Split into 5 columns for the mega-menu (26 modules total — COL_5 has 6)
-const COL_1 = NAV_MODULES.slice(0,  5);
-const COL_2 = NAV_MODULES.slice(5,  10);
-const COL_3 = NAV_MODULES.slice(10, 15);
-const COL_4 = NAV_MODULES.slice(15, 20);
-const COL_5 = NAV_MODULES.slice(20, 26);
+// Split into 5 columns for the mega-menu (28 modules total)
+const COL_1 = NAV_MODULES.slice(0,  6);
+const COL_2 = NAV_MODULES.slice(6,  12);
+const COL_3 = NAV_MODULES.slice(12, 18);
+const COL_4 = NAV_MODULES.slice(18, 23);
+const COL_5 = NAV_MODULES.slice(23, 28);
 
 export default function Navbar() {
   const { user, isLoggedIn, openLoginModal, logout } = useAuth();
@@ -288,7 +290,7 @@ export default function Navbar() {
               />
             </Link>
 
-            {/* ── Mega-menu: 5-column grid with all 25 modules ── */}
+            {/* ── Mega-menu: 5-column grid with all 28 modules ── */}
             <div
               className={`absolute top-full left-1/2 -translate-x-1/2 translate-y-1 w-[1060px] rounded-3xl border border-emerald-500/25 shadow-[0_20px_50px_rgba(0,0,0,0.10)] z-50 transition-all duration-300 ease-in-out ${
                 servicesOpen
@@ -315,7 +317,7 @@ export default function Navbar() {
                       {language === 'EN' ? 'All Service Categories' : 'सभी सेवा श्रेणियां'}
                     </h3>
                     <p className="text-[10px] text-slate-500 font-medium">
-                      {language === 'EN' ? '26 modules · 185+ sub-services' : '26 श्रेणियां · 185+ उप-सेवाएं'}
+                      {language === 'EN' ? '28 modules · 185+ sub-services' : '28 श्रेणियां · 185+ उप-सेवाएं'}
                     </p>
                   </div>
                   <Link
