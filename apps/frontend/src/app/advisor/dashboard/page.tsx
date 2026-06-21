@@ -89,6 +89,7 @@ export default function AdvisorDashboard() {
   const [showQuotePanel,   setShowQuotePanel]   = useState(false);
   const [isProactive,      setIsProactive]      = useState(false);
   const [showQuoteList,    setShowQuoteList]    = useState(false);
+  const [quoteStatusFilter, setQuoteStatusFilter] = useState<string | null>(null);
 
   // Connected clients
   const [connectedClients,    setConnectedClients]    = useState<ConnectedClient[]>([]);
@@ -105,7 +106,8 @@ export default function AdvisorDashboard() {
   const [advisorPublicId, setAdvisorPublicId] = useState<string | null>(null);
   const [qrCopied,       setQrCopied]       = useState(false);
   const [pdfLoading,     setPdfLoading]     = useState(false);
-  const qrSvgRef = useRef<HTMLDivElement>(null);
+  const qrSvgRef     = useRef<HTMLDivElement>(null);
+  const bookingsRef  = useRef<HTMLDivElement>(null);
 
   const fetchQuoteRequests = async () => {
     try {
@@ -675,7 +677,7 @@ export default function AdvisorDashboard() {
           <div className="mb-5 bg-white border border-indigo-100 rounded-2xl overflow-hidden shadow-sm">
             <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100"
               style={{ background: 'linear-gradient(135deg,#f0f0ff,#fafaff)' }}>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <FileText size={15} className="text-indigo-500" />
                 <h3 className="text-sm font-black text-slate-800">Quote Requests</h3>
                 {unreadQuoteCount > 0 && (
@@ -683,8 +685,14 @@ export default function AdvisorDashboard() {
                     {unreadQuoteCount} new
                   </span>
                 )}
+                {quoteStatusFilter && (
+                  <button onClick={() => setQuoteStatusFilter(null)}
+                    className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 transition-all">
+                    {quoteStatusFilter} <XCircle size={9} />
+                  </button>
+                )}
               </div>
-              <button onClick={() => setShowQuoteList(false)} className="text-slate-400 hover:text-slate-600 p-1">
+              <button onClick={() => { setShowQuoteList(false); setQuoteStatusFilter(null); }} className="text-slate-400 hover:text-slate-600 p-1">
                 <XCircle size={15} />
               </button>
             </div>
@@ -696,7 +704,14 @@ export default function AdvisorDashboard() {
               </div>
             ) : (
               <div className="divide-y divide-slate-50">
-                {quoteRequests.map(q => {
+                {(quoteStatusFilter ? quoteRequests.filter(q => q.status === quoteStatusFilter) : quoteRequests).length === 0 && (
+                  <div className="px-5 py-8 text-center">
+                    <Bell size={24} className="text-slate-300 mx-auto mb-2" />
+                    <p className="text-slate-400 text-sm">No {quoteStatusFilter?.toLowerCase()} quotes</p>
+                    <button onClick={() => setQuoteStatusFilter(null)} className="mt-2 text-xs text-indigo-500 hover:underline">Show all</button>
+                  </div>
+                )}
+                {(quoteStatusFilter ? quoteRequests.filter(q => q.status === quoteStatusFilter) : quoteRequests).map(q => {
                   const isViewed = q.status === 'VIEWED';
                   const isQuoted = q.status === 'QUOTED';
                   const canEdit  = isViewed || isQuoted;
@@ -753,35 +768,47 @@ export default function AdvisorDashboard() {
         {/* Quote Request Stats */}
         <div className="grid grid-cols-3 gap-3 mb-3">
           {[
-            { label: 'New Requests', key: 'REQUESTED', color: 'text-amber-600',  bg: 'bg-amber-50',   border: 'border-amber-100' },
-            { label: 'Quotes Sent',  key: 'QUOTED',    color: 'text-indigo-600', bg: 'bg-indigo-50',  border: 'border-indigo-100' },
-            { label: 'Quotes Won',   key: 'ACCEPTED',  color: 'text-emerald-600',bg: 'bg-emerald-50', border: 'border-emerald-100' },
+            { label: 'New Requests', key: 'REQUESTED', color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-100',   hover: 'hover:border-amber-300 hover:shadow-amber-100' },
+            { label: 'Quotes Sent',  key: 'QUOTED',    color: 'text-indigo-600',  bg: 'bg-indigo-50',  border: 'border-indigo-100',  hover: 'hover:border-indigo-300 hover:shadow-indigo-100' },
+            { label: 'Quotes Won',   key: 'ACCEPTED',  color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', hover: 'hover:border-emerald-300 hover:shadow-emerald-100' },
           ].map(s => (
-            <div key={s.key} className={`${s.bg} border ${s.border} rounded-xl p-3 text-center`}>
+            <button key={s.key}
+              onClick={() => {
+                setShowQuoteList(true);
+                setQuoteStatusFilter(s.key);
+                fetchQuoteRequests();
+              }}
+              className={`${s.bg} border ${s.border} ${s.hover} rounded-xl p-3 text-center cursor-pointer hover:shadow-md active:scale-95 transition-all w-full`}>
               <p className={`text-xl font-extrabold ${s.color}`}>{quoteCounts[s.key] ?? 0}</p>
               <p className="text-[10px] text-slate-500 mt-0.5 font-medium">{s.label}</p>
-            </div>
+              <p className="text-[9px] text-slate-400 mt-0.5">tap to view</p>
+            </button>
           ))}
         </div>
 
         {/* Booking Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           {[
-            { label: 'Pending',   count: counts['PENDING']   ?? 0, color: 'text-amber-600' },
-            { label: 'Accepted',  count: counts['ACCEPTED']  ?? 0, color: 'text-blue-600' },
-            { label: 'Completed', count: counts['COMPLETED'] ?? 0, color: 'text-emerald-600' },
-            { label: 'Cancelled', count: counts['CANCELLED'] ?? 0, color: 'text-red-600' },
+            { label: 'Pending',   status: 'PENDING'   as BookingStatus, count: counts['PENDING']   ?? 0, color: 'text-amber-600',   hover: 'hover:border-amber-200 hover:shadow-amber-50' },
+            { label: 'Accepted',  status: 'ACCEPTED'  as BookingStatus, count: counts['ACCEPTED']  ?? 0, color: 'text-blue-600',    hover: 'hover:border-blue-200 hover:shadow-blue-50' },
+            { label: 'Completed', status: 'COMPLETED' as BookingStatus, count: counts['COMPLETED'] ?? 0, color: 'text-emerald-600', hover: 'hover:border-emerald-200 hover:shadow-emerald-50' },
+            { label: 'Cancelled', status: 'CANCELLED' as BookingStatus, count: counts['CANCELLED'] ?? 0, color: 'text-red-600',     hover: 'hover:border-red-200 hover:shadow-red-50' },
           ].map(s => (
-            <div key={s.label} className="bg-white shadow-sm border border-slate-100 rounded-xl p-4 text-center">
+            <button key={s.label}
+              onClick={() => {
+                setFilter(s.status);
+                setTimeout(() => bookingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+              }}
+              className={`bg-white shadow-sm border border-slate-100 ${s.hover} rounded-xl p-4 text-center cursor-pointer hover:shadow-md active:scale-95 transition-all w-full`}>
               <p className={`text-2xl font-extrabold ${s.color}`}>{s.count}</p>
               <p className="text-xs text-slate-500 mt-0.5">{s.label}</p>
-              <p className="text-[9px] text-slate-400">bookings</p>
-            </div>
+              <p className="text-[9px] text-slate-400">bookings · tap to filter</p>
+            </button>
           ))}
         </div>
 
         {/* Filter tabs */}
-        <div className="flex gap-2 mb-5 flex-wrap">
+        <div ref={bookingsRef} className="flex gap-2 mb-5 flex-wrap">
           {(['ALL', 'PENDING', 'ACCEPTED', 'COMPLETED', 'CANCELLED'] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all border ${
