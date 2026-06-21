@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const BACKEND_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/api\/v1\/?$/, '');
+const resolveImg = (url?: string | null) => !url ? null : url.startsWith('http') ? url : `${BACKEND_BASE}${url.startsWith('/') ? url : `/${url}`}`;
 
 const AVATAR_COLORS = [
   'from-blue-500 to-blue-600',
@@ -290,7 +292,7 @@ function AdvisorsListingInner() {
                     </div>
                     {advisor.avatarUrl ? (
                       <img
-                        src={advisor.avatarUrl.startsWith('http') ? advisor.avatarUrl : `/uploads${advisor.avatarUrl.replace('/uploads','')}`}
+                        src={resolveImg(advisor.avatarUrl)!}
                         alt={advisor.fullName}
                         className="w-12 h-12 rounded-full object-cover shrink-0 shadow-md border-2 border-white"
                       />

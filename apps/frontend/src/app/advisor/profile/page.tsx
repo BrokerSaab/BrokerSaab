@@ -11,11 +11,12 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const BACKEND_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/api\/v1\/?$/, '');
 
 function imgSrc(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.startsWith('http')) return url;
-  return url.startsWith('/uploads') ? url : `/uploads${url}`;
+  return `${BACKEND_BASE}${url.startsWith('/') ? url : `/${url}`}`;
 }
 
 const INDIAN_STATES = [

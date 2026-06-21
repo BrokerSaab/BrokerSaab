@@ -42,6 +42,8 @@ interface AdvisorCard {
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const BACKEND_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/api\/v1\/?$/, '');
+const resolveImg = (url?: string | null) => !url ? null : url.startsWith('http') ? url : `${BACKEND_BASE}${url.startsWith('/') ? url : `/${url}`}`;
 
 const CATEGORY_TO_SLUG: Record<string, string> = {
   'Birth, Death & Marriage Papers': 'm1',
@@ -1460,7 +1462,7 @@ export default function DiscoverPage() {
                       </div>
                       {advisor.avatarUrl ? (
                         <img
-                          src={advisor.avatarUrl.startsWith('http') ? advisor.avatarUrl : `/uploads${advisor.avatarUrl.replace('/uploads','')}`}
+                          src={resolveImg(advisor.avatarUrl)!}
                           alt={advisor.fullName}
                           className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover shrink-0 shadow-md border-2 border-white"
                         />

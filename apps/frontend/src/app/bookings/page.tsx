@@ -13,6 +13,8 @@ import FeeQuoteViewModal from '@/components/FeeQuoteViewModal';
 import { io as ioClient } from 'socket.io-client';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const BACKEND_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/api\/v1\/?$/, '');
+const resolveImg = (url?: string | null) => !url ? null : url.startsWith('http') ? url : `${BACKEND_BASE}${url.startsWith('/') ? url : `/${url}`}`;
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'https://brokersaab-backend.onrender.com');
 
 type BookingStatus = 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
@@ -580,7 +582,7 @@ export default function BookingsPage() {
                     className={`flex items-center gap-4 px-4 py-3.5 hover:bg-indigo-50 transition-all ${!isLast ? 'border-b border-slate-100' : ''}`}>
                     {advisor.avatarUrl ? (
                       <img
-                        src={advisor.avatarUrl.startsWith('http') ? advisor.avatarUrl : `/uploads${advisor.avatarUrl.replace('/uploads', '')}`}
+                        src={resolveImg(advisor.avatarUrl)!}
                         alt={advisor.fullName}
                         className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0"
                       />
