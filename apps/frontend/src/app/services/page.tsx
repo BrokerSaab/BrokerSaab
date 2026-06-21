@@ -387,7 +387,7 @@ function ServiceCatalogContent() {
             const colors = MODULE_COLORS[colorIdx % MODULE_COLORS.length];
             const IconComp = ICON_MAP[mod.iconName] || HelpCircle;
             const isExpanded = expandedModule === mod.id;
-            const moduleNum = mod.id.replace('m', '');
+            const moduleNum = (colorIdx + 1).toString();
 
             return (
               <React.Fragment key={mod.id}>
