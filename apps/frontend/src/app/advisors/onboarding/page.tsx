@@ -536,7 +536,7 @@ export default function AdvisorOnboarding() {
       }
 
       // 2b. Set specialisations (sub-services + custom open-module descriptions)
-      const OPEN_SLUGS = ['m21', 'm22', 'm23', 'm24', 'm25'];
+      const OPEN_SLUGS = ['m21', 'm22', 'm23', 'm24', 'm27', 'm28', 'm25'];
       const regularSpecs = formData.selectedSubSlugs.map(subId => {
         for (const mod of MODULES_DATA) {
           const sub = mod.subModules.find(s => s.id === subId);
@@ -598,7 +598,7 @@ export default function AdvisorOnboarding() {
       return '';
     }).filter(Boolean);
 
-    const OPEN_SLUGS_PDF = ['m21', 'm22', 'm23', 'm24', 'm25'];
+    const OPEN_SLUGS_PDF = ['m21', 'm22', 'm23', 'm24', 'm27', 'm28', 'm25'];
     const openSpecs: { catName: string; text: string; accent: string }[] = formData.selectedSlugs
       .filter(slug => OPEN_SLUGS_PDF.includes(slug) && formData.customSpecializations?.[slug]?.trim())
       .map(slug => {
@@ -1124,15 +1124,12 @@ ${availLines ? `<div class="section">
                       const r = await fetch(`${API}/auth/otp/verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phoneNumber: `+91${formData.phoneNumber}`, otp: otpValue }) });
                       const d = await r.json();
                       if (!r.ok) { setError(d.message || 'Invalid OTP'); return; }
-                      // Block if this number already has an account
-                      if (d.isNewUser === false) {
-                        if (d.user?.role === 'ADVISOR') {
-                          setError('This mobile number is already registered as an advisor. Please login to your advisor dashboard instead.');
-                        } else {
-                          setError('This mobile number is already registered as a client account. Advisor registration requires a new number.');
-                        }
+                      // Block only if already an advisor
+                      if (d.isNewUser === false && d.user?.role === 'ADVISOR') {
+                        setError('This mobile number is already registered as an advisor. Please login to your advisor dashboard instead.');
                         return;
                       }
+                      // Existing CLIENT accounts are allowed to proceed with advisor registration
                       update('otpVerified', true);
                       if (d.tempToken) update('tempPhoneToken', d.tempToken);
                       setOtpSubStep('verified');

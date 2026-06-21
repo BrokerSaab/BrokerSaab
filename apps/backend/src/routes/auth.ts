@@ -442,16 +442,9 @@ router.post('/advisor/signup', validateRequest(advisorSignupSchema), async (req:
     bio
   } = req.body;
 
-  // Check unique constraints
-  const existingUser = await prisma.user.findFirst({
-    where: { OR: [{ phoneNumber }, { email }] }
-  });
-  if (existingUser) {
-    res.status(400).json({ success: false, message: 'User or phone number already registered' });
-    return;
-  }
-
-  const advisorOrFilters: any[] = [{ email }, { phoneNumber }];
+  // Check if an Advisor record already exists with this phone/email/license
+  const advisorOrFilters: any[] = [{ phoneNumber }];
+  if (email) advisorOrFilters.push({ email });
   if (licenseNumber) advisorOrFilters.push({ licenseNumber });
   const existingAdvisor = await prisma.advisor.findFirst({
     where: { OR: advisorOrFilters }
@@ -461,29 +454,59 @@ router.post('/advisor/signup', validateRequest(advisorSignupSchema), async (req:
     return;
   }
 
+  // Check if a User already exists with this phone number
+  const existingUserByPhone = await prisma.user.findUnique({ where: { phoneNumber } });
+  // Allow upgrade if they are a CLIENT — block any other existing role
+  if (existingUserByPhone && existingUserByPhone.role !== 'CLIENT') {
+    res.status(400).json({ success: false, message: 'This phone number is already registered as an advisor or admin account' });
+    return;
+  }
+  // Check that the requested email isn't already taken by a *different* user
+  if (email) {
+    const existingUserByEmail = await prisma.user.findFirst({
+      where: { email, NOT: { phoneNumber } }
+    });
+    if (existingUserByEmail) {
+      res.status(400).json({ success: false, message: 'Email is already registered with another account' });
+      return;
+    }
+  }
+
+  const isClientUpgrade = !!(existingUserByPhone && existingUserByPhone.role === 'CLIENT');
+
   const passwordHash = await bcrypt.hash(password, 10);
 
   const result = await prisma.$transaction(async (tx) => {
-    // Create base user record
-    const user = await tx.user.create({
-      data: {
-        phoneNumber,
-        email,
-        fullName,
-        role: Role.ADVISOR,
-        passwordHash
-      }
-    });
+    let user;
+    if (isClientUpgrade) {
+      // Upgrade existing CLIENT user to ADVISOR — update in place, preserve wallet
+      user = await tx.user.update({
+        where: { id: existingUserByPhone!.id },
+        data: {
+          fullName,
+          email: email || existingUserByPhone!.email,
+          role: Role.ADVISOR,
+          passwordHash
+        }
+      });
+    } else {
+      // Create a brand-new user record
+      user = await tx.user.create({
+        data: {
+          phoneNumber,
+          email,
+          fullName,
+          role: Role.ADVISOR,
+          passwordHash
+        }
+      });
+      // Create companion Wallet for new users only
+      await tx.wallet.create({
+        data: { userId: user.id, balance: 0.00 }
+      });
+    }
 
-    // Create companion Wallet
-    await tx.wallet.create({
-      data: {
-        userId: user.id,
-        balance: 0.00
-      }
-    });
-
-    // Create advisor record
+    // Create advisor record (same for both paths)
     const advisor = await tx.advisor.create({
       data: {
         phoneNumber,
