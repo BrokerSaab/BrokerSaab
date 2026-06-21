@@ -159,6 +159,8 @@ export default function AdvisorDashboard() {
     socket.on('quote_viewed',    () => { fetchQuoteRequests(); });
     socket.on('quote_accepted',  () => { fetchQuoteRequests(); fetchTickets(); setShowTickets(true); });
     socket.on('ticket_created',  () => { fetchTickets(); setShowTickets(true); });
+    socket.on('ticket_closed',   () => { fetchTickets(); });
+    socket.on('ticket_updated',  () => { fetchTickets(); });
     return () => { socket.disconnect(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn, user?.id]);

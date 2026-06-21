@@ -332,14 +332,14 @@ export default function TicketDetailPage() {
                 value={stageTitle}
                 onChange={e => setStageTitle(e.target.value)}
                 placeholder="Stage title (e.g. Document collection)"
-                className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-indigo-500/60 transition-all"
+                className="w-full bg-slate-900 border border-white/15 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-indigo-500/60 transition-all"
               />
               <textarea
                 value={stageDesc}
                 onChange={e => setStageDesc(e.target.value)}
                 placeholder="Description (optional)"
                 rows={2}
-                className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-indigo-500/60 transition-all resize-none"
+                className="w-full bg-slate-900 border border-white/15 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-indigo-500/60 transition-all resize-none"
               />
               <div className="flex gap-2">
                 <button onClick={() => { setShowAddStage(false); setStageTitle(''); setStageDesc(''); }}
@@ -410,7 +410,7 @@ export default function TicketDetailPage() {
                                   value={stageComment}
                                   onChange={e => setStageComment(e.target.value)}
                                   placeholder="Add a note for client (optional)"
-                                  className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-white/25 focus:outline-none transition-all"
+                                  className="w-full bg-slate-900 border border-white/15 rounded-xl px-3 py-1.5 text-xs text-white placeholder:text-white/35 focus:outline-none transition-all"
                                 />
                                 <div className="flex gap-2">
                                   <button onClick={() => { setStageCommentFor(null); setStageComment(''); }}
@@ -514,7 +514,7 @@ export default function TicketDetailPage() {
                 onChange={e => setComment(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendComment()}
                 placeholder="Add a comment…"
-                className="flex-1 bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-indigo-500/60 transition-all"
+                className="flex-1 bg-slate-900 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/35 focus:outline-none focus:border-indigo-500/60 transition-all"
               />
               <button onClick={sendComment} disabled={sending || !comment.trim()}
                 className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-white disabled:opacity-40 transition-all hover:brightness-110"
@@ -567,14 +567,14 @@ export default function TicketDetailPage() {
                   onChange={e => setCloseComment(e.target.value)}
                   placeholder="Closing comment (required) — describe the work outcome"
                   rows={3}
-                  className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none transition-all resize-none"
+                  className="w-full bg-slate-900 border border-emerald-500/30 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-emerald-400/60 transition-all resize-none"
                 />
                 <textarea
                   value={closeReview}
                   onChange={e => setCloseReview(e.target.value)}
                   placeholder="Public review (optional)"
                   rows={2}
-                  className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none transition-all resize-none"
+                  className="w-full bg-slate-900 border border-emerald-500/30 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-emerald-400/60 transition-all resize-none"
                 />
                 {closeError && (
                   <div className="flex items-center gap-2 bg-red-500/15 border border-red-500/30 rounded-xl px-3 py-2">
@@ -605,7 +605,7 @@ export default function TicketDetailPage() {
                   onChange={e => setDisputeReason(e.target.value)}
                   placeholder="Describe the issue in detail…"
                   rows={3}
-                  className="w-full bg-white/6 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none transition-all resize-none"
+                  className="w-full bg-slate-900 border border-red-500/30 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-red-400/60 transition-all resize-none"
                 />
                 <div className="flex gap-2">
                   <button onClick={() => setShowDispute(false)}
