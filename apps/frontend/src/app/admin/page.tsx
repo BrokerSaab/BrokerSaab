@@ -2700,18 +2700,19 @@ export default function AdminSuitePage() {
 
     {/* ── ADMIN EDIT ADVISOR MODAL ── */}
     {editModalOpen && editAdvisor && (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 px-4 py-3 overflow-y-auto">
-        <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-2xl my-auto">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto">
+        <div className="flex min-h-full items-start justify-center px-4 py-4">
+        <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-2xl flex flex-col" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 rounded-t-2xl flex-shrink-0">
             <div>
               <h3 className="text-base font-bold text-slate-800 flex items-center gap-2"><Edit3 size={15} className="text-indigo-600" /> Edit Advisor Details</h3>
-              <p className="text-[10px] text-slate-400 mt-0.5">{editAdvisor.fullName} Â· {genDisplayId('advisor', editAdvisor.seqId)} Â· Changes apply immediately</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{editAdvisor.fullName} · {genDisplayId('advisor', editAdvisor.seqId)} · Changes apply immediately</p>
             </div>
             <button onClick={() => setEditModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
           </div>
 
-          <div className="px-6 py-5 space-y-5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 210px)' }}>
+          <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
             {editError && (
               <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-red-600 text-xs">
                 <AlertCircle size={13} className="shrink-0" />{editError}
@@ -2816,7 +2817,7 @@ export default function AdminSuitePage() {
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end bg-slate-50 rounded-b-2xl">
+          <div className="px-6 py-4 border-t border-slate-100 flex gap-3 justify-end bg-slate-50 rounded-b-2xl flex-shrink-0">
             <button onClick={() => setEditModalOpen(false)}
               className="px-5 py-2.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-white transition-all">
               Cancel
@@ -2826,6 +2827,7 @@ export default function AdminSuitePage() {
               {editSaving ? <><Loader2 size={13} className="animate-spin" />Saving…</> : <><Save size={13} />Save Changes</>}
             </button>
           </div>
+        </div>
         </div>
       </div>
     )}
