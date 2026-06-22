@@ -1047,17 +1047,18 @@ export default function AdvisorDashboard() {
       }}
     />
 
-    {/* QR Code Modal — compact to fit 13" laptop screen */}
+    {/* QR Code Modal */}
     {showQR && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-3"
-        style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+      <div className="fixed inset-0 z-50 overflow-y-auto"
+        style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(8px)' }}
         onClick={() => setShowQR(false)}>
+        {/* min-h-full centering wrapper — prevents top clipping on small screens */}
+        <div className="flex min-h-full items-center justify-center p-4">
         <div
-          className="relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+          className="relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto"
           style={{
             background: 'linear-gradient(160deg,#0B1F3A 0%,#0F2B4A 50%,#0a1428 100%)',
             border: '1px solid rgba(212,175,55,0.3)',
-            maxHeight: 'calc(100vh - 24px)',
           }}
           onClick={e => e.stopPropagation()}>
 
@@ -1084,39 +1085,39 @@ export default function AdvisorDashboard() {
             </div>
           </div>
 
-          {/* Scrollable body */}
+          {/* Body */}
           <div className="overflow-y-auto flex-1">
             {/* Advisor name */}
-            <div className="px-5 pt-3 pb-1 text-center">
+            <div className="px-5 pt-2 pb-0 text-center">
               <p className="text-xs font-bold text-amber-400 truncate">{user?.fullName}</p>
             </div>
 
             {/* QR code */}
-            <div className="flex justify-center px-5 py-3">
+            <div className="flex justify-center px-5 pt-2 pb-1">
               {advisorPublicId ? (
-                <div ref={qrSvgRef} className="p-3 bg-white rounded-xl shadow-lg inline-block">
+                <div ref={qrSvgRef} className="p-2.5 bg-white rounded-xl shadow-lg inline-block">
                   <QRCode
                     value={`${typeof window !== 'undefined' ? window.location.origin : 'https://frontend-tellar.vercel.app'}/advisors/${advisorPublicId}`}
-                    size={160}
+                    size={148}
                     bgColor="#ffffff"
                     fgColor="#0B1F3A"
                     level="M"
                   />
                 </div>
               ) : (
-                <div className="w-[184px] h-[184px] rounded-xl flex items-center justify-center bg-white/5">
+                <div className="w-[173px] h-[173px] rounded-xl flex items-center justify-center bg-white/5">
                   <Loader2 size={22} className="animate-spin text-white/30" />
                 </div>
               )}
             </div>
 
-            <p className="text-[10px] text-white/35 text-center tracking-widest mb-3">
+            <p className="text-[10px] text-white/35 text-center tracking-widest mb-2">
               SCAN TO VIEW MY PROFILE
             </p>
 
             {/* URL + copy + download */}
             {advisorPublicId && (
-              <div className="px-5 pb-5 space-y-2.5">
+              <div className="px-5 pb-4 space-y-2">
                 {/* URL row */}
                 <div className="flex items-center gap-2 rounded-xl px-3 py-2"
                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -1159,6 +1160,7 @@ export default function AdvisorDashboard() {
           <div className="h-1 w-full shrink-0"
             style={{ background: 'linear-gradient(90deg,#D4AF37,#F0CC60,#D4AF37)' }} />
         </div>
+        </div>{/* end centering wrapper */}
       </div>
     )}
     </>
