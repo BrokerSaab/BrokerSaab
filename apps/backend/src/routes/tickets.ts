@@ -461,34 +461,35 @@ router.post(
       }
 
       // Resolve advisor's User.id (Wallet is keyed on User.id, not Advisor.id)
-      const advisorUserId = await getAdvisorUserId(ticket.advisorId);
+      let advisorUserId: string | null = null;
+      try {
+        advisorUserId = await getAdvisorUserId(ticket.advisorId);
+      } catch (e) {
+        console.error('[close] getAdvisorUserId error:', e);
+      }
 
-      // Close ticket and release payout to advisor wallet in one transaction
-      const updated = await prisma.$transaction(async (tx) => {
-        const t = await tx.serviceTicket.update({
-          where: { id: ticket.id },
-          data: {
-            status:          ServiceTicketStatus.PAYOUT_RELEASED,
-            closedAt:        new Date(),
-            closingComment,
-            userRating,
-            userReview,
-            payoutReleasedAt: new Date(),
-          },
-        });
-
-        // Credit advisor wallet — requires User.id, not Advisor.id
-        if (advisorUserId) {
-          const netAmount = Number(ticket.netAmount);
-          await tx.wallet.upsert({
-            where:  { userId: advisorUserId },
-            update: { balance: { increment: netAmount } },
-            create: { userId: advisorUserId, balance: netAmount },
-          });
-        }
-
-        return t;
+      // Close ticket — standalone update (no transaction needed for a single model)
+      const updated = await prisma.serviceTicket.update({
+        where: { id: ticket.id },
+        data: {
+          status:          ServiceTicketStatus.PAYOUT_RELEASED,
+          closedAt:        new Date(),
+          closingComment,
+          userRating,
+          userReview,
+          payoutReleasedAt: new Date(),
+        },
       });
+
+      // Credit advisor wallet asynchronously — non-blocking so ticket close always succeeds
+      if (advisorUserId) {
+        const netAmount = Number(ticket.netAmount);
+        prisma.wallet.upsert({
+          where:  { userId: advisorUserId },
+          update: { balance: { increment: netAmount } },
+          create: { userId: advisorUserId, balance: netAmount },
+        }).catch(err => console.error('[close] wallet upsert failed:', advisorUserId, err));
+      }
 
       io.to(`advisor:${advisorUserId}`).emit('ticket_closed', {
         ticketId:   ticket.id,
