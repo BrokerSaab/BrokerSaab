@@ -2700,8 +2700,8 @@ export default function AdminSuitePage() {
 
     {/* ── ADMIN EDIT ADVISOR MODAL ── */}
     {editModalOpen && editAdvisor && (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto">
-        <div className="flex min-h-full items-start justify-center px-4 py-4">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] overflow-y-auto">
+        <div className="flex min-h-full items-center justify-center px-4 py-4">
         <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-2xl flex flex-col" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 rounded-t-2xl flex-shrink-0">
