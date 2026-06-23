@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import {
   Calendar, Clock, MapPin, ShieldCheck, AlertCircle, Loader2,
   ArrowLeft, XCircle, CheckCircle2, RefreshCw, BookOpen, Phone, Eye,
-  UserCheck, MessageSquare, FileText, Bell, Ticket
+  UserCheck, MessageSquare, FileText, Bell, Ticket,
+  X, ChevronRight, LayoutDashboard, CreditCard,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import FeeQuoteViewModal from '@/components/FeeQuoteViewModal';
@@ -116,6 +117,8 @@ export default function BookingsPage() {
 
   const [tickets,        setTickets]        = useState<any[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(false);
+
+  const [activeSection, setActiveSection] = useState<'bookings' | 'quotes' | 'tickets' | 'contacts' | null>(null);
 
   const fetchTickets = async () => {
     setTicketsLoading(true);
@@ -231,210 +234,466 @@ export default function BookingsPage() {
     }
   };
 
+  // Derived values used by tiles
+  const pendingBookings      = bookings.filter(b => b.status === 'PENDING');
+  const newQuotes            = quotes.filter(q => q.status === 'QUOTED' && !q.viewedAt);
+  const activeTickets        = tickets.filter((t: any) => t.status !== 'CLOSED' && t.status !== 'CANCELLED');
+  const actionNeededTickets  = tickets.filter((t: any) => t.status === 'AWAITING_CONFIRM');
+
   return (
     <>
     <div className="min-h-screen bg-[#F4F6FB]">
-      {/* Header */}
+
+      {/* ── Page Header ── */}
       <div className="bg-white border-b border-slate-100 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">
-          <Link href="/" className="text-slate-400 hover:text-slate-600 transition-colors">
-            <ArrowLeft size={20} />
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3.5 flex items-center gap-3">
+          <Link href="/" className="text-slate-400 hover:text-slate-600 transition-colors shrink-0">
+            <ArrowLeft size={18} />
           </Link>
-          <div>
-            <h1 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <BookOpen size={15} style={{ color: '#D4AF37' }} />
-              My Consultations
-            </h1>
-            <p className="text-slate-500 text-xs mt-0.5">
-              {user?.fullName ? `Bookings for ${user.fullName}` : 'Your booking history'}
-            </p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
+              <LayoutDashboard size={15} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-sm font-black text-slate-800 leading-tight">My Dashboard</h1>
+              <p className="text-[10px] text-slate-400 leading-tight">{user?.fullName ?? 'Your activity at a glance'}</p>
+            </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <Link href="/#services-section"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105"
+            <Link href="/advisors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all hover:scale-105"
               style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}>
-              <Phone size={13} /> Find Advisors
+              <Phone size={12} /> Find Advisors
             </Link>
-            <Link href="/contact"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition-all">
-              <MessageSquare size={13} /> Support
+            <Link href="/contact" className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition-all">
+              <MessageSquare size={12} /> Support
             </Link>
-            <button onClick={fetchBookings} className="text-slate-400 hover:text-slate-600 transition-colors p-2" title="Refresh">
-              <RefreshCw size={15} />
+            <button
+              onClick={() => { fetchBookings(); fetchContactCredits(); fetchContactedAdvisors(); fetchQuotes(); fetchTickets(); }}
+              className="text-slate-400 hover:text-indigo-500 transition-colors p-1.5 rounded-lg hover:bg-indigo-50" title="Refresh all">
+              <RefreshCw size={14} />
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 space-y-5">
 
-        {/* Contact credits widget */}
-        {contactCredits !== null && (
-          <div className="mb-5 flex items-center justify-between gap-4 px-4 py-3 rounded-2xl border flex-wrap"
-            style={{
-              borderColor: contactCredits.creditsRemaining > 0 ? 'rgba(212,175,55,0.35)' : 'rgba(249,115,22,0.25)',
-              background:  contactCredits.creditsRemaining > 0 ? 'rgba(212,175,55,0.08)' : 'rgba(249,115,22,0.06)',
-            }}>
-            <div className="flex items-center gap-3">
-              <Eye size={16} style={{ color: contactCredits.creditsRemaining > 0 ? '#D4AF37' : '#fb923c' }} className="shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-slate-700">
-                  {contactCredits.creditsRemaining > 0
-                    ? <><span className="font-extrabold" style={{ color: '#B48C22' }}>{contactCredits.creditsRemaining}</span> advisor contacts remaining in your pack</>
-                    : 'No contact credits left'}
-                </p>
-                {contactCredits.expiresAt && (
-                  <p className="text-xs text-slate-500">
-                    Pack valid until {new Date(contactCredits.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </p>
-                )}
-              </div>
-            </div>
-            {contactCredits.creditsRemaining === 0 && (
-              <Link href="/buy-pack"
-                className="px-3 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all hover:scale-105"
-                style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}>
-                Buy Pack
-              </Link>
-            )}
-          </div>
-        )}
+        {/* ── Welcome ── */}
+        <div>
+          <h2 className="text-xl font-black text-slate-800">
+            {user?.fullName ? `Hello, ${user.fullName.split(' ')[0]}` : 'Welcome back'}
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+        </div>
 
+        {/* ── Error ── */}
         {error && (
-          <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl mb-5 text-sm">
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
             <AlertCircle size={15} /> {error}
           </div>
         )}
 
-        {/* Bookings */}
-        {loading ? (
-          <div className="flex items-center justify-center py-16 text-slate-500">
-            <Loader2 size={22} className="animate-spin mr-3" /> Loading your consultations...
-          </div>
-        ) : bookings.length === 0 ? null : (
-          <div className="space-y-4 mb-8">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bookings</p>
-            {bookings.map(booking => {
-              const s = STATUS_STYLES[booking.status];
-              const scheduledDate = new Date(booking.scheduledDate);
-              const canCancelThis = canCancel(booking);
-              const hLeft = hoursLeft(booking);
-              return (
-                <div key={booking.id} className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <p className="text-xs text-slate-400 font-mono">{booking.bookingNumber}</p>
-                      <h3 className="font-bold text-slate-800 mt-0.5">{booking.advisor?.fullName ?? 'Advisor'}</h3>
-                      {booking.advisor?.businessName && (
-                        <p className="text-xs text-slate-500">{booking.advisor.businessName}</p>
-                      )}
-                    </div>
-                    <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${s.bg} ${s.text}`}>
-                      {s.icon} {s.label}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-slate-500 mb-4">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar size={13} className="text-indigo-400/60" />
-                      {scheduledDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Clock size={13} className="text-indigo-400/60" />
-                      {booking.startTime} &ndash; {booking.endTime}
-                    </div>
-                    {booking.advisor?.location && (
-                      <div className="flex items-center gap-1.5">
-                        <MapPin size={13} className="text-indigo-400/60" />
-                        {booking.advisor.location}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-sm" style={{ color: '#B48C22' }}>
-                        &#8377;{booking.totalFee}
-                      </span>
-                      <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{booking.mode}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {booking.status === 'PENDING' && (
-                        <div className="text-xs text-amber-600">
-                          {canCancelThis ? `${hLeft}h left to cancel` : 'Awaiting advisor'}
-                        </div>
-                      )}
-                      {canCancelThis && (
-                        <button
-                          onClick={() => handleCancel(booking.id)}
-                          disabled={cancelling === booking.id}
-                          className="flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 px-3 py-1.5 rounded-xl transition-all disabled:opacity-50">
-                          {cancelling === booking.id ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
-                          Cancel
-                        </button>
-                      )}
-                      {booking.status === 'ACCEPTED' && (
-                        <div className="flex items-center gap-1 text-xs text-blue-600">
-                          <CheckCircle2 size={13} /> Advisor confirmed
-                        </div>
-                      )}
-                      {booking.status === 'COMPLETED' && (
-                        <div className="flex items-center gap-1 text-xs text-emerald-600">
-                          <ShieldCheck size={13} /> Consultation done
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {booking.status === 'PENDING' && !canCancelThis && (
-                    <p className="text-xs text-slate-400 mt-2">
-                      Cancellation window (24 hours) has passed. Contact support for disputes.
-                    </p>
-                  )}
-                </div>
-              );
-            })}
+        {/* ── Contact Credits Banner ── */}
+        {contactCredits !== null && (
+          <div className="flex items-center gap-4 px-4 py-3.5 rounded-2xl border flex-wrap"
+            style={{
+              borderColor: contactCredits.creditsRemaining > 0 ? 'rgba(212,175,55,0.35)' : 'rgba(249,115,22,0.3)',
+              background:  contactCredits.creditsRemaining > 0 ? 'rgba(212,175,55,0.07)' : 'rgba(249,115,22,0.06)',
+            }}>
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: contactCredits.creditsRemaining > 0 ? 'rgba(212,175,55,0.15)' : 'rgba(249,115,22,0.12)' }}>
+                <CreditCard size={16} style={{ color: contactCredits.creditsRemaining > 0 ? '#B48C22' : '#fb923c' }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-700">
+                  {contactCredits.creditsRemaining > 0
+                    ? <><span className="font-extrabold" style={{ color: '#B48C22' }}>{contactCredits.creditsRemaining}</span> contact credits remaining</>
+                    : 'No contact credits left'}
+                </p>
+                {contactCredits.expiresAt && (
+                  <p className="text-[11px] text-slate-500">
+                    Expires {new Date(contactCredits.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Link href="/buy-pack"
+              className="px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all hover:scale-105"
+              style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}>
+              {contactCredits.creditsRemaining === 0 ? 'Buy Pack' : 'Top Up'}
+            </Link>
           </div>
         )}
 
-        {/* Fee Quotes */}
-        {(() => {
-          const newQuotes = quotes.filter(q => q.status === 'QUOTED' && !q.viewedAt);
-          return (
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <FileText size={15} className="text-indigo-500" />
-                  <h2 className="text-sm font-bold text-slate-800">Fee Quotes</h2>
-                  {quotes.length > 0 && (
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
-                      {quotes.length}
+        {/* ── Alert banners for action-required items ── */}
+        {newQuotes.length > 0 && (
+          <button
+            onClick={() => { setSelectedQuote(newQuotes[0]); setShowQuoteModal(true); }}
+            className="w-full flex items-center justify-between gap-3 py-3.5 px-5 rounded-2xl font-black text-sm transition-all hover:scale-[1.01] active:scale-[0.99]"
+            style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: 'white', boxShadow: '0 6px 24px rgba(79,70,229,0.3)' }}>
+            <div className="flex items-center gap-2">
+              <Bell size={15} className="animate-pulse" />
+              {newQuotes.length === 1 ? '1 New Fee Quote — Review Now' : `${newQuotes.length} New Fee Quotes — Review Now`}
+            </div>
+            <ChevronRight size={16} className="shrink-0" />
+          </button>
+        )}
+        {actionNeededTickets.length > 0 && (
+          <button
+            onClick={() => setActiveSection('tickets')}
+            className="w-full flex items-center justify-between gap-3 py-3.5 px-5 rounded-2xl font-black text-sm transition-all hover:scale-[1.01] active:scale-[0.99]"
+            style={{ background: 'linear-gradient(135deg,#7C3AED,#6D28D9)', color: 'white', boxShadow: '0 6px 24px rgba(124,58,237,0.28)' }}>
+            <div className="flex items-center gap-2">
+              <Ticket size={15} className="animate-pulse" />
+              {actionNeededTickets.length === 1 ? '1 Work Ticket needs your confirmation' : `${actionNeededTickets.length} Work Tickets need your confirmation`}
+            </div>
+            <ChevronRight size={16} className="shrink-0" />
+          </button>
+        )}
+
+        {/* ── 4 Summary Tiles ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          {/* Bookings Tile */}
+          <button onClick={() => setActiveSection('bookings')}
+            className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg hover:border-indigo-200 transition-all p-5 text-left group relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-l-2xl" />
+            <div className="pl-3">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+                    <Calendar size={20} className="text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Bookings</h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {loading ? '—' : pendingBookings.length > 0 ? `${pendingBookings.length} pending` : 'All clear'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-3xl font-black text-slate-800 leading-none">
+                    {loading ? <Loader2 size={20} className="animate-spin text-slate-200 mt-1" /> : bookings.length}
+                  </span>
+                  {!loading && pendingBookings.length > 0 && (
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">
+                      {pendingBookings.length} pending
                     </span>
                   )}
                 </div>
-                <button onClick={fetchQuotes} className="text-slate-400 hover:text-indigo-500 transition-colors p-1" title="Refresh">
-                  <RefreshCw size={13} />
-                </button>
               </div>
+              <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2.5 mb-3 min-h-[46px] flex items-center">
+                {!loading && bookings.length > 0 ? (
+                  <div className="w-full">
+                    <p className="text-xs font-semibold text-slate-700 truncate">{bookings[0].advisor?.fullName ?? 'Advisor'}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {new Date(bookings[0].scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      {' · '}<span className={STATUS_STYLES[bookings[0].status].text}>{STATUS_STYLES[bookings[0].status].label}</span>
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 w-full text-center">{loading ? 'Loading…' : 'No bookings yet'}</p>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-indigo-500 group-hover:text-indigo-700 transition-colors">View all bookings</span>
+                <ChevronRight size={14} className="text-indigo-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
+              </div>
+            </div>
+          </button>
 
-              {newQuotes.length > 0 && (
-                <button
-                  onClick={() => { setSelectedQuote(newQuotes[0]); setShowQuoteModal(true); }}
-                  className="w-full mb-3 flex items-center justify-center gap-2 py-3 rounded-2xl font-black text-sm animate-pulse transition-all"
-                  style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: 'white', boxShadow: '0 6px 24px rgba(79,70,229,0.35)' }}>
-                  <Bell size={15} />
-                  {newQuotes.length === 1 ? '1 New Fee Quote Ready — View Now' : `${newQuotes.length} New Fee Quotes Ready — View Now`}
-                </button>
-              )}
-
-              {quotesLoading ? (
-                <div className="flex items-center justify-center py-8 text-slate-400">
-                  <Loader2 size={18} className="animate-spin mr-2" /> Loading quotes...
+          {/* Fee Quotes Tile */}
+          <button onClick={() => setActiveSection('quotes')}
+            className={`bg-white rounded-2xl border shadow-sm hover:shadow-lg transition-all p-5 text-left group relative overflow-hidden ${newQuotes.length > 0 ? 'border-violet-200' : 'border-slate-100 hover:border-violet-200'}`}>
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-violet-500 rounded-l-2xl" />
+            <div className="pl-3">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center relative">
+                    <FileText size={20} className="text-violet-600" />
+                    {newQuotes.length > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-indigo-600 rounded-full text-[9px] font-black text-white flex items-center justify-center animate-pulse border-2 border-white">
+                        {newQuotes.length}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Fee Quotes</h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {quotesLoading ? '—' : newQuotes.length > 0 ? `${newQuotes.length} new` : `${quotes.length} total`}
+                    </p>
+                  </div>
                 </div>
+                <span className="text-3xl font-black text-slate-800 leading-none">
+                  {quotesLoading ? <Loader2 size={20} className="animate-spin text-slate-200 mt-1" /> : quotes.length}
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2.5 mb-3 min-h-[46px] flex items-center">
+                {!quotesLoading && quotes.length > 0 ? (
+                  <div className="w-full">
+                    <p className="text-xs font-semibold text-slate-700 truncate">{quotes[0].advisor.fullName}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {quotes[0].totalAmount ? `₹${parseFloat(quotes[0].totalAmount).toLocaleString('en-IN')} · ` : ''}
+                      <span className={quotes[0].status === 'QUOTED' && !quotes[0].viewedAt ? 'text-indigo-600 font-semibold' : ''}>{quotes[0].status}</span>
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 w-full text-center">{quotesLoading ? 'Loading…' : 'No quotes yet'}</p>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-violet-500 group-hover:text-violet-700 transition-colors">View all quotes</span>
+                <ChevronRight size={14} className="text-violet-400 group-hover:text-violet-600 group-hover:translate-x-0.5 transition-all" />
+              </div>
+            </div>
+          </button>
+
+          {/* Work Tickets Tile */}
+          <button onClick={() => setActiveSection('tickets')}
+            className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg hover:border-emerald-200 transition-all p-5 text-left group relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 rounded-l-2xl" />
+            <div className="pl-3">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center relative">
+                    <Ticket size={20} className="text-emerald-600" />
+                    {actionNeededTickets.length > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-purple-600 rounded-full text-[9px] font-black text-white flex items-center justify-center animate-pulse border-2 border-white">!</span>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Work Tickets</h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {ticketsLoading ? '—' : actionNeededTickets.length > 0 ? 'Action needed' : `${activeTickets.length} active`}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-3xl font-black text-slate-800 leading-none">
+                  {ticketsLoading ? <Loader2 size={20} className="animate-spin text-slate-200 mt-1" /> : tickets.length}
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2.5 mb-3 min-h-[46px] flex items-center">
+                {!ticketsLoading && tickets.length > 0 ? (
+                  <div className="w-full">
+                    <p className="text-xs font-semibold text-slate-700 truncate">{tickets[0].advisor?.fullName}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {tickets[0].ticketNumber} · ₹{Number(tickets[0].totalAmount).toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 w-full text-center">{ticketsLoading ? 'Loading…' : 'No work tickets yet'}</p>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-emerald-500 group-hover:text-emerald-700 transition-colors">View all tickets</span>
+                <ChevronRight size={14} className="text-emerald-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
+              </div>
+            </div>
+          </button>
+
+          {/* Unlocked Contacts Tile */}
+          <button onClick={() => setActiveSection('contacts')}
+            className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all p-5 text-left group relative overflow-hidden" style={{ ['--tw-border-opacity' as any]: 1 }}>
+            <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl" style={{ background: '#D4AF37' }} />
+            <div className="pl-3">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center border" style={{ background: 'rgba(212,175,55,0.10)', borderColor: 'rgba(212,175,55,0.3)' }}>
+                    <UserCheck size={20} style={{ color: '#B48C22' }} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Unlocked Contacts</h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {contactedLoading ? '—' : `${contactedAdvisors.length} advisors`}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-3xl font-black text-slate-800 leading-none">
+                  {contactedLoading ? <Loader2 size={20} className="animate-spin text-slate-200 mt-1" /> : contactedAdvisors.length}
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2.5 mb-3 min-h-[46px] flex items-center">
+                {!contactedLoading && contactedAdvisors.length > 0 ? (
+                  <div className="flex items-center gap-2 w-full">
+                    {contactedAdvisors[0].advisor.avatarUrl ? (
+                      <img src={resolveImg(contactedAdvisors[0].advisor.avatarUrl)!} alt={contactedAdvisors[0].advisor.fullName}
+                        className="w-6 h-6 rounded-lg object-cover shrink-0" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-[9px] font-black text-white shrink-0">
+                        {contactedAdvisors[0].advisor.fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-700 truncate">{contactedAdvisors[0].advisor.fullName}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{contactedAdvisors[0].advisor.location}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 w-full text-center">{contactedLoading ? 'Loading…' : 'No contacts unlocked yet'}</p>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold group-hover:opacity-70 transition-opacity" style={{ color: '#B48C22' }}>View all contacts</span>
+                <ChevronRight size={14} style={{ color: '#B48C22' }} className="group-hover:translate-x-0.5 transition-all" />
+              </div>
+            </div>
+          </button>
+        </div>
+
+        {/* ── Quick action links ── */}
+        <div className="flex flex-wrap gap-2 pb-4">
+          <Link href="/advisors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-all">
+            <Phone size={13} /> Browse Advisors
+          </Link>
+          <Link href="/buy-pack"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border"
+            style={{ borderColor: 'rgba(212,175,55,0.4)', background: 'rgba(212,175,55,0.06)', color: '#B48C22' }}>
+            <CreditCard size={13} /> Buy Contact Pack
+          </Link>
+          <Link href="/contact"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-white transition-all">
+            <MessageSquare size={13} /> Support
+          </Link>
+        </div>
+
+      </div>
+    </div>
+
+    {/* ── Section Detail Drawer ── */}
+    {activeSection && (
+      <>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[10001]" onClick={() => setActiveSection(null)} />
+        <div className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-white shadow-2xl z-[10002] flex flex-col">
+
+          {/* Drawer header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-white shrink-0">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                activeSection === 'bookings' ? 'bg-indigo-50 border border-indigo-100' :
+                activeSection === 'quotes'   ? 'bg-violet-50 border border-violet-100' :
+                activeSection === 'tickets'  ? 'bg-emerald-50 border border-emerald-100' :
+                'border'
+              }`} style={activeSection === 'contacts' ? { background: 'rgba(212,175,55,0.10)', borderColor: 'rgba(212,175,55,0.3)' } : {}}>
+                {activeSection === 'bookings' && <Calendar size={16} className="text-indigo-600" />}
+                {activeSection === 'quotes'   && <FileText size={16} className="text-violet-600" />}
+                {activeSection === 'tickets'  && <Ticket size={16} className="text-emerald-600" />}
+                {activeSection === 'contacts' && <UserCheck size={16} style={{ color: '#B48C22' }} />}
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-800">
+                  {activeSection === 'bookings' ? 'My Bookings' :
+                   activeSection === 'quotes'   ? 'Fee Quotes' :
+                   activeSection === 'tickets'  ? 'Work Tickets' :
+                   'Unlocked Contacts'}
+                </h2>
+                <p className="text-[10px] text-slate-400">
+                  {activeSection === 'bookings' ? `${bookings.length} total` :
+                   activeSection === 'quotes'   ? `${quotes.length} total` :
+                   activeSection === 'tickets'  ? `${tickets.length} total` :
+                   `${contactedAdvisors.length} advisors`}
+                </p>
+              </div>
+            </div>
+            <button onClick={() => setActiveSection(null)} className="text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-lg hover:bg-slate-100">
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Drawer scrollable content */}
+          <div className="flex-1 overflow-y-auto px-5 py-4 bg-[#F8F9FC]">
+
+            {/* Bookings list */}
+            {activeSection === 'bookings' && (
+              loading ? (
+                <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 size={20} className="animate-spin mr-2" /> Loading…</div>
+              ) : bookings.length === 0 ? (
+                <div className="text-center py-20">
+                  <Calendar size={38} className="text-slate-200 mx-auto mb-3" />
+                  <p className="text-slate-500 font-semibold text-sm">No bookings yet</p>
+                  <Link href="/advisors" className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 rounded-xl text-xs font-bold text-indigo-600 border border-indigo-200 hover:bg-indigo-50">
+                    Browse Advisors
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {bookings.map(booking => {
+                    const s = STATUS_STYLES[booking.status];
+                    const canCancelThis = canCancel(booking);
+                    const hLeft = hoursLeft(booking);
+                    return (
+                      <div key={booking.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="text-[10px] text-slate-400 font-mono">{booking.bookingNumber}</p>
+                            <h3 className="font-bold text-sm text-slate-800 mt-0.5">{booking.advisor?.fullName ?? 'Advisor'}</h3>
+                            {booking.advisor?.businessName && <p className="text-xs text-slate-500">{booking.advisor.businessName}</p>}
+                          </div>
+                          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${s.bg} ${s.text}`}>
+                            {s.icon} {s.label}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 mb-3">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar size={12} className="text-indigo-400/60" />
+                            {new Date(booking.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Clock size={12} className="text-indigo-400/60" />
+                            {booking.startTime} – {booking.endTime}
+                          </div>
+                          {booking.advisor?.location && (
+                            <div className="flex items-center gap-1.5 col-span-2">
+                              <MapPin size={12} className="text-indigo-400/60" />
+                              {booking.advisor.location}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm" style={{ color: '#B48C22' }}>₹{booking.totalFee}</span>
+                            <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{booking.mode}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {booking.status === 'PENDING' && canCancelThis && (
+                              <span className="text-[10px] text-amber-600">{hLeft}h left to cancel</span>
+                            )}
+                            {canCancelThis && (
+                              <button onClick={() => handleCancel(booking.id)} disabled={cancelling === booking.id}
+                                className="flex items-center gap-1 text-[11px] font-semibold text-red-600 border border-red-200 px-2.5 py-1 rounded-lg transition-all disabled:opacity-50 hover:bg-red-50">
+                                {cancelling === booking.id ? <Loader2 size={11} className="animate-spin" /> : <XCircle size={11} />} Cancel
+                              </button>
+                            )}
+                            {booking.status === 'ACCEPTED' && (
+                              <span className="flex items-center gap-1 text-[11px] text-blue-600"><CheckCircle2 size={12} /> Confirmed</span>
+                            )}
+                            {booking.status === 'COMPLETED' && (
+                              <span className="flex items-center gap-1 text-[11px] text-emerald-600"><ShieldCheck size={12} /> Done</span>
+                            )}
+                          </div>
+                        </div>
+                        {booking.status === 'PENDING' && !canCancelThis && (
+                          <p className="text-[10px] text-slate-400 mt-2">Cancellation window (24h) has passed. Contact support for disputes.</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            {/* Quotes list */}
+            {activeSection === 'quotes' && (
+              quotesLoading ? (
+                <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 size={20} className="animate-spin mr-2" /> Loading…</div>
               ) : quotes.length === 0 ? (
-                <div className="bg-white border border-slate-100 rounded-2xl px-5 py-7 text-center shadow-sm">
-                  <FileText size={28} className="text-slate-300 mx-auto mb-2" />
-                  <p className="text-slate-500 text-sm font-medium">No fee quotes yet</p>
+                <div className="text-center py-20">
+                  <FileText size={38} className="text-slate-200 mx-auto mb-3" />
+                  <p className="text-slate-500 font-semibold text-sm">No fee quotes yet</p>
                   <p className="text-slate-400 text-xs mt-1">Ask an advisor for a fee breakdown before booking.</p>
                 </div>
               ) : (
@@ -447,185 +706,144 @@ export default function BookingsPage() {
                       q.status === 'ACCEPTED'  ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
                       q.status === 'CANCELLED' ? 'text-red-600 bg-red-50 border-red-200' :
                       q.status === 'EXPIRED'   ? 'text-slate-500 bg-slate-50 border-slate-200' :
-                                                 'text-amber-700 bg-amber-50 border-amber-200';
+                                                  'text-amber-700 bg-amber-50 border-amber-200';
                     return (
                       <button key={q.id}
                         onClick={() => { setSelectedQuote(q); setShowQuoteModal(true); }}
-                        className={`w-full text-left flex items-center gap-4 px-4 py-3.5 rounded-2xl border transition-all hover:shadow-sm ${isNew ? 'border-indigo-300 bg-indigo-50' : 'border-slate-100 bg-white shadow-sm'}`}>
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-indigo-100 border border-indigo-200">
-                          <FileText size={15} className="text-indigo-600" />
+                        className={`w-full text-left flex items-center gap-3 px-4 py-3.5 rounded-2xl border bg-white transition-all hover:shadow-sm ${isNew ? 'border-indigo-200' : 'border-slate-100 shadow-sm'}`}>
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-violet-50 border border-violet-100">
+                          <FileText size={15} className="text-violet-600" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-slate-800 truncate">{q.advisor.fullName}</p>
                           <p className="text-[11px] text-slate-500 truncate">
-                            {q.totalAmount ? `₹${parseFloat(q.totalAmount).toLocaleString('en-IN')} · ` : ''}
-                            {q.categorySlug ?? 'General query'}
+                            {q.totalAmount ? `₹${parseFloat(q.totalAmount).toLocaleString('en-IN')} · ` : ''}{q.categorySlug ?? 'General query'}
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-1.5 shrink-0">
-                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${statusColor}`}>
-                            {q.status}
-                          </span>
+                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${statusColor}`}>{q.status}</span>
                           {isNew && <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />}
                         </div>
                       </button>
                     );
                   })}
                 </div>
-              )}
-            </div>
-          );
-        })()}
+              )
+            )}
 
-        {/* Service Tickets */}
-        {(tickets.length > 0 || ticketsLoading) && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Ticket size={15} className="text-emerald-600" />
-                <h2 className="text-sm font-bold text-slate-800">My Work Tickets</h2>
-                {tickets.length > 0 && (
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
-                    {tickets.length}
-                  </span>
-                )}
-              </div>
-              <button onClick={fetchTickets} className="text-slate-400 hover:text-emerald-600 transition-colors p-1">
-                <RefreshCw size={13} />
-              </button>
-            </div>
-            {ticketsLoading ? (
-              <div className="flex items-center justify-center py-8 text-slate-400">
-                <Loader2 size={18} className="animate-spin mr-2" /> Loading tickets...
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {tickets.map((t: any) => {
-                  const statusColor =
-                    t.status === 'OPEN'            ? 'text-blue-700 bg-blue-50 border-blue-200' :
-                    t.status === 'IN_PROGRESS'     ? 'text-amber-700 bg-amber-50 border-amber-200' :
-                    t.status === 'AWAITING_CONFIRM'? 'text-purple-700 bg-purple-50 border-purple-200' :
-                    t.status === 'PAYOUT_RELEASED' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
-                    t.status === 'DISPUTED'        ? 'text-red-600 bg-red-50 border-red-200' :
-                                                      'text-slate-500 bg-slate-50 border-slate-200';
-                  const needsAction = t.status === 'AWAITING_CONFIRM';
-                  return (
-                    <button key={t.id}
-                      onClick={() => router.push(`/tickets/${t.id}`)}
-                      className={`w-full text-left flex items-center gap-4 px-4 py-3.5 rounded-2xl border transition-all hover:shadow-sm ${needsAction ? 'border-purple-200 bg-purple-50' : 'border-slate-100 bg-white shadow-sm'}`}>
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-emerald-100 border border-emerald-200">
-                        <Ticket size={15} className="text-emerald-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-slate-800 truncate">{t.advisor?.fullName}</p>
-                        <p className="text-[11px] text-slate-500">
-                          {t.ticketNumber} &nbsp;&middot;&nbsp; &#8377;{Number(t.totalAmount).toLocaleString('en-IN')}
-                          {t.stages?.length ? ` · ${t.stages.filter((s: any) => s.status === 'CONFIRMED').length}/${t.stages.length} stages` : ''}
+            {/* Tickets list */}
+            {activeSection === 'tickets' && (
+              ticketsLoading ? (
+                <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 size={20} className="animate-spin mr-2" /> Loading…</div>
+              ) : tickets.length === 0 ? (
+                <div className="text-center py-20">
+                  <Ticket size={38} className="text-slate-200 mx-auto mb-3" />
+                  <p className="text-slate-500 font-semibold text-sm">No work tickets yet</p>
+                  <p className="text-slate-400 text-xs mt-1">Work tickets appear when an advisor begins tracked work for you.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {tickets.map((t: any) => {
+                    const statusColor =
+                      t.status === 'OPEN'             ? 'text-blue-700 bg-blue-50 border-blue-200' :
+                      t.status === 'IN_PROGRESS'      ? 'text-amber-700 bg-amber-50 border-amber-200' :
+                      t.status === 'AWAITING_CONFIRM' ? 'text-purple-700 bg-purple-50 border-purple-200' :
+                      t.status === 'PAYOUT_RELEASED'  ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
+                      t.status === 'DISPUTED'         ? 'text-red-600 bg-red-50 border-red-200' :
+                                                        'text-slate-500 bg-slate-50 border-slate-200';
+                    const needsAction = t.status === 'AWAITING_CONFIRM';
+                    return (
+                      <button key={t.id}
+                        onClick={() => { router.push(`/tickets/${t.id}`); setActiveSection(null); }}
+                        className={`w-full text-left flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all hover:shadow-sm ${needsAction ? 'border-purple-200 bg-purple-50/60' : 'border-slate-100 bg-white shadow-sm'}`}>
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50 border border-emerald-100">
+                          <Ticket size={15} className="text-emerald-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-800 truncate">{t.advisor?.fullName}</p>
+                          <p className="text-[11px] text-slate-500">
+                            {t.ticketNumber} · ₹{Number(t.totalAmount).toLocaleString('en-IN')}
+                            {t.stages?.length ? ` · ${t.stages.filter((s: any) => s.status === 'CONFIRMED').length}/${t.stages.length} stages` : ''}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${statusColor}`}>{t.status.replace('_', ' ')}</span>
+                          {needsAction && <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            {/* Contacts list */}
+            {activeSection === 'contacts' && (
+              contactedLoading ? (
+                <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 size={20} className="animate-spin mr-2" /> Loading…</div>
+              ) : contactedError ? (
+                <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-10 text-center">
+                  <AlertCircle size={28} className="text-red-400 mx-auto mb-2" />
+                  <p className="text-red-600 text-sm font-medium">{contactedError}</p>
+                  <button onClick={fetchContactedAdvisors} className="mt-3 text-xs text-indigo-600 underline">Try again</button>
+                </div>
+              ) : contactedAdvisors.length === 0 ? (
+                <div className="text-center py-20">
+                  <UserCheck size={38} className="text-slate-200 mx-auto mb-3" />
+                  <p className="text-slate-500 font-semibold text-sm">No contacts unlocked yet</p>
+                  <p className="text-slate-400 text-xs mt-1">Advisors you contact will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {contactedAdvisors.map(({ id, unlockedAt, isFree, advisor }) => {
+                    const initials = advisor.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+                    return (
+                      <div key={id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+                        <div className="flex items-center gap-3 mb-3">
+                          {advisor.avatarUrl ? (
+                            <img src={resolveImg(advisor.avatarUrl)!} alt={advisor.fullName}
+                              className="w-11 h-11 rounded-xl object-cover border border-slate-200 shrink-0" />
+                          ) : (
+                            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-black text-white shrink-0">
+                              {initials}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <Link href={`/advisors/${advisor.id}`} onClick={() => setActiveSection(null)}
+                                className="text-sm font-bold text-slate-800 hover:text-indigo-600 transition-colors truncate">
+                                {advisor.fullName}
+                              </Link>
+                              <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
+                            </div>
+                            <p className="text-[11px] text-slate-500 truncate">
+                              {advisor.categories.length > 0 ? advisor.categories.slice(0, 2).join(' · ') : advisor.location}
+                            </p>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border shrink-0 ${isFree ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'}`}>
+                            {isFree ? 'Free' : 'Credit used'}
+                          </span>
+                        </div>
+                        <div className="border-t border-slate-100 pt-3 grid grid-cols-2 gap-y-1.5 text-[11px] text-slate-600">
+                          <div className="flex items-center gap-1.5"><Phone size={11} className="text-slate-400 shrink-0" /> {advisor.phoneNumber}</div>
+                          {advisor.email && <div className="flex items-center gap-1.5 truncate"><Eye size={11} className="text-slate-400 shrink-0" /> {advisor.email}</div>}
+                          <div className="flex items-center gap-1.5"><MapPin size={11} className="text-slate-400 shrink-0" /> {advisor.location}</div>
+                          <div className="flex items-center gap-1.5"><BookOpen size={11} className="text-slate-400 shrink-0" /> {advisor.experienceYears}y experience</div>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-2 text-right">
+                          Unlocked {new Date(unlockedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                       </div>
-                      <div className="flex flex-col items-end gap-1.5 shrink-0">
-                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${statusColor}`}>
-                          {t.status.replace('_', ' ')}
-                        </span>
-                        {needsAction && <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )
             )}
-          </div>
-        )}
 
-        {/* Contacted Advisors */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <UserCheck size={15} className="text-indigo-500" />
-              <h2 className="text-sm font-bold text-slate-800">Advisors You&apos;ve Contacted</h2>
-              {contactedAdvisors.length > 0 && (
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
-                  {contactedAdvisors.length}
-                </span>
-              )}
-            </div>
-            <button onClick={fetchContactedAdvisors} className="text-slate-400 hover:text-indigo-500 transition-colors p-1" title="Refresh">
-              <RefreshCw size={13} />
-            </button>
           </div>
-
-          {contactedLoading ? (
-            <div className="flex items-center justify-center py-10 text-slate-400">
-              <Loader2 size={20} className="animate-spin mr-2" /> Loading...
-            </div>
-          ) : contactedError ? (
-            <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-6 text-center">
-              <AlertCircle size={24} className="text-red-500 mx-auto mb-2" />
-              <p className="text-red-600 text-sm font-medium">{contactedError}</p>
-              <button onClick={fetchContactedAdvisors} className="mt-3 text-xs text-indigo-600 hover:text-indigo-700 underline underline-offset-2">
-                Try again
-              </button>
-            </div>
-          ) : contactedAdvisors.length === 0 ? (
-            <div className="bg-white border border-slate-100 rounded-2xl px-5 py-7 text-center shadow-sm">
-              <Eye size={28} className="text-slate-300 mx-auto mb-2" />
-              <p className="text-slate-500 text-sm font-medium">No contacts revealed yet</p>
-              <p className="text-slate-400 text-xs mt-1">Advisors whose contact details you unlock will appear here.</p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
-              {contactedAdvisors.map(({ id, unlockedAt, isFree, advisor }, idx) => {
-                const initials = advisor.fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-                const isLast = idx === contactedAdvisors.length - 1;
-                return (
-                  <div key={id}
-                    className={`flex items-center gap-4 px-4 py-3.5 hover:bg-indigo-50 transition-all ${!isLast ? 'border-b border-slate-100' : ''}`}>
-                    {advisor.avatarUrl ? (
-                      <img
-                        src={resolveImg(advisor.avatarUrl)!}
-                        alt={advisor.fullName}
-                        className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-black text-white shrink-0">
-                        {initials}
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <Link href={`/advisors/${advisor.id}`}
-                          className="text-sm font-bold text-slate-800 hover:text-indigo-600 transition-colors truncate">
-                          {advisor.fullName}
-                        </Link>
-                        <ShieldCheck size={12} className="text-emerald-500 shrink-0" />
-                      </div>
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                        {advisor.categories.length > 0
-                          ? advisor.categories.slice(0, 2).join(' · ')
-                          : advisor.location}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
-                        isFree
-                          ? 'bg-amber-50 text-amber-700 border-amber-200'
-                          : 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                      }`}>
-                        {isFree ? 'Free' : 'Credit used'}
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        {new Date(unlockedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
-
-      </div>
-    </div>
+      </>
+    )}
 
     <FeeQuoteViewModal
       quote={selectedQuote}
