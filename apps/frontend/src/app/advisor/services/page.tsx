@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -57,15 +57,18 @@ export default function AdvisorServicesPage() {
   const { isLoggedIn, authReady, user } = useAuth();
   const router = useRouter();
 
-  const [selectedSlugs, setSelectedSlugs] = useState<string[]>([]);
-  const [selectedSubSlugs, setSelectedSubSlugs] = useState<string[]>([]);
+  const [selectedSlugs, setSelectedSlugs]           = useState<string[]>([]);
+  const [selectedSubSlugs, setSelectedSubSlugs]     = useState<string[]>([]);
   const [customSpecializations, setCustomSpecializations] = useState<Record<string, string>>({});
-  const [expandedModule, setExpandedModule] = useState<string | null>(null);
+  const [expandedModule, setExpandedModule]         = useState<string | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState('');
+  const [success, setSuccess]   = useState(false);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  // Refs for auto-scrolling to each module's sub-service panel
+  const subPanelRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const step2Ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!authReady) return;
@@ -79,9 +82,7 @@ export default function AdvisorServicesPage() {
     setLoading(true);
     try {
       const token = sessionStorage.getItem('accessToken');
-      const res = await fetch(`${API}/advisors/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(`${API}/advisors/me`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) {
         setSelectedSlugs(data.data.categorySlugs || []);
@@ -89,20 +90,14 @@ export default function AdvisorServicesPage() {
         const openCustom: Record<string, string> = {};
         const regularSubs: string[] = [];
         for (const s of specs) {
-          if (OPEN_SLUGS.includes(s.slug)) {
-            openCustom[s.slug] = s.name;
-          } else {
-            regularSubs.push(s.slug);
-          }
+          if (OPEN_SLUGS.includes(s.slug)) openCustom[s.slug] = s.name;
+          else regularSubs.push(s.slug);
         }
         setCustomSpecializations(openCustom);
         setSelectedSubSlugs(regularSubs);
       }
-    } catch {
-      /* non-fatal — start with empty selection */
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* start empty */ }
+    finally { setLoading(false); }
   };
 
   const toggleCategory = (slug: string) => {
@@ -110,17 +105,23 @@ export default function AdvisorServicesPage() {
       if (prev.includes(slug)) {
         const module = MODULES_DATA.find(m => m.id === slug);
         const subSlugs = module?.subModules.map(s => s.id) ?? [];
-        setSelectedSubSlugs(prev2 => prev2.filter(s => !subSlugs.includes(s)));
+        setSelectedSubSlugs(p => p.filter(s => !subSlugs.includes(s)));
         if (OPEN_SLUGS.includes(slug)) {
-          setCustomSpecializations(prev2 => {
-            const next = { ...prev2 };
-            delete next[slug];
-            return next;
-          });
+          setCustomSpecializations(p => { const n = { ...p }; delete n[slug]; return n; });
         }
+        if (expandedModule === slug) setExpandedModule(null);
         return prev.filter(s => s !== slug);
       }
+      // Select + expand + scroll to sub-services
       setExpandedModule(slug);
+      setTimeout(() => {
+        const el = subPanelRefs.current[slug];
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          step2Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 120);
       return [...prev, slug];
     });
   };
@@ -162,29 +163,16 @@ export default function AdvisorServicesPage() {
         }
         return { slug, name: slug };
       });
-
       const openSpecs = Object.entries(customSpecializations)
         .filter(([slug, text]) => selectedSlugs.includes(slug) && OPEN_SLUGS.includes(slug) && text.trim())
         .map(([slug, text]) => ({ slug, name: text.trim() }));
 
-      const allSpecs = [...regularSpecs, ...openSpecs];
-
       const [catRes, specRes] = await Promise.all([
-        fetch(`${API}/advisors/categories`, {
-          method: 'POST', headers,
-          body: JSON.stringify({ categorySlugs: selectedSlugs }),
-        }),
-        fetch(`${API}/advisors/specializations`, {
-          method: 'POST', headers,
-          body: JSON.stringify({ specializations: allSpecs }),
-        }),
+        fetch(`${API}/advisors/categories`, { method: 'POST', headers, body: JSON.stringify({ categorySlugs: selectedSlugs }) }),
+        fetch(`${API}/advisors/specializations`, { method: 'POST', headers, body: JSON.stringify({ specializations: [...regularSpecs, ...openSpecs] }) }),
       ]);
 
-      if (!catRes.ok || !specRes.ok) {
-        setError('Failed to save services. Please try again.');
-        return;
-      }
-
+      if (!catRes.ok || !specRes.ok) { setError('Failed to save services. Please try again.'); return; }
       setSuccess(true);
       setTimeout(() => router.push('/advisor/dashboard'), 1500);
     } catch {
@@ -196,98 +184,117 @@ export default function AdvisorServicesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Loader2 size={28} className="animate-spin text-indigo-400" />
+      <div className="min-h-screen bg-[#F4F6FB] flex items-center justify-center">
+        <Loader2 size={28} className="animate-spin text-indigo-500" />
       </div>
     );
   }
 
   if (success) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F4F6FB] flex items-center justify-center">
         <div className="text-center space-y-3">
-          <CheckCircle2 size={48} className="text-emerald-400 mx-auto" />
-          <p className="text-white text-lg font-bold">Services updated!</p>
-          <p className="text-slate-400 text-sm">Redirecting to dashboard…</p>
+          <CheckCircle2 size={48} className="text-emerald-500 mx-auto" />
+          <p className="text-slate-800 text-lg font-bold">Services updated!</p>
+          <p className="text-slate-500 text-sm">Redirecting to dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F4F6FB]">
       {/* Header */}
-      <div className="bg-slate-900 border-b border-white/5 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Link href="/advisor/dashboard" className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all">
+      <div className="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-3">
+          <Link href="/advisor/dashboard"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all">
             <ArrowLeft size={18} />
           </Link>
-          <div>
-            <h1 className="text-white font-bold text-base flex items-center gap-2">
-              <Layers size={16} className="text-indigo-400" />
-              Manage Your Services
-            </h1>
-            <p className="text-slate-400 text-xs mt-0.5">Update the modules & specializations you offer to clients</p>
+          <div className="flex items-center gap-2 flex-1">
+            <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shrink-0">
+              <Layers size={15} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-slate-800 font-bold text-sm">Manage Your Services</h1>
+              <p className="text-slate-500 text-xs">Update the modules &amp; specializations you offer</p>
+            </div>
           </div>
+          {selectedSlugs.length > 0 && (
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
+              {selectedSlugs.length} selected
+            </span>
+          )}
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
         {/* Info banner */}
-        <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl px-5 py-4 text-sm text-indigo-300">
-          Select all applicable service categories. For standard modules, pick your specific sub-services. For open modules (Study Abroad, Job Placement, etc.), describe your unique specialisation in a short paragraph.
+        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl px-5 py-4 text-sm text-indigo-700">
+          <strong>How it works:</strong> Select a service category below — the page will scroll you straight to its sub-services so you can pick what you specifically offer. For open modules (Study Abroad, Job Placement, etc.), describe your expertise in your own words.
         </div>
 
         {/* Step 1 — Category tiles */}
         <div>
-          <h2 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-black">1</span>
-            Choose Your Service Modules
-            {selectedSlugs.length > 0 && (
-              <span className="ml-auto text-xs text-indigo-400 font-normal">{selectedSlugs.length} selected</span>
-            )}
-          </h2>
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-black shrink-0">1</span>
+            <h2 className="text-slate-800 font-bold text-sm">Choose Your Service Modules</h2>
+          </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {ADVISOR_CATEGORIES.map(cat => {
               const Icon = cat.icon;
               const isSelected = selectedSlugs.includes(cat.slug);
+              const module = MODULES_DATA.find(m => m.id === cat.slug);
+              const subCount = module ? module.subModules.filter(s => selectedSubSlugs.includes(s.id)).length : 0;
+              const hasCustom = !!customSpecializations[cat.slug]?.trim();
+              const isOpen = OPEN_SLUGS.includes(cat.slug);
+
               return (
                 <button
                   key={cat.slug}
                   onClick={() => toggleCategory(cat.slug)}
                   className={`relative text-left p-3.5 rounded-xl border transition-all ${
                     isSelected
-                      ? 'border-indigo-500 bg-indigo-500/10 shadow-lg shadow-indigo-500/10'
-                      : 'border-white/8 bg-white/3 hover:border-white/20 hover:bg-white/5'
+                      ? 'border-indigo-400 bg-white shadow-md shadow-indigo-100 ring-1 ring-indigo-300'
+                      : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm shadow-sm'
                   }`}
                 >
                   {isSelected && (
-                    <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center">
+                    <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center">
                       <Check size={11} className="text-white" />
                     </span>
                   )}
                   <div className={`w-8 h-8 rounded-lg ${cat.color} flex items-center justify-center mb-2`}>
                     <Icon size={16} className={cat.iconColor} />
                   </div>
-                  <p className={`text-xs font-semibold leading-tight mb-1 ${isSelected ? 'text-white' : 'text-slate-300'}`}>
+                  <p className={`text-xs font-semibold leading-tight mb-1 ${isSelected ? 'text-indigo-700' : 'text-slate-700'}`}>
                     {cat.name}
                   </p>
-                  <p className="text-slate-500 text-[10px] leading-tight line-clamp-2">{cat.desc}</p>
+                  <p className="text-slate-400 text-[10px] leading-tight line-clamp-2">{cat.desc}</p>
+                  {isSelected && (
+                    <p className={`text-[10px] font-semibold mt-1.5 ${
+                      (isOpen ? hasCustom : subCount > 0) ? 'text-emerald-600' : 'text-amber-600'
+                    }`}>
+                      {isOpen
+                        ? (hasCustom ? 'Desc. added ✓' : 'Add description ↓')
+                        : (subCount > 0 ? `${subCount} sub-service${subCount > 1 ? 's' : ''} ✓` : 'Pick sub-services ↓')}
+                    </p>
+                  )}
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Step 2 — Specialization details */}
+        {/* Step 2 — Sub-services */}
         {selectedSlugs.length > 0 && (
-          <div>
-            <h2 className="text-white font-bold text-sm mb-4 flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-black">2</span>
-              Add Specialization Details
-            </h2>
+          <div ref={step2Ref}>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-black shrink-0">2</span>
+              <h2 className="text-slate-800 font-bold text-sm">Select Sub-Services for Each Module</h2>
+            </div>
 
             <div className="space-y-3">
               {selectedSlugs.map(slug => {
@@ -299,65 +306,81 @@ export default function AdvisorServicesPage() {
                 const isOpenModule = module.subModules.length === 0;
                 const selectedCount = module.subModules.filter(s => selectedSubSlugs.includes(s.id)).length;
                 const customText = customSpecializations[slug] ?? '';
+                const isDone = isOpenModule ? !!customText.trim() : selectedCount > 0;
 
                 return (
-                  <div key={slug} className="bg-slate-900 border border-white/8 rounded-xl overflow-hidden">
+                  <div
+                    key={slug}
+                    ref={el => { subPanelRefs.current[slug] = el; }}
+                    className={`bg-white rounded-xl border overflow-hidden shadow-sm transition-all ${
+                      isExpanded ? 'border-indigo-300 shadow-indigo-100 shadow-md' : 'border-slate-200'
+                    }`}
+                  >
                     <button
                       onClick={() => setExpandedModule(isExpanded ? null : slug)}
-                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-white/3 transition-all"
+                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-50 transition-all"
                     >
-                      <div className={`w-7 h-7 rounded-lg ${cat?.color ?? 'bg-slate-700'} flex items-center justify-center shrink-0`}>
-                        <Icon size={14} className={cat?.iconColor ?? 'text-slate-300'} />
+                      <div className={`w-8 h-8 rounded-lg ${cat?.color ?? 'bg-slate-100'} flex items-center justify-center shrink-0`}>
+                        <Icon size={15} className={cat?.iconColor ?? 'text-slate-500'} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-semibold truncate">{module.titleEn}</p>
+                        <p className="text-slate-800 text-sm font-semibold truncate">{module.titleEn}</p>
                         {isOpenModule ? (
-                          <p className={`text-xs ${customText.trim() ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          <p className={`text-xs ${customText.trim() ? 'text-emerald-600' : 'text-amber-600'}`}>
                             {customText.trim() ? 'Specialisation added ✓' : 'Tap to describe your specialisation'}
                           </p>
                         ) : (
-                          <p className="text-slate-500 text-xs">{selectedCount}/{module.subModules.length} selected</p>
+                          <p className={`text-xs ${selectedCount > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                            {selectedCount > 0 ? `${selectedCount} of ${module.subModules.length} selected` : `${module.subModules.length} sub-services available`}
+                          </p>
                         )}
                       </div>
-                      {isExpanded ? <ChevronDown size={16} className="text-slate-400 shrink-0" /> : <ChevronRight size={16} className="text-slate-400 shrink-0" />}
+                      {isDone && (
+                        <span className="w-5 h-5 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center shrink-0">
+                          <Check size={11} className="text-emerald-600" />
+                        </span>
+                      )}
+                      {isExpanded
+                        ? <ChevronDown size={16} className="text-slate-400 shrink-0" />
+                        : <ChevronRight size={16} className="text-slate-400 shrink-0" />}
                     </button>
 
                     {isExpanded && (
                       isOpenModule ? (
-                        <div className="border-t border-white/5 px-4 py-4">
-                          <p className="text-slate-300 text-xs font-semibold mb-2">Your specialisation in this area:</p>
+                        <div className="border-t border-slate-100 px-4 py-4">
+                          <p className="text-slate-600 text-xs font-semibold mb-2">Describe your specialisation in this area:</p>
                           <textarea
                             rows={3}
                             maxLength={300}
                             value={customText}
                             onChange={e => setCustomSpecializations(prev => ({ ...prev, [slug]: e.target.value }))}
-                            placeholder={OPEN_PLACEHOLDERS[slug] ?? 'Describe what you specifically offer in this service area…'}
-                            className="w-full text-sm bg-slate-800 border border-white/10 focus:border-indigo-500 rounded-xl px-3 py-2.5 resize-none outline-none transition-colors text-slate-200 placeholder-slate-500"
+                            placeholder={OPEN_PLACEHOLDERS[slug] ?? 'Describe what you specifically offer in this service area...'}
+                            className="w-full text-sm bg-slate-50 border border-slate-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 rounded-xl px-3 py-2.5 resize-none outline-none transition-all text-slate-800 placeholder:text-slate-400"
                           />
-                          <p className="text-[11px] text-slate-500 mt-1 text-right">{customText.length}/300 characters</p>
+                          <p className="text-[11px] text-slate-400 mt-1 text-right">{customText.length}/300</p>
                         </div>
                       ) : (
-                        <div className="border-t border-white/5 px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="border-t border-slate-100 px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {module.subModules.map(sub => {
                             const checked = selectedSubSlugs.includes(sub.id);
                             return (
                               <button
                                 key={sub.id}
                                 onClick={() => toggleSubSlug(sub.id)}
-                                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left transition-all ${
+                                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
                                   checked
-                                    ? 'border-indigo-500/40 bg-indigo-500/10'
-                                    : 'border-white/5 bg-white/2 hover:border-white/15 hover:bg-white/5'
+                                    ? 'border-indigo-300 bg-indigo-50 shadow-sm'
+                                    : 'border-slate-200 bg-slate-50 hover:border-indigo-200 hover:bg-white'
                                 }`}
                               >
                                 <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                                  checked ? 'bg-indigo-500 border-indigo-500' : 'border-white/20 bg-transparent'
+                                  checked ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 bg-white'
                                 }`}>
                                   {checked && <Check size={10} className="text-white" />}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className={`text-xs font-medium leading-tight ${checked ? 'text-white' : 'text-slate-300'}`}>{sub.nameEn}</p>
-                                  <p className="text-slate-500 text-[10px] mt-0.5 leading-tight">{sub.nameHi}</p>
+                                  <p className={`text-xs font-medium leading-tight ${checked ? 'text-indigo-700' : 'text-slate-700'}`}>{sub.nameEn}</p>
+                                  <p className="text-slate-400 text-[10px] mt-0.5 leading-tight">{sub.nameHi}</p>
                                 </div>
                               </button>
                             );
@@ -372,17 +395,17 @@ export default function AdvisorServicesPage() {
           </div>
         )}
 
-        {/* Error message */}
+        {/* Error */}
         {error && (
-          <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+          <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3">
             <AlertCircle size={16} className="shrink-0" />
             {error}
           </div>
         )}
 
-        {/* Save button */}
-        <div className="flex items-center justify-between pt-2 pb-8">
-          <Link href="/advisor/dashboard" className="text-slate-400 text-sm hover:text-white transition-colors">
+        {/* Footer actions */}
+        <div className="flex items-center justify-between pt-2 pb-10">
+          <Link href="/advisor/dashboard" className="text-slate-500 text-sm hover:text-slate-700 transition-colors">
             Cancel
           </Link>
           <button
@@ -392,7 +415,7 @@ export default function AdvisorServicesPage() {
             style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {saving ? 'Saving…' : 'Save Services'}
+            {saving ? 'Saving...' : 'Save Services'}
           </button>
         </div>
       </div>

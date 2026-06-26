@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Loader2, CheckCircle2, Clock, AlertCircle, ShieldCheck,
-  MessageSquare, Plus, ChevronRight, Star, XCircle, Ticket, User,
+  MessageSquare, Plus, ChevronRight, Star,
   Send, AlertTriangle, RefreshCw, Edit3
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';

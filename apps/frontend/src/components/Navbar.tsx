@@ -501,7 +501,7 @@ export default function Navbar() {
           {/* Always-visible Sign In / user chip on mobile */}
           {loggedIn ? (
             <button
-              onClick={() => { logout(); window.location.href = '/'; }}
+              onClick={() => setMobileOpen(!mobileOpen)}
               className="flex items-center gap-1.5 bg-white/10 text-white border border-white/20 font-semibold px-3 py-2 rounded-md text-sm hover:bg-white/20 transition-colors max-w-[100px]"
             >
               <User size={14} className="text-gold-400 shrink-0" />
@@ -569,6 +569,37 @@ export default function Navbar() {
               {t('nav.contact')}
             </Link>
 
+            {/* Logged-in user — role-aware dashboard links */}
+            {loggedIn && (
+              <div className="border-t border-gold-500/10 pt-3 space-y-2">
+                {user?.role === 'CLIENT' && (
+                  <Link href="/bookings" onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-semibold text-slate-200 border border-white/10 rounded-xl hover:bg-white/5 transition-colors">
+                    <BookOpen size={15} className="text-gold-400" /> My Consultations
+                  </Link>
+                )}
+                {user?.role === 'ADVISOR' && (
+                  <Link href="/advisor/dashboard" onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-semibold text-slate-200 border border-white/10 rounded-xl hover:bg-white/5 transition-colors">
+                    <LayoutDashboard size={15} className="text-gold-400" /> Advisor Dashboard
+                  </Link>
+                )}
+                {(user?.role === 'SUPER_ADMIN' || user?.role === 'SUB_ADMIN') && (
+                  <Link href="/admin" onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-semibold text-slate-200 border border-white/10 rounded-xl hover:bg-white/5 transition-colors">
+                    <ShieldCheck size={15} className="text-gold-400" /> Admin Suite
+                  </Link>
+                )}
+                <button
+                  onClick={() => { logout(); setMobileOpen(false); window.location.href = '/'; }}
+                  className="flex items-center gap-2 w-full text-left px-3 py-2.5 text-sm font-semibold text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500/10 transition-colors"
+                >
+                  <LogOut size={15} /> Sign Out
+                </button>
+              </div>
+            )}
+
+            {!loggedIn && (
             <div className="pt-3 space-y-2">
               <Link
                 href="/advisors/onboarding"
@@ -579,6 +610,7 @@ export default function Navbar() {
                 {t('nav.registerAdvisor')}
               </Link>
             </div>
+            )}
           </div>
         </div>
       )}
