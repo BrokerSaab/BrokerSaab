@@ -3,7 +3,7 @@ import { z } from 'zod';
 import prisma from '../config/db';
 import { authenticateJWT, AuthenticatedRequest } from '../middlewares/auth';
 import { validateRequest } from '../middlewares/validate';
-import { kycUpload } from '../middlewares/upload';
+import { kycUpload, fileUrl } from '../middlewares/upload';
 
 const router = Router();
 
@@ -108,7 +108,7 @@ router.post(
         res.status(400).json({ success: false, message: 'No file uploaded' });
         return;
       }
-      const avatarUrl = `/uploads/kyc/${req.file.filename}`;
+      const avatarUrl = fileUrl(req.file);
       await prisma.user.update({ where: { id: userId }, data: { avatarUrl } });
       res.json({ success: true, avatarUrl });
     } catch (err) {

@@ -162,6 +162,8 @@ model Advisor {
   rejectionComment   String?            @db.Text
   subAdminNote       String?            @db.Text
   assignedAt         DateTime?
+  trialStartDate     DateTime?
+  trialEndDate       DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -508,6 +510,7 @@ model SupportTickets {
   updatedAt         DateTime         @updatedAt
 
   activities        TicketActivity[]
+  attachments       TicketAttachment[]
 
   @@index([userId])
   @@index([status])
@@ -525,6 +528,21 @@ model TicketActivity {
   performedByName String
   performedByRole String         // SUPER_ADMIN | SUB_ADMIN | CLIENT | ADVISOR | SYSTEM
   createdAt       DateTime       @default(now())
+
+  @@index([ticketId])
+}
+
+model TicketAttachment {
+  id           String         @id @default(uuid())
+  ticketId     String
+  ticket       SupportTickets @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  uploadedById String
+  uploaderRole String
+  uploaderName String
+  fileUrl      String
+  fileName     String
+  fileType     String
+  createdAt    DateTime       @default(now())
 
   @@index([ticketId])
 }

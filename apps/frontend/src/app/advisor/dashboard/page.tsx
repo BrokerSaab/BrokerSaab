@@ -45,6 +45,7 @@ interface Booking {
   mode: string;
   notes?: string;
   createdAt: string;
+  chatRoom?: { id: string } | null;
   client?: { id: string; fullName: string; phoneNumber: string; avatarUrl?: string };
 }
 
@@ -80,7 +81,16 @@ export default function AdvisorDashboard() {
   const [loading,  setLoading]  = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [filter,   setFilter]   = useState<BookingStatus | 'ALL'>('ALL');
-  const [subValidity, setSubValidity] = useState<{ isActive: boolean; expiresAt: string | null; daysLeft: number } | null>(null);
+  const [subValidity, setSubValidity] = useState<{
+    status: 'TRIAL' | 'ACTIVE' | 'EXPIRED';
+    planType: 'REGULAR' | 'AUTHORIZED';
+    trialEndDate: string | null;
+    trialDaysLeft: number;
+    isInTrial: boolean;
+    isActive: boolean;
+    subscriptionValidUntil: string | null;
+    daysLeft: number;
+  } | null>(null);
 
   // Quote requests
   const [quoteRequests,    setQuoteRequests]    = useState<AdvisorQuote[]>([]);
@@ -652,39 +662,67 @@ export default function AdvisorDashboard() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
 
-        {/* Subscription validity */}
-        {subValidity && (
-          subValidity.isActive ? (
-            <div className="mb-4 p-4 rounded-2xl border border-amber-200 bg-amber-50 flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
-                  <BadgeCheck size={18} className="text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-black text-amber-700">Authorized Badge Active</p>
-                  <p className="text-xs text-slate-500">
-                    Expires {new Date(subValidity.expiresAt!).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    <span className="ml-2 text-amber-700 font-semibold">{subValidity.daysLeft} days left</span>
-                  </p>
-                </div>
+        {/* Subscription / trial status */}
+        {subValidity && subValidity.status === 'ACTIVE' && (
+          <div className="mb-4 p-4 rounded-2xl border border-amber-200 bg-amber-50 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
+                <BadgeCheck size={18} className="text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm font-black text-amber-700">
+                  {subValidity.planType === 'AUTHORIZED' ? 'Authorized Plan' : 'Regular Plan'} — Active
+                </p>
+                <p className="text-xs text-slate-500">
+                  Valid until {subValidity.subscriptionValidUntil
+                    ? new Date(subValidity.subscriptionValidUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+                    : '—'}
+                  <span className="ml-2 text-amber-700 font-semibold">{subValidity.daysLeft} days left</span>
+                </p>
               </div>
             </div>
-          ) : (
-            <div className="mb-4 p-4 rounded-2xl border border-red-200 bg-red-50 flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3">
-                <AlertCircle size={18} className="text-red-600 shrink-0" />
-                <div>
-                  <p className="text-sm font-black text-red-700">Authorized Badge Expired</p>
-                  <p className="text-xs text-slate-500">Renew to keep your badge visible to clients</p>
-                </div>
+          </div>
+        )}
+
+        {subValidity && subValidity.status === 'TRIAL' && (
+          <div className="mb-4 p-4 rounded-2xl border border-indigo-200 bg-indigo-50 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center shrink-0">
+                <Clock size={18} className="text-indigo-600" />
               </div>
-              <Link href="/advisor/badge"
-                className="px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all hover:scale-105"
-                style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}>
-                Get Badge
-              </Link>
+              <div>
+                <p className="text-sm font-black text-indigo-700">Free Trial — {subValidity.trialDaysLeft} days remaining</p>
+                <p className="text-xs text-slate-500">
+                  Subscribe now to get <strong>1.5 years</strong> validity ·
+                  Trial ends {subValidity.trialEndDate
+                    ? new Date(subValidity.trialEndDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+                    : '—'}
+                </p>
+              </div>
             </div>
-          )
+            <Link href="/advisor/subscription"
+              className="px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all hover:scale-105"
+              style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: '#fff' }}>
+              Subscribe
+            </Link>
+          </div>
+        )}
+
+        {subValidity && subValidity.status === 'EXPIRED' && (
+          <div className="mb-4 p-4 rounded-2xl border border-red-200 bg-red-50 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <AlertCircle size={18} className="text-red-600 shrink-0" />
+              <div>
+                <p className="text-sm font-black text-red-700">Subscription Expired</p>
+                <p className="text-xs text-slate-500">Subscribe to restore full platform access</p>
+              </div>
+            </div>
+            <Link href="/advisor/subscription"
+              className="px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all hover:scale-105"
+              style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}>
+              Subscribe Now
+            </Link>
+          </div>
         )}
 
         {/* ── Service Tickets panel ── */}
@@ -1022,6 +1060,12 @@ export default function AdvisorDashboard() {
                       <span className="text-xs text-slate-500 py-2">
                         {booking.status === 'COMPLETED' ? '✓ Consultation closed' : '✗ Rejected/cancelled'}
                       </span>
+                    )}
+                    {booking.chatRoom?.id && booking.status !== 'CANCELLED' && (
+                      <Link href={`/chat/${booking.chatRoom.id}`}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded-xl text-xs font-semibold transition-all">
+                        <MessageSquare size={12} /> Open Chat
+                      </Link>
                     )}
                   </div>
                 </div>

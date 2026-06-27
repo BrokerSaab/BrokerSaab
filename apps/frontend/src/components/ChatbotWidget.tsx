@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MessageCircle, X, ArrowLeft, Send, Loader2, CheckCircle2, AlertCircle, ChevronRight } from 'lucide-react';
+import { MessageCircle, X, ArrowLeft, Send, Loader2, CheckCircle2, AlertCircle, ChevronRight, Paperclip, FileText, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -74,6 +74,8 @@ export default function ChatbotWidget() {
   const [ticketId, setTicketId]   = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [hasUnread, setHasUnread]   = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const token = () => (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('accessToken') || '' : '');
@@ -109,6 +111,7 @@ export default function ChatbotWidget() {
     setSubject('');
     setDesc('');
     setOther('');
+    setAttachments([]);
   }, []);
 
   const handleOption = useCallback((option: string) => {
@@ -136,6 +139,10 @@ export default function ChatbotWidget() {
           setTimeout(() => addMsg({ from: 'bot', text: `Please fill in the details below and I'll create a ticket for you. Our team typically responds within 24 hours.` }), 400);
         }
         break;
+      case 'View my tickets':
+        setIsOpen(false);
+        window.location.href = '/support';
+        break;
       case 'Other question':
         setChatState('ticket_other');
         setTimeout(() => addMsg({ from: 'bot', text: `No problem! Please describe your question or issue and I'll create a support ticket for you.` }), 400);
@@ -152,19 +159,25 @@ export default function ChatbotWidget() {
     });
   }, [openLoginModal, addMsg]);
 
-  const handleSubmitTicket = useCallback(async (subj: string, desc: string) => {
+  const handleSubmitTicket = useCallback(async (subj: string, desc: string, files: File[] = []) => {
     if (!subj.trim() || !desc.trim()) return;
     setSubmitting(true);
-    addMsg({ from: 'user', text: `Subject: ${subj}\n\n${desc}` });
+    const fileNames = files.map(f => f.name).join(', ');
+    addMsg({ from: 'user', text: `Subject: ${subj}${fileNames ? `\nAttachments: ${fileNames}` : ''}\n\n${desc}` });
     try {
+      const form = new FormData();
+      form.append('subject', subj.trim());
+      form.append('description', desc.trim());
+      files.forEach(f => form.append('attachments', f));
+
       const res  = await fetch(`${API}/support/tickets`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ subject: subj.trim(), description: desc.trim() }),
+        headers: { Authorization: `Bearer ${token()}` },
+        body: form,
       });
       const data = await res.json();
       if (data.success) {
-        const tId = `BS-${data.ticket.id.slice(-8).toUpperCase()}`;
+        const tId = data.ticket.ticketNumber || `BS-${data.ticket.id.slice(-8).toUpperCase()}`;
         setTicketId(tId);
         setChatState('ticket_success');
         addMsg({ from: 'bot', text: `✅ Ticket created successfully!\n\nTicket ID: ${tId}\n\nOur support team will get back to you within 24 hours. Thank you for reaching out!` });
@@ -179,20 +192,22 @@ export default function ChatbotWidget() {
       setSubmitting(false);
       setSubject('');
       setDesc('');
+      setAttachments([]);
     }
   }, [addMsg]);
 
   const handleSubmitOther = useCallback(async () => {
     if (!otherText.trim()) return;
-    await handleSubmitTicket('General Query', otherText);
+    await handleSubmitTicket('General Query', otherText, attachments);
     setOther('');
-  }, [otherText, handleSubmitTicket]);
+  }, [otherText, attachments, handleSubmitTicket]);
 
   const HOME_OPTIONS = [
     { label: 'How BrokerSaab works', icon: '🔍' },
     { label: 'Subscription plans', icon: '💰' },
     { label: 'Advisor onboarding', icon: '📋' },
     { label: 'Raise a support ticket', icon: '🎫' },
+    { label: 'View my tickets', icon: '📂' },
     { label: 'Other question', icon: '💬' },
   ];
 
@@ -340,6 +355,50 @@ export default function ChatbotWidget() {
                   className="w-full px-3 py-2 rounded-xl text-xs outline-none text-white placeholder-white/30 resize-none"
                   style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
                 />
+
+                {/* File attachment picker */}
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const picked = Array.from(e.target.files || []).slice(0, 3);
+                      setAttachments(picked);
+                      e.target.value = '';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white/50 hover:text-white/80 transition-all"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.15)' }}
+                  >
+                    <Paperclip size={11} /> Attach files (images / PDF, max 3)
+                  </button>
+                  {attachments.length > 0 && (
+                    <div className="mt-1.5 space-y-1">
+                      {attachments.map((f, i) => (
+                        <div key={i} className="flex items-center gap-1.5 text-[11px] text-white/60">
+                          {f.type.startsWith('image') ? <ImageIcon size={10} className="text-blue-400 shrink-0" /> : <FileText size={10} className="text-amber-400 shrink-0" />}
+                          <span className="truncate max-w-[180px]">{f.name}</span>
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}
+                            className="ml-auto text-white/30 hover:text-red-400 transition-colors shrink-0"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-2">
                   <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={goHome}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white/60 hover:text-white transition-all"
@@ -349,12 +408,12 @@ export default function ChatbotWidget() {
                   <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handleSubmitTicket(subject, description)}
+                    onClick={() => handleSubmitTicket(subject, description, attachments)}
                     disabled={submitting || !subject.trim() || !description.trim()}
                     className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
                     style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}
                   >
-                    {submitting ? <><Loader2 size={12} className="animate-spin" /> Submitting…</> : <><Send size={12} /> Submit Ticket</>}
+                    {submitting ? <><Loader2 size={12} className="animate-spin" /> Submitting…</> : <><Send size={12} /> Submit Ticket{attachments.length > 0 ? ` (${attachments.length} file${attachments.length > 1 ? 's' : ''})` : ''}</>}
                   </button>
                 </div>
               </div>
@@ -400,12 +459,20 @@ export default function ChatbotWidget() {
 
             {/* SUCCESS / ERROR — back to menu */}
             {(chatState === 'ticket_success' || chatState === 'ticket_error') && (
-              <div className="pt-3 flex gap-2">
+              <div className="pt-3 flex gap-2 flex-wrap">
                 <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={goHome}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-white/80 hover:text-white transition-all"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-white/80 hover:text-white transition-all"
                   style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <ArrowLeft size={13} /> Back to menu
+                  <ArrowLeft size={13} /> Menu
                 </button>
+                {chatState === 'ticket_success' && (
+                  <button type="button" onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => { setIsOpen(false); window.location.href = '/support'; }}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all"
+                    style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.3)', color: '#D4AF37' }}>
+                    View My Tickets
+                  </button>
+                )}
                 {chatState === 'ticket_error' && (
                   <button type="button" onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setChatState('ticket_form')}

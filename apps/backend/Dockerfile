@@ -35,7 +35,7 @@ COPY --from=builder /usr/src/app/dist ./dist
 
 EXPOSE 10000
 
-# Run migration first (best-effort), then always start the server.
-# If migrate fails (e.g. DB not ready yet), the server still starts
-# and Render's health check passes. Retry migrations on next deploy.
-CMD ["sh", "-c", "npx prisma migrate deploy || echo '[warn] Migration failed — starting server anyway'; node dist/app.js"]
+# Sync schema to DB (best-effort), then always start the server.
+# prisma db push is used instead of migrate deploy because this project
+# uses db push rather than migration files for schema changes.
+CMD ["sh", "-c", "npx prisma db push || echo '[warn] DB push failed — starting server anyway'; node dist/app.js"]

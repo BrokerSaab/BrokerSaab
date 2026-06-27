@@ -349,6 +349,7 @@ export default function AdminSuitePage() {
 
   // Support tickets tab
   interface TicketActivityItem { action: string; fromStatus?: string; toStatus?: string; note?: string; performedByName: string; performedByRole: string; createdAt: string; }
+  interface TicketAttachmentItem { id: string; fileUrl: string; fileName: string; fileType: string; uploaderName: string; uploaderRole: string; createdAt: string; }
   interface SupportTicket {
     id: string; ticketNumber: string; subject: string; description: string;
     category: string; priority: string; status: string; closingNotes?: string;
@@ -356,6 +357,7 @@ export default function AdminSuitePage() {
     user: { fullName?: string; phoneNumber: string; email?: string; role?: string };
     assignedToAdmin?: { id: string; fullName: string };
     activities: TicketActivityItem[];
+    attachments: TicketAttachmentItem[];
     createdAt: string;
   }
   const [tickets, setTickets]                   = useState<SupportTicket[]>([]);
@@ -978,10 +980,10 @@ export default function AdminSuitePage() {
   const getAdvisorAvatar = (adv: Advisor): string | null => {
     if (adv.avatarUrl) return adv.avatarUrl.startsWith('http') ? adv.avatarUrl : `${BASE_URL}${adv.avatarUrl}`;
     const photo = adv.documents?.find(d => d.documentType === 'PASSPORT_PHOTO');
-    return photo ? `${BASE_URL}${photo.documentUrl}` : null;
+    return photo ? (photo.documentUrl.startsWith('http') ? photo.documentUrl : `${BASE_URL}${photo.documentUrl}`) : null;
   };
 
-  const getDocUrl = (docUrl: string) => `${BASE_URL}${docUrl}`;
+  const getDocUrl = (docUrl: string) => docUrl.startsWith('http') ? docUrl : `${BASE_URL}${docUrl}`;
 
   const handleDocDownload = async (docUrl: string, filename: string) => {
     try {
@@ -2187,6 +2189,46 @@ export default function AdminSuitePage() {
                   <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap border border-slate-100">
                     {selectedTicket.description}
                   </div>
+
+                  {/* Attachments */}
+                  {selectedTicket.attachments?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                        Attachments ({selectedTicket.attachments.length})
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {selectedTicket.attachments.map(att => {
+                          const isImage = att.fileType.startsWith('image/');
+                          return (
+                            <a
+                              key={att.id}
+                              href={att.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group block rounded-xl overflow-hidden border border-slate-100 hover:border-indigo-300 transition-all bg-slate-50"
+                            >
+                              {isImage ? (
+                                <img
+                                  src={att.fileUrl}
+                                  alt={att.fileName}
+                                  className="w-full h-24 object-cover group-hover:opacity-90 transition-opacity"
+                                />
+                              ) : (
+                                <div className="w-full h-24 flex flex-col items-center justify-center gap-2 text-slate-400 group-hover:text-indigo-500 transition-colors">
+                                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                  <span className="text-[10px] font-semibold uppercase">PDF</span>
+                                </div>
+                              )}
+                              <div className="px-2 py-1.5">
+                                <p className="text-[10px] text-slate-500 truncate">{att.fileName}</p>
+                                <p className="text-[9px] text-slate-400">{att.uploaderName} · {att.uploaderRole}</p>
+                              </div>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Closing notes */}
                   {selectedTicket.closingNotes && (

@@ -3,33 +3,37 @@ import path from 'path';
 import fs from 'fs';
 
 const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
-const API_KEY = process.env.CLOUDINARY_API_KEY;
+const API_KEY    = process.env.CLOUDINARY_API_KEY;
 const API_SECRET = process.env.CLOUDINARY_API_SECRET;
 
 const useCloudinary = !!(CLOUD_NAME && API_KEY && API_SECRET);
 
-let storage: multer.StorageEngine;
-
+// Initialise Cloudinary once if credentials are available
+let cloudinaryInstance: any = null;
+let CloudinaryStorageClass: any = null;
 if (useCloudinary) {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const cloudinary = require('cloudinary').v2;
+  cloudinaryInstance = require('cloudinary').v2;
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { CloudinaryStorage } = require('multer-storage-cloudinary');
+  CloudinaryStorageClass = require('multer-storage-cloudinary').CloudinaryStorage;
+  cloudinaryInstance.config({ cloud_name: CLOUD_NAME, api_key: API_KEY, api_secret: API_SECRET });
+}
 
-  cloudinary.config({ cloud_name: CLOUD_NAME, api_key: API_KEY, api_secret: API_SECRET });
-
-  storage = new CloudinaryStorage({
-    cloudinary,
+function makeCloudinaryStorage(folder: string): multer.StorageEngine {
+  return new CloudinaryStorageClass({
+    cloudinary: cloudinaryInstance,
     params: {
-      folder: 'brokersaab/kyc',
+      folder,
       allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
       resource_type: 'auto',
     },
   });
-} else {
-  fs.mkdirSync('uploads/kyc', { recursive: true });
-  storage = multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, 'uploads/kyc'),
+}
+
+function makeDiskStorage(subdir: string): multer.StorageEngine {
+  fs.mkdirSync(`uploads/${subdir}`, { recursive: true });
+  return multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, `uploads/${subdir}`),
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname).toLowerCase();
       cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
@@ -48,15 +52,20 @@ const fileFilter = (
 };
 
 export const kycUpload = multer({
-  storage,
+  storage: useCloudinary ? makeCloudinaryStorage('brokersaab/kyc') : makeDiskStorage('kyc'),
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+export const ticketUpload = multer({
+  storage: useCloudinary ? makeCloudinaryStorage('brokersaab/tickets') : makeDiskStorage('tickets'),
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024, files: 3 },
 });
 
 /** Returns the public URL for an uploaded file (works for both Cloudinary and local disk). */
 export function fileUrl(file: Express.Multer.File): string {
-  // Cloudinary storage sets file.path to the full HTTPS URL
   if (useCloudinary) return file.path;
-  // Disk storage: construct relative URL served by express.static
-  return `/uploads/kyc/${file.filename}`;
+  // file.destination is set by disk storage (e.g. 'uploads/kyc' or 'uploads/tickets')
+  return `/${file.destination}/${file.filename}`;
 }

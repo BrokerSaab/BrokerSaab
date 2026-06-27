@@ -41,6 +41,7 @@ interface Booking {
   mode: string;
   notes?: string;
   createdAt: string;
+  chatRoom?: { id: string } | null;
   advisor?: {
     id: string;
     fullName: string;
@@ -678,6 +679,15 @@ export default function BookingsPage() {
                         </div>
                         {booking.status === 'PENDING' && !canCancelThis && (
                           <p className="text-[10px] text-slate-400 mt-2">Cancellation window (24h) has passed. Contact support for disputes.</p>
+                        )}
+                        {/* Chat Room button */}
+                        {booking.chatRoom?.id && booking.status !== 'CANCELLED' && (
+                          <div className="mt-2.5 pt-2.5 border-t border-slate-100">
+                            <Link href={`/chat/${booking.chatRoom.id}`}
+                              className="flex items-center justify-center gap-2 w-full py-2 rounded-xl text-xs font-bold text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 transition-all">
+                              <MessageSquare size={12} /> Open Consultation Chat
+                            </Link>
+                          </div>
                         )}
                       </div>
                     );

@@ -16,16 +16,41 @@ const getRazorpay = () => new Razorpay({
 const BASE_AMOUNT = 1999;
 const CGST_RATE = 0.09;
 const SGST_RATE = 0.09;
-const GST_AMOUNT = Math.round(BASE_AMOUNT * (CGST_RATE + SGST_RATE) * 100) / 100; // 359.82
-const TOTAL_AMOUNT = Math.round((BASE_AMOUNT + GST_AMOUNT) * 100) / 100;           // 2358.82
-const SUBSCRIPTION_AMOUNT_PAISE = Math.round(TOTAL_AMOUNT * 100);                  // 235882 paise
+const GST_AMOUNT = Math.round(BASE_AMOUNT * (CGST_RATE + SGST_RATE) * 100) / 100;
+const TOTAL_AMOUNT = Math.round((BASE_AMOUNT + GST_AMOUNT) * 100) / 100;
+const SUBSCRIPTION_AMOUNT_PAISE = Math.round(TOTAL_AMOUNT * 100);
 const SUBSCRIPTION_AMOUNT = TOTAL_AMOUNT;
 
-// helper: resolve advisor from JWT (supports old tokens without advisorId + new tokens with it)
+// helper: resolve advisor from JWT
 async function resolveAdvisor(req: Request) {
   const user = (req as any).user;
   if (user.advisorId) return prisma.advisor.findUnique({ where: { id: user.advisorId } });
   return prisma.advisor.findUnique({ where: { phoneNumber: user.phoneNumber } });
+}
+
+/**
+ * Calculates subscription validity end date based on when the advisor pays
+ * relative to their 6-month free trial.
+ *
+ * - Pay on day 0 (onboarding day)  → 2 years from payment
+ * - Pay during trial (day 1–179)   → 1.5 years (18 months) from payment
+ * - Pay after trial expires         → 1 year from payment
+ */
+function calcValidUntil(trialStartDate: Date, paymentDate: Date): Date {
+  const trialEnd = new Date(trialStartDate);
+  trialEnd.setMonth(trialEnd.getMonth() + 6);
+
+  const result = new Date(paymentDate);
+  const isOnboardingDay = paymentDate.toDateString() === trialStartDate.toDateString();
+
+  if (isOnboardingDay) {
+    result.setFullYear(result.getFullYear() + 2);
+  } else if (paymentDate <= trialEnd) {
+    result.setMonth(result.getMonth() + 18);
+  } else {
+    result.setFullYear(result.getFullYear() + 1);
+  }
+  return result;
 }
 
 // ── POST /subscriptions/create-order ──────────────────────────────
@@ -35,9 +60,6 @@ router.post('/create-order', authenticateJWT, requireRole(['ADVISOR']), async (r
     const advisorId = advisor?.id;
     if (!advisorId) return res.status(403).json({ success: false, message: 'Advisor profile required' });
     if (!advisor) return res.status(404).json({ success: false, message: 'Advisor not found' });
-    if (advisor.advisorType !== 'AUTHORIZED') {
-      return res.status(400).json({ success: false, message: 'Only Authorized advisors can subscribe' });
-    }
 
     // Check no active subscription
     const activeSub = await prisma.advisorSubscription.findFirst({
@@ -55,7 +77,8 @@ router.post('/create-order', authenticateJWT, requireRole(['ADVISOR']), async (r
       notes: {
         advisorId,
         advisorName: advisor.fullName,
-        purpose: 'AUTHORIZED_ADVISOR_SUBSCRIPTION',
+        planType: advisor.advisorType,
+        purpose: 'ADVISOR_SUBSCRIPTION',
       },
     } as any);
 
@@ -74,6 +97,7 @@ router.post('/create-order', authenticateJWT, requireRole(['ADVISOR']), async (r
       amount: SUBSCRIPTION_AMOUNT_PAISE,
       currency: 'INR',
       keyId: process.env.RAZORPAY_KEY_ID,
+      planType: advisor.advisorType,
     });
   } catch (err: any) {
     console.error('[create-order]', err);
@@ -106,9 +130,11 @@ router.post('/verify-payment', authenticateJWT, requireRole(['ADVISOR']), async 
       return res.json({ success: true, message: 'Already activated', expiresAt: sub.expiresAt });
     }
 
+    const advisor = await prisma.advisor.findUnique({ where: { id: sub.advisorId } });
+    if (!advisor) return res.status(404).json({ success: false, message: 'Advisor not found' });
+
     const now = new Date();
-    const expiresAt = new Date(now);
-    expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+    const expiresAt = calcValidUntil(advisor.trialStartDate ?? now, now);
 
     await prisma.$transaction([
       prisma.advisorSubscription.update({
@@ -123,11 +149,13 @@ router.post('/verify-payment', authenticateJWT, requireRole(['ADVISOR']), async 
       }),
       prisma.advisor.update({
         where: { id: sub.advisorId },
-        data: { isAuthorizedDealer: true, dealerAuthorizedAt: now },
+        data: advisor.advisorType === 'AUTHORIZED'
+          ? { isAuthorizedDealer: true, dealerAuthorizedAt: now }
+          : {},
       }),
     ]);
 
-    return res.json({ success: true, message: 'Authorized badge activated!', expiresAt });
+    return res.json({ success: true, message: 'Subscription activated!', expiresAt, planType: advisor.advisorType });
   } catch (err: any) {
     console.error('[verify-payment]', err);
     return res.status(500).json({ success: false, message: 'Payment verification failed' });
@@ -158,9 +186,9 @@ export async function webhookHandler(req: Request, res: Response) {
 
       const sub = await prisma.advisorSubscription.findUnique({ where: { razorpayOrderId: orderId } });
       if (sub && sub.status !== TransactionStatus.SUCCESS) {
+        const advisor = await prisma.advisor.findUnique({ where: { id: sub.advisorId } });
         const now = new Date();
-        const expiresAt = new Date(now);
-        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        const expiresAt = calcValidUntil(advisor?.trialStartDate ?? now, now);
 
         await prisma.$transaction([
           prisma.advisorSubscription.update({
@@ -169,7 +197,9 @@ export async function webhookHandler(req: Request, res: Response) {
           }),
           prisma.advisor.update({
             where: { id: sub.advisorId },
-            data: { isAuthorizedDealer: true, dealerAuthorizedAt: now },
+            data: advisor?.advisorType === 'AUTHORIZED'
+              ? { isAuthorizedDealer: true, dealerAuthorizedAt: now }
+              : {},
           }),
         ]);
       }
@@ -182,7 +212,7 @@ export async function webhookHandler(req: Request, res: Response) {
   }
 }
 
-// ── GET /subscriptions/status — advisor subscription validity ────
+// ── GET /subscriptions/status ────────────────────────────────────
 router.get('/status', authenticateJWT, requireRole([Role.ADVISOR]), async (req: any, res: Response) => {
   try {
     const advisor = await prisma.advisor.findUnique({ where: { phoneNumber: req.user.phoneNumber } });
@@ -196,10 +226,29 @@ router.get('/status', authenticateJWT, requireRole([Role.ADVISOR]), async (req: 
     const now = new Date();
     const isActive = !!sub?.expiresAt && sub.expiresAt > now;
     const daysLeft = isActive
-      ? Math.floor((sub!.expiresAt!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      ? Math.floor((sub!.expiresAt!.getTime() - now.getTime()) / 86400000)
       : 0;
 
-    return res.json({ success: true, isActive, expiresAt: sub?.expiresAt ?? null, daysLeft });
+    const trialEndDate = advisor.trialEndDate;
+    const isInTrial = !isActive && !!trialEndDate && trialEndDate > now;
+    const trialDaysLeft = isInTrial
+      ? Math.floor((trialEndDate!.getTime() - now.getTime()) / 86400000)
+      : 0;
+
+    const status = isActive ? 'ACTIVE' : isInTrial ? 'TRIAL' : 'EXPIRED';
+
+    return res.json({
+      success: true,
+      status,
+      planType: advisor.advisorType,
+      trialStartDate: advisor.trialStartDate,
+      trialEndDate,
+      trialDaysLeft,
+      isInTrial,
+      isActive,
+      subscriptionValidUntil: sub?.expiresAt ?? null,
+      daysLeft: isActive ? daysLeft : trialDaysLeft,
+    });
   } catch (err) {
     console.error('[subscriptions/status]', err);
     return res.status(500).json({ success: false, message: 'Failed to fetch subscription status' });
@@ -211,28 +260,36 @@ router.post('/test-payment', authenticateJWT, requireRole(['ADVISOR']), async (r
   try {
     const advisor = await resolveAdvisor(req);
     const advisorId = advisor?.id;
-    if (!advisorId) return res.status(403).json({ success: false, message: 'Advisor profile required' });
+    if (!advisorId || !advisor) return res.status(403).json({ success: false, message: 'Advisor profile required' });
 
-    const fakeOrderId  = `test_order_${Date.now()}`;
-    const fakePayId    = `test_pay_${Date.now()}`;
-    const now          = new Date();
-    const expiresAt    = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+    const fakeOrderId = `test_order_${Date.now()}`;
+    const fakePayId   = `test_pay_${Date.now()}`;
+    const now         = new Date();
+    const expiresAt   = calcValidUntil(advisor.trialStartDate ?? now, now);
 
-    await prisma.advisorSubscription.create({
-      data: {
-        advisorId,
-        razorpayOrderId:   fakeOrderId,
-        razorpayPaymentId: fakePayId,
-        razorpaySignature: 'test_signature',
-        amount:            2358.82,
-        status:            TransactionStatus.SUCCESS,
-        subscribedAt:      now,
-        expiresAt,
-      },
-    });
+    await prisma.$transaction([
+      prisma.advisorSubscription.create({
+        data: {
+          advisorId,
+          razorpayOrderId:   fakeOrderId,
+          razorpayPaymentId: fakePayId,
+          razorpaySignature: 'test_signature',
+          amount:            SUBSCRIPTION_AMOUNT,
+          status:            TransactionStatus.SUCCESS,
+          subscribedAt:      now,
+          expiresAt,
+        },
+      }),
+      prisma.advisor.update({
+        where: { id: advisorId },
+        data: advisor.advisorType === 'AUTHORIZED'
+          ? { isAuthorizedDealer: true, dealerAuthorizedAt: now }
+          : {},
+      }),
+    ]);
 
-    return res.json({ success: true, message: 'Test payment recorded', paymentId: fakePayId });
-  } catch (err) {
+    return res.json({ success: true, message: 'Test subscription activated', paymentId: fakePayId, expiresAt, planType: advisor.advisorType });
+  } catch (err: any) {
     console.error('[subscriptions/test-payment]', err);
     return res.status(500).json({ success: false, message: 'Test payment failed' });
   }

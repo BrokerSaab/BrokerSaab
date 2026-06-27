@@ -22,6 +22,7 @@ import supportRoutes from './routes/support';
 import quoteRoutes from './routes/quotes';
 import ticketRoutes from './routes/tickets';
 import userRoutes from './routes/users';
+import chatRoutes from './routes/chat';
 import prisma from './config/db';
 
 const app = express();
@@ -72,6 +73,7 @@ app.use('/api/v1/support', supportRoutes);
 app.use('/api/v1/quotes', quoteRoutes);
 app.use('/api/v1/tickets', ticketRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/chat', chatRoutes);
 
 // Health Check Endpoint
 app.get('/health', (req: Request, res: Response) => {
@@ -96,13 +98,31 @@ io.on('connection', (socket) => {
   socket.on('join_user_room',    (userId: string)    => socket.join(`user:${userId}`));
   socket.on('join_advisor_room', (advisorId: string) => socket.join(`advisor:${advisorId}`));
 
-  // Message dispatcher
-  socket.on('send_msg', (data: { roomId: string; senderId: string; content: string }) => {
-    io.to(data.roomId).emit('recv_msg', {
-      senderId: data.senderId,
-      content: data.content,
-      createdAt: new Date().toISOString()
-    });
+  // Message dispatcher — persists to DB then broadcasts
+  socket.on('send_msg', async (data: { roomId: string; senderId: string; content: string }) => {
+    try {
+      const participant = await prisma.chatRoomParticipant.findUnique({
+        where: { chatRoomId_userId: { chatRoomId: data.roomId, userId: data.senderId } },
+      });
+      if (!participant) return;
+
+      const message = await prisma.message.create({
+        data: { chatRoomId: data.roomId, senderId: data.senderId, content: data.content.slice(0, 2000) },
+        include: { sender: { select: { id: true, fullName: true, avatarUrl: true, role: true } } },
+      });
+
+      io.to(data.roomId).emit('recv_msg', {
+        id: message.id,
+        senderId: message.senderId,
+        senderName: message.sender.fullName,
+        senderAvatar: message.sender.avatarUrl,
+        senderRole: message.sender.role,
+        content: message.content,
+        createdAt: message.createdAt.toISOString(),
+      });
+    } catch (err) {
+      console.error('[socket send_msg]', err);
+    }
   });
 
   socket.on('disconnect', () => {

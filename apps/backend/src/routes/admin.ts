@@ -6,6 +6,7 @@ import prisma from '../config/db';
 import { authenticateJWT, requireRole, logAuditEvent, AuthenticatedRequest } from '../middlewares/auth';
 import { validateRequest } from '../middlewares/validate';
 import { exportToExcel } from '../utils/excelExport';
+import { sendPushNotification } from '../utils/pushNotification';
 
 const router = Router();
 
@@ -841,9 +842,10 @@ router.patch(
 );
 
 const TICKET_ADMIN_INCLUDE = {
-  user: { select: { fullName: true, phoneNumber: true, email: true, role: true } },
+  user: { select: { id: true, fullName: true, phoneNumber: true, email: true, role: true, pushToken: true } },
   assignedToAdmin: { select: { id: true, fullName: true } },
   activities: { orderBy: { createdAt: 'asc' as const } },
+  attachments: { orderBy: { createdAt: 'asc' as const } },
 } as const;
 
 // ── GET /admin/tickets ────────────────────────────────────────────
@@ -928,6 +930,18 @@ router.patch('/tickets/:id', ...ADMIN_GUARD, async (req: AuthenticatedRequest, r
       data: updateData,
       include: TICKET_ADMIN_INCLUDE,
     });
+
+    // Notify the ticket creator via push notification
+    const pushToken = (ticket.user as any).pushToken as string | null | undefined;
+    if (pushToken) {
+      const statusLabel = status === 'CLOSED' ? 'Closed' : status === 'RESOLVED' ? 'Resolved' : 'In Progress';
+      sendPushNotification(
+        pushToken,
+        `Support Ticket ${statusLabel}`,
+        `Your ticket "${ticket.subject}" has been marked ${statusLabel}.${status === 'CLOSED' && closingNotes ? ` Note: ${closingNotes.trim()}` : ''}`,
+        { ticketId: ticket.id }
+      );
+    }
 
     return res.json({ success: true, ticket });
   } catch (err) {

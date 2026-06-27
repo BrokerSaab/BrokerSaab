@@ -507,6 +507,10 @@ router.post('/advisor/signup', validateRequest(advisorSignupSchema), async (req:
     }
 
     // Create advisor record (same for both paths)
+    const trialStartDate = new Date();
+    const trialEndDate = new Date(trialStartDate);
+    trialEndDate.setMonth(trialEndDate.getMonth() + 6);
+
     const advisor = await tx.advisor.create({
       data: {
         phoneNumber,
@@ -524,7 +528,9 @@ router.post('/advisor/signup', validateRequest(advisorSignupSchema), async (req:
         consultationFee: consultationFee ?? 0,
         languages,
         bio: bio || null,
-        onboardingStep: 8
+        onboardingStep: 8,
+        trialStartDate,
+        trialEndDate,
       }
     });
 
