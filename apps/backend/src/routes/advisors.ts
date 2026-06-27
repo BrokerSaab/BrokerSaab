@@ -331,11 +331,14 @@ router.get('/me', authenticateJWT, requireRole([Role.ADVISOR]), async (req: Auth
         fullName: true,
         businessName: true,
         location: true,
-        city: true,
         state: true,
         verificationStatus: true,
-        categories: { include: { category: { select: { slug: true, name: true } } } },
-        specializations: { include: { specialization: { select: { slug: true, name: true } } } },
+        categories: {
+          select: { category: { select: { slug: true, name: true } } },
+        },
+        specializations: {
+          select: { specialization: { select: { slug: true, name: true } } },
+        },
       },
     });
     if (!advisor) { res.status(404).json({ success: false, message: 'Advisor profile not found' }); return; }
@@ -354,7 +357,7 @@ router.get('/me', authenticateJWT, requireRole([Role.ADVISOR]), async (req: Auth
         id: advisor.id,
         fullName: advisor.fullName,
         businessName: advisor.businessName,
-        location: advisor.location ?? (advisor.city && advisor.state ? `${advisor.city}, ${advisor.state}` : advisor.city ?? advisor.state ?? ''),
+        location: advisor.location ?? advisor.state ?? '',
         verificationStatus: advisor.verificationStatus,
         categorySlugs: advisor.categories.map(c => c.category.slug),
         specializations: advisor.specializations.map(s => ({
