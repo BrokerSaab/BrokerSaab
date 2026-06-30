@@ -160,7 +160,11 @@ export default function ChatbotWidget() {
   }, [openLoginModal, addMsg]);
 
   const handleSubmitTicket = useCallback(async (subj: string, desc: string, files: File[] = []) => {
-    if (!subj.trim() || !desc.trim()) return;
+    if (!subj.trim()) return;
+    if (!desc.trim() || desc.trim().length < 10) {
+      addMsg({ from: 'bot', text: `⚠️ Description must be at least 10 characters. Please provide more details about your issue so we can help you better.` });
+      return;
+    }
     setSubmitting(true);
     const fileNames = files.map(f => f.name).join(', ');
     addMsg({ from: 'user', text: `Subject: ${subj}${fileNames ? `\nAttachments: ${fileNames}` : ''}\n\n${desc}` });
@@ -198,9 +202,13 @@ export default function ChatbotWidget() {
 
   const handleSubmitOther = useCallback(async () => {
     if (!otherText.trim()) return;
+    if (otherText.trim().length < 10) {
+      addMsg({ from: 'bot', text: `⚠️ Please describe your issue in at least 10 characters so we can assist you properly.` });
+      return;
+    }
     await handleSubmitTicket('General Query', otherText, attachments);
     setOther('');
-  }, [otherText, attachments, handleSubmitTicket]);
+  }, [otherText, attachments, handleSubmitTicket, addMsg]);
 
   const HOME_OPTIONS = [
     { label: 'How BrokerSaab works', icon: '🔍' },

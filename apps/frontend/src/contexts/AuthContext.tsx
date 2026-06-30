@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export interface AuthUser {
   id?: string;
@@ -34,6 +35,7 @@ export function useAuth(): AuthContextValue {
 import LoginModal from '@/components/LoginModal';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -87,6 +89,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => {
       afterLoginCallbackRef.current?.();
       afterLoginCallbackRef.current = null;
+      // Redirect advisors to their dashboard automatically
+      if (userData.role === 'ADVISOR') {
+        router.push('/advisor/dashboard');
+      }
     }, 1600);
   };
 

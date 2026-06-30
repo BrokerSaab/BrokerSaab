@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft, Loader2, RefreshCw, Ticket, AlertCircle,
-  CheckCircle2, Clock, FileText, Image as ImageIcon, Paperclip, ChevronDown, ChevronUp
+  CheckCircle2, Clock, FileText, Image as ImageIcon, Paperclip, ChevronDown, ChevronUp,
+  Plus, X, Send
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -49,9 +50,20 @@ export default function SupportPage() {
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
 
+  const [showForm, setShowForm]         = useState(false);
+  const [formSubject, setFormSubject]     = useState('');
+  const [formDesc, setFormDesc]           = useState('');
+  const [formCategory, setFormCategory]   = useState('GENERAL');
+  const [formPriority, setFormPriority]   = useState('MEDIUM');
+  const [formFiles, setFormFiles]         = useState<File[]>([]);
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [formError, setFormError]         = useState('');
+  const [formSuccess, setFormSuccess]     = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!authReady) return;
-    if (!isLoggedIn) { router.push('/auth/admin'); return; }
+    if (!isLoggedIn) { router.push('/'); return; }
     fetchTickets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authReady, isLoggedIn]);
@@ -65,6 +77,55 @@ export default function SupportPage() {
       if (data.success) setTickets(data.tickets);
     } catch { /* ignore */ }
     finally { setLoading(false); }
+  };
+
+  const resetForm = () => {
+    setFormSubject(''); setFormDesc(''); setFormCategory('GENERAL'); setFormPriority('MEDIUM');
+    setFormFiles([]); setFormError(''); setFormSuccess('');
+  };
+
+  const cancelForm = () => {
+    resetForm();
+    setShowForm(false);
+  };
+
+  const handleCreateTicket = async () => {
+    setFormError('');
+    if (!formSubject.trim() || formSubject.trim().length < 3) {
+      setFormError('Subject must be at least 3 characters.');
+      return;
+    }
+    if (!formDesc.trim() || formDesc.trim().length < 10) {
+      setFormError('Description must be at least 10 characters. Please provide more details about your issue.');
+      return;
+    }
+    setFormSubmitting(true);
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      const form = new FormData();
+      form.append('subject', formSubject.trim());
+      form.append('description', formDesc.trim());
+      form.append('category', formCategory);
+      form.append('priority', formPriority);
+      formFiles.forEach(f => form.append('attachments', f));
+
+      const res = await fetch(`${API}/support/tickets`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFormSuccess(`Ticket ${data.ticket.ticketNumber} created successfully!`);
+        setTimeout(() => { resetForm(); setShowForm(false); fetchTickets(); }, 1500);
+      } else {
+        setFormError(data.message || 'Failed to create ticket.');
+      }
+    } catch {
+      setFormError('Could not connect to the server. Please try again.');
+    } finally {
+      setFormSubmitting(false);
+    }
   };
 
   if (!authReady || loading) {
@@ -89,7 +150,7 @@ export default function SupportPage() {
             </h1>
             <p className="text-xs text-slate-400">{user?.fullName}</p>
           </div>
-          <button onClick={fetchTickets} className="text-slate-400 hover:text-slateigo-600 transition-colors p-2">
+          <button onClick={fetchTickets} className="text-slate-400 hover:text-indigo-600 transition-colors p-2">
             <RefreshCw size={15} />
           </button>
         </div>
@@ -98,15 +159,146 @@ export default function SupportPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-4">
 
         {/* Raise a new ticket CTA */}
-        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-5 py-4 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-bold text-indigo-800">Need help?</p>
-            <p className="text-xs text-indigo-600">Use the chat widget (bottom-right) to raise a new support ticket with attachments.</p>
+        {!showForm ? (
+          <button
+            onClick={() => setShowForm(true)}
+            className="w-full bg-indigo-50 border border-indigo-100 rounded-2xl px-5 py-4 flex items-center justify-between gap-4 hover:bg-indigo-100 hover:border-indigo-200 transition-all group"
+          >
+            <div className="text-left">
+              <p className="text-sm font-bold text-indigo-800">Need help?</p>
+              <p className="text-xs text-indigo-600">Click here to raise a new support ticket</p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center shrink-0 group-hover:bg-indigo-200 transition-colors">
+              <Plus size={18} className="text-indigo-600" />
+            </div>
+          </button>
+        ) : (
+          <div className="bg-white rounded-2xl border border-indigo-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Plus size={14} className="text-indigo-500" /> Raise New Ticket
+              </h2>
+              <button onClick={cancelForm} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <input
+                type="text"
+                value={formSubject}
+                onChange={e => setFormSubject(e.target.value)}
+                placeholder="Subject (e.g. Payment issue, Profile not approved…)"
+                maxLength={200}
+                className="w-full px-3 py-2.5 rounded-xl text-sm border border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-700 placeholder-slate-400"
+              />
+              <textarea
+                value={formDesc}
+                onChange={e => setFormDesc(e.target.value)}
+                placeholder="Describe your issue in detail (min. 10 characters)…"
+                maxLength={2000}
+                rows={4}
+                className="w-full px-3 py-2.5 rounded-xl text-sm border border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-700 placeholder-slate-400 resize-none"
+              />
+              {formDesc.trim().length > 0 && formDesc.trim().length < 10 && (
+                <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <AlertCircle size={12} /> {10 - formDesc.trim().length} more character{10 - formDesc.trim().length !== 1 ? 's' : ''} needed
+                </p>
+              )}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-[10px] font-semibold text-slate-500 uppercase mb-1 block">Category</label>
+                  <select value={formCategory} onChange={e => setFormCategory(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-xs border border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-700 bg-white">
+                    <option value="GENERAL">General</option>
+                    <option value="BILLING">Billing</option>
+                    <option value="TECHNICAL">Technical</option>
+                    <option value="BOOKING_ISSUE">Booking Issue</option>
+                    <option value="ADVISOR_ISSUE">Advisor Issue</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] font-semibold text-slate-500 uppercase mb-1 block">Priority</label>
+                  <select value={formPriority} onChange={e => setFormPriority(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-xs border border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-700 bg-white">
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                    <option value="URGENT">Urgent</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* File attachment */}
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const picked = Array.from(e.target.files || []).slice(0, 3 - formFiles.length);
+                    setFormFiles(prev => [...prev, ...picked].slice(0, 3));
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={formFiles.length >= 3}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-all border border-dashed border-slate-200 hover:border-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Paperclip size={12} /> Attach files (images / PDF, max 3)
+                </button>
+                {formFiles.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {formFiles.map((f, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-1.5">
+                        {f.type.startsWith('image') ? <ImageIcon size={12} className="text-blue-500 shrink-0" /> : <FileText size={12} className="text-amber-500 shrink-0" />}
+                        <span className="truncate flex-1">{f.name}</span>
+                        <button onClick={() => setFormFiles(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500 transition-colors shrink-0">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Error / Success */}
+              {formError && (
+                <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                  <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-700">{formError}</p>
+                </div>
+              )}
+              {formSuccess && (
+                <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+                  <CheckCircle2 size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-emerald-700">{formSuccess}</p>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  onClick={cancelForm}
+                  className="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-700 border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateTicket}
+                  disabled={formSubmitting || !formSubject.trim() || !formDesc.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {formSubmitting ? <><Loader2 size={13} className="animate-spin" /> Submitting…</> : <><Send size={13} /> Submit Ticket{formFiles.length > 0 ? ` (${formFiles.length} file${formFiles.length > 1 ? 's' : ''})` : ''}</>}
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center shrink-0">
-            <Ticket size={18} className="text-indigo-600" />
-          </div>
-        </div>
+        )}
 
         {/* Ticket list */}
         {tickets.length === 0 ? (
@@ -210,12 +402,17 @@ export default function SupportPage() {
                               <div className="mt-0.5 w-4 h-4 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
                                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
                               </div>
-                              <div>
+                              <div className="min-w-0 flex-1">
                                 <p className="text-xs text-slate-600">
-                                  {act.toStatus ? `Status → ${act.toStatus.replace('_', ' ')}` : act.action.replace('_', ' ')}
-                                  {act.note && act.action !== 'STATUS_CHANGED' && ` — ${act.note}`}
+                                  {act.action === 'COMMENT' ? 'Admin commented' : act.toStatus ? `Status → ${act.toStatus.replace('_', ' ')}` : act.action.replace('_', ' ')}
                                 </p>
-                                <p className="text-[10px] text-slate-400">
+                                {act.note && act.action === 'COMMENT' && (
+                                  <p className="text-xs text-slate-700 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1.5 mt-1 leading-relaxed break-words">{act.note}</p>
+                                )}
+                                {act.note && act.action !== 'STATUS_CHANGED' && act.action !== 'COMMENT' && (
+                                  <p className="text-[11px] text-slate-500 mt-0.5">{act.note}</p>
+                                )}
+                                <p className="text-[10px] text-slate-400 mt-0.5">
                                   {act.performedByName} · {new Date(act.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                 </p>
                               </div>

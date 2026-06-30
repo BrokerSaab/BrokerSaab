@@ -24,6 +24,8 @@ import ticketRoutes from './routes/tickets';
 import userRoutes from './routes/users';
 import chatRoutes from './routes/chat';
 import prisma from './config/db';
+import { authenticateJWT, requireRole } from './middlewares/auth';
+import { Role } from '@prisma/client';
 
 const app = express();
 const server = http.createServer(app);
@@ -38,6 +40,19 @@ const io = new Server(server, {
 
 // Port configuration
 const PORT = process.env.PORT || 5000;
+
+// ── Traffic Stats Tracker ────────────────────────────────────────────────────
+const trafficStats = {
+  totalRequests: 0,
+  activeRequests: 0,
+  requestTimestamps: [] as number[],   // timestamps of requests in last 60s
+};
+
+// Drop timestamps older than 60 seconds every 5 seconds
+setInterval(() => {
+  const cutoff = Date.now() - 60_000;
+  trafficStats.requestTimestamps = trafficStats.requestTimestamps.filter(t => t > cutoff);
+}, 5_000);
 
 // Security Middlewares
 app.use(helmet());
@@ -54,6 +69,15 @@ app.post('/api/v1/contacts/webhook', express.raw({ type: '*/*' }), contactWebhoo
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Count every incoming request
+app.use((req: Request, res: Response, next: NextFunction) => {
+  trafficStats.totalRequests++;
+  trafficStats.activeRequests++;
+  trafficStats.requestTimestamps.push(Date.now());
+  res.on('finish', () => { trafficStats.activeRequests--; });
+  next();
+});
 
 // Serve uploaded KYC files — CORP: cross-origin allows Vercel frontend to load images/files
 app.use('/uploads', (_req, res, next) => {
@@ -81,6 +105,23 @@ app.get('/health', (req: Request, res: Response) => {
     status: 'healthy',
     timestamp: new Date().toISOString(),
     service: 'BrokerSaab Express REST Core'
+  });
+});
+
+// Live Traffic Stats Endpoint — SUPER_ADMIN and SUB_ADMIN only
+app.get('/admin/stats', authenticateJWT, requireRole([Role.SUPER_ADMIN, Role.SUB_ADMIN]), (req: Request, res: Response) => {
+  const mem = process.memoryUsage();
+  res.status(200).json({
+    socketConnections:  io.engine.clientsCount,
+    activeRequests:     trafficStats.activeRequests,
+    requestsPerMinute:  trafficStats.requestTimestamps.length,
+    totalRequests:      trafficStats.totalRequests,
+    uptime:             `${Math.floor(process.uptime())} seconds`,
+    memory: {
+      used:  `${Math.round(mem.heapUsed  / 1024 / 1024)} MB`,
+      total: `${Math.round(mem.heapTotal / 1024 / 1024)} MB`,
+    },
+    timestamp: new Date().toISOString(),
   });
 });
 

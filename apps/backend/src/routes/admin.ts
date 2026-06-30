@@ -950,6 +950,59 @@ router.patch('/tickets/:id', ...ADMIN_GUARD, async (req: AuthenticatedRequest, r
   }
 });
 
+// ── POST /admin/tickets/:id/comment ───────────────────────────────
+router.post('/tickets/:id/comment', ...ADMIN_GUARD, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const adminId = req.user!.id;
+    const { id }  = req.params;
+    const { comment } = req.body;
+
+    if (!comment?.trim() || comment.trim().length < 3) {
+      return res.status(400).json({ success: false, message: 'Comment must be at least 3 characters.' });
+    }
+
+    const existing = await prisma.supportTickets.findUnique({ where: { id }, select: { status: true } });
+    if (!existing) return res.status(404).json({ success: false, message: 'Ticket not found' });
+    if (existing.status === 'CLOSED') {
+      return res.status(400).json({ success: false, message: 'Cannot add comments to a closed ticket.' });
+    }
+
+    const admin = await prisma.adminUsers.findUnique({ where: { id: adminId }, select: { fullName: true, role: true } });
+    const adminName = admin?.fullName || 'Admin';
+    const adminRole = (admin?.role as string) || 'ADMIN';
+
+    await prisma.ticketActivity.create({
+      data: {
+        ticketId: id,
+        action: 'COMMENT',
+        note: comment.trim(),
+        performedByName: adminName,
+        performedByRole: adminRole,
+      },
+    });
+
+    const ticket = await prisma.supportTickets.findUnique({
+      where: { id },
+      include: TICKET_ADMIN_INCLUDE,
+    });
+
+    const pushToken = (ticket?.user as any)?.pushToken as string | null | undefined;
+    if (pushToken) {
+      sendPushNotification(
+        pushToken,
+        'New Comment on Your Ticket',
+        `${adminName} commented: "${comment.trim().slice(0, 80)}"`,
+        { ticketId: id }
+      );
+    }
+
+    return res.json({ success: true, ticket });
+  } catch (err) {
+    console.error('[admin/tickets/:id/comment POST]', err);
+    return res.status(500).json({ success: false, message: 'Failed to add comment' });
+  }
+});
+
 // ── POST /admin/tickets/:id/assign ────────────────────────────────
 router.post('/tickets/:id/assign', ...SUPER_ADMIN_ONLY, async (req: AuthenticatedRequest, res: Response) => {
   try {

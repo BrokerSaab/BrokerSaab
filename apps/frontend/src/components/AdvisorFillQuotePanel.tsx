@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { X, Plus, Trash2, FileText, Loader2, ChevronRight, User, MessageSquare, Tag, Clock, CheckCircle2, Edit3 } from 'lucide-react';
+import { getCategoryName } from '@/data/categoryMap';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
@@ -165,7 +166,7 @@ export default function AdvisorFillQuotePanel({ request, isOpen, onClose, onSubm
                 <div className="flex items-center gap-2">
                   <Tag size={11} className="text-white/40" />
                   <span className="text-xs font-semibold text-indigo-300 bg-indigo-500/15 border border-indigo-500/30 px-2.5 py-0.5 rounded-full">
-                    {request.categorySlug.toUpperCase()}
+                    {getCategoryName(request.categorySlug)}
                   </span>
                 </div>
               )}

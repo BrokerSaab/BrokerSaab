@@ -1087,20 +1087,20 @@ ${availLines ? `<div class="section">
         {/* ── Step: Welcome ── */}
         {step === 'welcome' && (
           <div className="p-4 sm:p-5">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 rounded-full bg-indigo-500/10 border-2 border-indigo-500/30 flex items-center justify-center mx-auto mb-4">
-                <UserPlus size={30} className="text-indigo-500" />
+            <div className="text-center mb-3 sm:mb-6">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-indigo-500/10 border-2 border-indigo-500/30 flex items-center justify-center mx-auto mb-2 sm:mb-4">
+                <UserPlus size={24} className="text-indigo-500" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
                 {t('onboard.welcome.heading').split(' ').slice(0,2).join(' ')} <span className="text-indigo-600 font-bold">{t('onboard.welcome.heading').split(' ').slice(2).join(' ')}</span>
               </h1>
               <p className="text-sm text-gray-500">{t('onboard.welcome.sub')}</p>
             </div>
 
             {/* How It Works */}
-            <div className="mb-6">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{t('onboard.welcome.howTitle')}</h2>
-              <div className="space-y-3">
+            <div className="mb-3 sm:mb-6">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 sm:mb-3">{t('onboard.welcome.howTitle')}</h2>
+              <div className="space-y-2 sm:space-y-3">
                 {[
                   { n: '1', title: t('onboard.welcome.step1Title'), desc: t('onboard.welcome.step1Desc') },
                   { n: '2', title: t('onboard.welcome.step2Title'), desc: t('onboard.welcome.step2Desc') },
@@ -1118,9 +1118,9 @@ ${availLines ? `<div class="section">
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
               {/* Requirements */}
-              <div className="bg-gray-50 rounded-2xl p-4">
+              <div className="bg-gray-50 rounded-2xl p-3 sm:p-4">
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{t('onboard.welcome.reqTitle')}</h2>
                 <ul className="space-y-2">
                   {[
@@ -1138,7 +1138,7 @@ ${availLines ? `<div class="section">
               </div>
 
               {/* Benefits */}
-              <div className="bg-indigo-500/5 rounded-2xl p-4 border border-indigo-500/20">
+              <div className="bg-indigo-500/5 rounded-2xl p-3 sm:p-4 border border-indigo-500/20">
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{t('onboard.welcome.benTitle')}</h2>
                 <ul className="space-y-2">
                   {[

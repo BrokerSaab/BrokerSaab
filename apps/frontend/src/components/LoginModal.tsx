@@ -300,7 +300,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                     value={phoneNumber} onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
                     onKeyDown={e => e.key === 'Enter' && tcAccepted && (loginMethod === 'otp' ? handleSendOtp() : handlePhonePasswordLogin())}
                     className={inputBase} />
-                  <Phone size={15} className="mr-3 text-slate-400" />
                 </div>
               </div>
 

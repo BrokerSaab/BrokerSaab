@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Star, ShieldCheck, MapPin, Award, Languages, Calendar, Clock,
   ArrowLeft, User, BadgeCheck, Phone, Mail, Eye, Loader2, Copy,
@@ -74,6 +74,7 @@ export default function AdvisorProfilePage() {
   const [paymentGateway, setPaymentGateway] = useState<'RAZORPAY' | 'STRIPE' | 'WALLET'>('RAZORPAY');
   const [showQuoteModal,  setShowQuoteModal]  = useState(false);
   const [quoteRequested,  setQuoteRequested]  = useState(false);
+  const bookingRef = useRef<HTMLDivElement>(null);
 
   const token = () => typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('accessToken') || '' : '';
 
@@ -269,7 +270,7 @@ export default function AdvisorProfilePage() {
       </div>
 
       {/* ── MAIN CONTENT (white) ── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-16 -mt-2">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-28 lg:pb-16 -mt-2">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* ── LEFT — Main content ── */}
@@ -415,7 +416,7 @@ export default function AdvisorProfilePage() {
           <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
 
             {/* Fee card */}
-            <div className="rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            <div ref={bookingRef} className="rounded-2xl shadow-xl overflow-hidden border border-gray-200">
               {/* Header */}
               <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-4">
                 <p className="text-xs text-white/70 uppercase tracking-widest font-bold">Consultation Fee</p>
@@ -573,6 +574,41 @@ export default function AdvisorProfilePage() {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── Sticky Mobile CTA Bar (visible below lg) ── */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[9999] bg-white border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
+          <div className="shrink-0">
+            <p className="text-[9px] text-gray-400 uppercase tracking-wider font-bold leading-tight">per session</p>
+            <p className="text-xl font-black" style={{ color: '#B48C22' }}>₹{advisor.consultationFee}</p>
+          </div>
+          {!revealedContact && (
+            <button
+              onClick={handleRevealContact}
+              disabled={unlockLoading}
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-all disabled:opacity-50 whitespace-nowrap">
+              {unlockLoading ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
+              Connect
+            </button>
+          )}
+          {user?.role === 'CLIENT' && !quoteRequested && (
+            <button
+              onClick={() => { if (!isLoggedIn) { openLoginModal(); return; } setShowQuoteModal(true); }}
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-all whitespace-nowrap">
+              <FileText size={12} /> Quote
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (!isLoggedIn) { openLoginModal(); return; }
+              bookingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90"
+            style={{ background: 'linear-gradient(135deg,#4F46E5,#7C3AED)' }}>
+            Book <ChevronRight size={14} />
+          </button>
         </div>
       </div>
 

@@ -8,6 +8,7 @@ import {
   Send, AlertTriangle, RefreshCw, Edit3
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getCategoryName } from '@/data/categoryMap';
 import { io as ioClient } from 'socket.io-client';
 
 const API    = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -275,7 +276,7 @@ export default function TicketDetailPage() {
           {ticket.quote.categorySlug && (
             <div className="px-4 pb-3 flex items-center gap-2">
               <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
-                {ticket.quote.categorySlug.toUpperCase()}
+                {getCategoryName(ticket.quote.categorySlug)}
               </span>
               <span className="text-[10px] text-gray-400">
                 {ticket.stages.length > 0 ? `${confirmedStages}/${ticket.stages.length} stages confirmed` : 'No stages yet'}

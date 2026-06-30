@@ -371,6 +371,10 @@ export default function AdminSuitePage() {
   const [closingNoteText, setClosingNoteText]   = useState('');
   const [closingTicketId, setClosingTicketId]   = useState<string|null>(null);
   const [closingSubmitting, setClosingSubmitting] = useState(false);
+  // Admin comment
+  const [adminComment, setAdminComment]         = useState('');
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [commentError, setCommentError]         = useState('');
   // Sub-admin assignment
   const [ticketSubAdmins, setTicketSubAdmins]   = useState<{id:string;fullName:string}[]>([]);
   const [assigningTicket, setAssigningTicket]   = useState<string|null>(null);
@@ -635,6 +639,29 @@ export default function AdminSuitePage() {
     setClosingNoteText('');
     setClosingModal(true);
   };
+
+  const submitAdminComment = useCallback(async () => {
+    if (!selectedTicket || !adminComment.trim()) return;
+    if (adminComment.trim().length < 3) { setCommentError('Comment must be at least 3 characters.'); return; }
+    setCommentSubmitting(true);
+    setCommentError('');
+    try {
+      const r = await fetch(`${API}/admin/tickets/${selectedTicket.id}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ comment: adminComment.trim() }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        setTickets(prev => prev.map(t => t.id === selectedTicket.id ? d.ticket : t));
+        setSelectedTicket(d.ticket);
+        setAdminComment('');
+      } else {
+        setCommentError(d.message || 'Failed to add comment.');
+      }
+    } catch { setCommentError('Failed to add comment.'); }
+    finally { setCommentSubmitting(false); }
+  }, [selectedTicket, adminComment]);
 
   const confirmCloseTicket = useCallback(async () => {
     if (!closingTicketId || !closingNoteText.trim()) return;
@@ -2147,7 +2174,7 @@ export default function AdminSuitePage() {
 
               {/* Right: detail panel */}
               {selectedTicket ? (
-                <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-100 p-6 space-y-5 h-fit sticky top-4 max-h-[85vh] overflow-y-auto">
+                <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-100 p-4 sm:p-6 space-y-4 h-fit sticky top-4 max-h-[80vh] overflow-y-auto">
                   {/* Header */}
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -2286,6 +2313,37 @@ export default function AdminSuitePage() {
                     </div>
                   )}
 
+                  {/* Admin Comment */}
+                  {selectedTicket.status !== 'CLOSED' && (
+                    <div className="border-t border-slate-100 pt-4">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Add Comment / Note</p>
+                      <div className="space-y-2">
+                        <textarea
+                          value={adminComment}
+                          onChange={e => { setAdminComment(e.target.value); setCommentError(''); }}
+                          placeholder="Add a comment or internal note about this ticket…"
+                          rows={2}
+                          maxLength={1000}
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-indigo-400 resize-none"
+                        />
+                        {commentError && (
+                          <p className="text-xs text-red-600 flex items-center gap-1">
+                            <AlertCircle size={11} /> {commentError}
+                          </p>
+                        )}
+                        <div className="flex justify-end">
+                          <button
+                            onClick={submitAdminComment}
+                            disabled={!adminComment.trim() || commentSubmitting}
+                            className="px-4 py-2 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                          >
+                            {commentSubmitting ? <><Loader2 size={11} className="animate-spin" /> Sending…</> : <><Send size={11} /> Add Comment</>}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Activity Timeline */}
                   {selectedTicket.activities?.length > 0 && (
                     <div className="border-t border-slate-100 pt-4">
@@ -2296,19 +2354,21 @@ export default function AdminSuitePage() {
                             <div className="mt-0.5 w-5 h-5 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
                               {act.action === 'ASSIGNED' ? <UserCheck size={11} className="text-indigo-500" />
                                : act.action === 'CLOSED' ? <Lock size={11} className="text-slate-500" />
+                               : act.action === 'COMMENT' ? <MessageSquare size={11} className="text-blue-500" />
                                : <Activity size={11} className="text-indigo-400" />}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium text-slate-700">
                                 {act.action === 'ASSIGNED' ? (act.note || 'Ticket assigned')
                                  : act.action === 'CLOSED' ? 'Ticket closed'
+                                 : act.action === 'COMMENT' ? 'Comment added'
                                  : act.toStatus ? `Status → ${act.toStatus.replace('_', ' ')}` : act.action}
                               </p>
                               {act.note && act.action !== 'ASSIGNED' && (
-                                <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{act.note}</p>
+                                <p className={`text-[11px] mt-0.5 leading-relaxed ${act.action === 'COMMENT' ? 'text-slate-700 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1.5' : 'text-slate-500'}`}>{act.note}</p>
                               )}
                               <p className="text-[10px] text-slate-400 mt-0.5">
-                                {act.performedByName} Â· {new Date(act.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                {act.performedByName} · {new Date(act.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                               </p>
                             </div>
                           </div>
@@ -2327,32 +2387,38 @@ export default function AdminSuitePage() {
 
           {/* Closing Notes Modal */}
           {closingModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 sm:p-6">
+              <div className="bg-white rounded-2xl shadow-2xl p-5 sm:p-6 w-full max-w-sm sm:max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
                     <Lock size={16} className="text-red-500" /> Close Ticket
                   </h3>
                   <button onClick={() => setClosingModal(false)} className="text-slate-300 hover:text-slate-500"><X size={18} /></button>
                 </div>
-                <p className="text-sm text-slate-500">Provide closing notes to explain the resolution before closing this ticket.</p>
+                <p className="text-xs sm:text-sm text-slate-500">Provide closing notes to explain the resolution before closing this ticket.</p>
                 <textarea
                   value={closingNoteText}
                   onChange={e => setClosingNoteText(e.target.value)}
                   placeholder="Describe how this issue was resolved…"
-                  rows={4}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-indigo-400 resize-none"
+                  rows={3}
+                  maxLength={2000}
+                  className="w-full border border-slate-200 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-indigo-400 resize-none"
                 />
+                {closingNoteText.trim().length > 0 && closingNoteText.trim().length < 10 && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertCircle size={11} /> Please provide more detail ({10 - closingNoteText.trim().length} more characters)
+                  </p>
+                )}
                 <div className="flex items-center gap-3 justify-end">
-                  <button onClick={() => setClosingModal(false)} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+                  <button onClick={() => setClosingModal(false)} className="px-4 py-2 text-xs sm:text-sm text-slate-500 hover:text-slate-700 transition-colors">
                     Cancel
                   </button>
                   <button
                     onClick={confirmCloseTicket}
                     disabled={!closingNoteText.trim() || closingSubmitting}
-                    className="px-5 py-2 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-4 sm:px-5 py-2 bg-red-600 text-white text-xs sm:text-sm font-bold rounded-xl hover:bg-red-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    {closingSubmitting ? <><Loader2 size={13} className="animate-spin" /> Closing…</> : <>🔒 Close Ticket</>}
+                    {closingSubmitting ? <><Loader2 size={13} className="animate-spin" /> Closing…</> : <>Close Ticket</>}
                   </button>
                 </div>
               </div>

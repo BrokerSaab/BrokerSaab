@@ -6,6 +6,7 @@ import {
   X, FileText, Clock, CheckCircle2, XCircle, Loader2,
   AlertTriangle, CalendarClock, ArrowRight, Wallet, CreditCard, ShieldCheck
 } from 'lucide-react';
+import { getCategoryName } from '@/data/categoryMap';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
@@ -195,7 +196,7 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
             <div className="flex flex-wrap items-center gap-1.5">
               {quote.categorySlug && (
                 <span className="text-xs font-semibold text-indigo-300 bg-indigo-500/15 border border-indigo-500/30 px-2.5 py-0.5 rounded-full">
-                  {quote.categorySlug.toUpperCase()}
+                  {getCategoryName(quote.categorySlug)}
                 </span>
               )}
               {quote.status === 'ACCEPTED' && (

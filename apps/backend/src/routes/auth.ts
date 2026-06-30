@@ -171,8 +171,15 @@ router.post('/otp/verify', validateRequest(verifyOtpSchema), async (req: Request
   // Log audit
   await logAuditEvent('LOGIN', user.id, { method: 'OTP' }, undefined, req);
 
+  // If advisor, look up advisorId for the JWT
+  let advisorId: string | undefined;
+  if (user.role === Role.ADVISOR) {
+    const advisor = await prisma.advisor.findUnique({ where: { phoneNumber: user.phoneNumber }, select: { id: true } });
+    advisorId = advisor?.id;
+  }
+
   // User exists - return standard login tokens
-  const tokens = generateTokens(user);
+  const tokens = generateTokens(user, advisorId);
   res.status(200).json({
     success: true,
     isNewUser: false,
@@ -180,6 +187,7 @@ router.post('/otp/verify', validateRequest(verifyOtpSchema), async (req: Request
     tokens,
     user: {
       id: user.id,
+      advisorId,
       phoneNumber: user.phoneNumber,
       fullName: user.fullName,
       email: user.email,

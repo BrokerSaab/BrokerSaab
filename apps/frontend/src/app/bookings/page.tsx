@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import FeeQuoteViewModal from '@/components/FeeQuoteViewModal';
+import { getCategoryName } from '@/data/categoryMap';
 import { io as ioClient } from 'socket.io-client';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -727,7 +728,7 @@ export default function BookingsPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-slate-800 truncate">{q.advisor.fullName}</p>
                           <p className="text-[11px] text-slate-500 truncate">
-                            {q.totalAmount ? `₹${parseFloat(q.totalAmount).toLocaleString('en-IN')} · ` : ''}{q.categorySlug ?? 'General query'}
+                            {q.totalAmount ? `₹${parseFloat(q.totalAmount).toLocaleString('en-IN')} · ` : ''}{getCategoryName(q.categorySlug)}
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-1.5 shrink-0">

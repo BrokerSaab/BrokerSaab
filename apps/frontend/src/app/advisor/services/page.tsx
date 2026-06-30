@@ -72,7 +72,7 @@ export default function AdvisorServicesPage() {
 
   useEffect(() => {
     if (!authReady) return;
-    if (!isLoggedIn) { router.push('/auth/admin'); return; }
+    if (!isLoggedIn) { router.push('/'); return; }
     if (user?.role !== 'ADVISOR') { router.push('/'); return; }
     fetchCurrentServices();
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -13,6 +13,7 @@ import {
 const QRCode = require('react-qr-code').default as React.ComponentType<{ value: string; size?: number; bgColor?: string; fgColor?: string; level?: string }>;
 import { useAuth } from '@/contexts/AuthContext';
 import AdvisorFillQuotePanel, { QuoteRequest } from '@/components/AdvisorFillQuotePanel';
+import { getCategoryName } from '@/data/categoryMap';
 import { io as ioClient } from 'socket.io-client';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -170,7 +171,7 @@ export default function AdvisorDashboard() {
 
   useEffect(() => {
     if (!authReady) return;
-    if (!isLoggedIn) { router.push('/auth/admin'); return; }
+    if (!isLoggedIn) { router.push('/'); return; }
     if (user?.role !== 'ADVISOR') { router.push('/'); return; }
     fetchBookings();
     fetchSubscriptionValidity();
@@ -880,7 +881,7 @@ export default function AdvisorDashboard() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-slate-800">{q.client.fullName}</p>
                         <p className="text-[11px] text-slate-500 truncate">
-                          {q.categorySlug?.toUpperCase() ?? 'General'} ·{' '}
+                          {getCategoryName(q.categorySlug)} ·{' '}
                           {new Date(q.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                           {q.totalAmount && ` · ₹${parseFloat(q.totalAmount).toLocaleString('en-IN')}`}
                         </p>

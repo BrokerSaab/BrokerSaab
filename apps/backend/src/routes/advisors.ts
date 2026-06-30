@@ -657,17 +657,19 @@ router.get(
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const advisorId = (req.user as any).advisorId;
-      if (!advisorId) { res.status(400).json({ success: false, message: 'Advisor profile not found' }); return; }
-      const advisor = await prisma.advisor.findUnique({
-        where: { id: advisorId },
-        select: {
-          id: true, fullName: true, email: true, phoneNumber: true, businessName: true,
-          bio: true, location: true, state: true, circle: true, subdivision: true,
-          experienceYears: true, consultationFee: true, languages: true,
-          gstNumber: true, licenseNumber: true, aadhaarLast4: true,
-          avatarUrl: true, coverImageUrl: true,
-        },
-      });
+      const profileSelect = {
+        id: true, fullName: true, email: true, phoneNumber: true, businessName: true,
+        bio: true, location: true, state: true, circle: true, subdivision: true,
+        experienceYears: true, consultationFee: true, languages: true,
+        gstNumber: true, licenseNumber: true, aadhaarLast4: true,
+        avatarUrl: true, coverImageUrl: true,
+      };
+      let advisor = advisorId
+        ? await prisma.advisor.findUnique({ where: { id: advisorId }, select: profileSelect })
+        : null;
+      if (!advisor) {
+        advisor = await prisma.advisor.findUnique({ where: { phoneNumber: req.user!.phoneNumber }, select: profileSelect });
+      }
       if (!advisor) { res.status(404).json({ success: false, message: 'Advisor not found' }); return; }
       res.json({ success: true, data: advisor });
     } catch (err) {
