@@ -137,12 +137,14 @@ router.post(
 router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userId = req.user!.id;
   const role = req.user!.role;
+  // Advisors can pass ?perspective=client to fetch their own client-side bookings
+  const asClient = req.query.perspective === 'client';
 
   try {
     let bookings;
 
-    if (role === Role.ADVISOR) {
-      // Find advisor ID
+    if (role === Role.ADVISOR && !asClient) {
+      // Advisor-side: show bookings where user is the advisor
       const user = await prisma.user.findUnique({ where: { id: userId } });
       const advisor = await prisma.advisor.findUnique({ where: { phoneNumber: user!.phoneNumber } });
 
@@ -161,7 +163,7 @@ router.get('/', authenticateJWT, async (req: AuthenticatedRequest, res: Response
         orderBy: { scheduledDate: 'desc' }
       });
     } else {
-      // Client role
+      // CLIENT role or ADVISOR using platform as a client
       bookings = await prisma.booking.findMany({
         where: { clientId: userId },
         include: {

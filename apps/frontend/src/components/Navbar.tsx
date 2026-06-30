@@ -414,7 +414,7 @@ export default function Navbar() {
               {userMenuOpen && (
                 <div className="absolute right-0 top-full mt-1.5 w-48 bg-[#050e1b]/95 backdrop-blur-md border border-gold-500/20 rounded-xl shadow-xl py-1.5 z-50">
                   {/* Role-aware dashboard link lives inside the dropdown */}
-                  {user?.role === 'CLIENT' && (
+                  {(user?.role === 'CLIENT' || user?.role === 'ADVISOR') && (
                     <Link href="/bookings" onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/5 transition-colors">
                       <BookOpen size={14} className="text-gold-400" /> {t('nav.myConsultations')}
@@ -572,7 +572,7 @@ export default function Navbar() {
             {/* Logged-in user — role-aware dashboard links */}
             {loggedIn && (
               <div className="border-t border-gold-500/10 pt-3 space-y-2">
-                {user?.role === 'CLIENT' && (
+                {(user?.role === 'CLIENT' || user?.role === 'ADVISOR') && (
                   <Link href="/bookings" onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-semibold text-slate-200 border border-white/10 rounded-xl hover:bg-white/5 transition-colors">
                     <BookOpen size={15} className="text-gold-400" /> My Consultations

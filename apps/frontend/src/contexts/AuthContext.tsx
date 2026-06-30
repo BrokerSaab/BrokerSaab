@@ -89,10 +89,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => {
       afterLoginCallbackRef.current?.();
       afterLoginCallbackRef.current = null;
-      // Redirect advisors to their dashboard automatically
-      if (userData.role === 'ADVISOR') {
-        router.push('/advisor/dashboard');
-      }
     }, 1600);
   };
 

@@ -203,7 +203,9 @@ export default function BookingsPage() {
     setError('');
     try {
       const token = sessionStorage.getItem('accessToken');
-      const res = await fetch(`${API}/bookings`, { headers: { Authorization: `Bearer ${token}` } });
+      // Advisors visiting this page want their client-side bookings, not advisor-side ones
+      const url = user?.role === 'ADVISOR' ? `${API}/bookings?perspective=client` : `${API}/bookings`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       setBookings(data.success ? data.data : DEMO_BOOKINGS);
     } catch {
