@@ -1,0 +1,42 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  frontend:
+    name: Frontend → Hostinger
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH Deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          port: ${{ secrets.HOSTINGER_PORT }}
+          envs: APP_PATH,NEXT_PUBLIC_API_URL
+          script: |
+            set -e
+            cd "$APP_PATH"
+            git pull origin main
+            cd apps/frontend
+            npm ci
+            npm run build
+            pm2 restart brokersaab-frontend || pm2 start npm --name brokersaab-frontend -- start
+        env:
+          APP_PATH: ${{ secrets.HOSTINGER_APP_PATH }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.PROD_API_URL }}
+
+  backend:
+    name: Backend → Render
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Deploy
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -d '{"clearCache":"do_not_clear"}'
