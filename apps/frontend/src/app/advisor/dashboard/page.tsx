@@ -17,7 +17,7 @@ import { getCategoryName } from '@/data/categoryMap';
 import { io as ioClient } from 'socket.io-client';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'https://brokersaab-backend.onrender.com');
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || '');
 
 interface AdvisorQuote {
   id: string; status: string; categorySlug?: string;
