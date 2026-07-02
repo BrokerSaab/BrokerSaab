@@ -287,6 +287,10 @@ export default function AdminSuitePage() {
   const [funnelSessions, setFunnelSessions] = useState<FunnelSession[]>([]);
   const [funnelLoading, setFunnelLoading] = useState(false);
   const [expandedFunnelRow, setExpandedFunnelRow] = useState<string | null>(null);
+  const [funnelStepFilter, setFunnelStepFilter] = useState<number | null>(null);
+  const [selectedFunnelIds, setSelectedFunnelIds] = useState<Set<string>>(new Set());
+  const [funnelAssignSubAdminId, setFunnelAssignSubAdminId] = useState('');
+  const [funnelAssigning, setFunnelAssigning] = useState(false);
 
   // Subscriptions tab
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -807,7 +811,7 @@ export default function AdminSuitePage() {
   useEffect(() => { fetchDashboard(); fetchMyStats(); fetchPendingCrCount(); }, [fetchDashboard, fetchMyStats, fetchPendingCrCount]);
   useEffect(() => { if (activeTab === 'advisors') fetchAdvisors(); }, [activeTab, fetchAdvisors]);
   useEffect(() => { if (activeTab === 'users') fetchUsers(); }, [activeTab, fetchUsers]);
-  useEffect(() => { if (activeTab === 'funnel') fetchFunnel(); }, [activeTab, fetchFunnel]);
+  useEffect(() => { if (activeTab === 'funnel') { fetchFunnel(); if (isSuperAdmin) fetchSubAdmins(); } }, [activeTab, fetchFunnel, fetchSubAdmins, isSuperAdmin]);
   useEffect(() => { if (activeTab === 'subscriptions') fetchSubscriptions(); }, [activeTab, fetchSubscriptions]);
   useEffect(() => { if (activeTab === 'contact-packs') fetchContactSubs(); }, [activeTab, fetchContactSubs]);
   useEffect(() => { if (activeTab === 'contact-unlocks') fetchContactUnlocks(); }, [activeTab, fetchContactUnlocks]);
@@ -967,6 +971,66 @@ export default function AdminSuitePage() {
       }
     } catch { /* keep */ } finally { setAssigning(false); }
   };
+
+  const handleFunnelAssign = async () => {
+    const filteredSessions = funnelStepFilter
+      ? funnelSessions.filter(s => s.currentStep === funnelStepFilter)
+      : funnelSessions;
+    const advisorIds = Array.from(selectedFunnelIds)
+      .map(id => filteredSessions.find(s => s.id === id)?.advisorId)
+      .filter(Boolean) as string[];
+    if (!advisorIds.length || !funnelAssignSubAdminId) return;
+    setFunnelAssigning(true);
+    try {
+      const res = await fetch(`${API}/admin/advisors/assign-bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ advisorIds, subAdminId: funnelAssignSubAdminId }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        const sa = subAdmins.find(s => s.id === funnelAssignSubAdminId);
+        setLogs(prev => [`${advisorIds.length} funnel advisor(s) assigned to ${sa?.fullName || 'sub-admin'} for follow-up.`, ...prev]);
+        setSelectedFunnelIds(new Set());
+        setFunnelAssignSubAdminId('');
+      }
+    } catch { /* keep */ } finally { setFunnelAssigning(false); }
+  };
+
+  const exportFunnelStep = () => {
+    const filteredSessions = funnelStepFilter
+      ? funnelSessions.filter(s => s.currentStep === funnelStepFilter)
+      : funnelSessions;
+    const toExport = selectedFunnelIds.size > 0
+      ? filteredSessions.filter(s => selectedFunnelIds.has(s.id))
+      : filteredSessions;
+    if (!toExport.length) return;
+    const headers = ['Phone', 'Name', 'Email', 'State', 'City', 'Step', 'Step Label', 'Advisor Type', 'Last Active', 'Completed'];
+    const rows = toExport.map(s => [
+      s.phoneNumber,
+      s.formSnapshot?.fullName || '',
+      s.formSnapshot?.email || '',
+      s.formSnapshot?.state || '',
+      s.formSnapshot?.city || '',
+      `${s.currentStep}/8`,
+      s.stepLabel,
+      s.formSnapshot?.advisorType || '',
+      new Date(s.lastActiveAt).toLocaleString('en-IN'),
+      s.advisorId ? 'Yes' : 'No',
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const stepLabel = funnelStepFilter ? `-step${funnelStepFilter}` : '';
+    a.download = `funnel${stepLabel}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
 
   // ── Sub-admin helpers ─────────────────────────────────────────────
   const pwStrength = (pw: string) => {
@@ -1710,7 +1774,23 @@ export default function AdminSuitePage() {
       )}
 
       {/* ── FUNNEL ── */}
-      {activeTab === 'funnel' && (
+      {activeTab === 'funnel' && (() => {
+        const filteredFunnelSessions = funnelStepFilter
+          ? funnelSessions.filter(s => s.currentStep === funnelStepFilter)
+          : funnelSessions;
+        const allFilteredIds = filteredFunnelSessions.map(s => s.id);
+        const allSelected = allFilteredIds.length > 0 && allFilteredIds.every(id => selectedFunnelIds.has(id));
+        const assignableSessions = Array.from(selectedFunnelIds)
+          .map(id => filteredFunnelSessions.find(s => s.id === id))
+          .filter(s => s?.advisorId);
+        const stepInfo = funnelStepFilter ? funnelSteps.find(s => s.step === funnelStepFilter) : null;
+
+        const barColor = (pct: number) =>
+          pct >= 80 ? '#10b981' : pct >= 60 ? '#6366f1' : pct >= 40 ? '#f59e0b' : '#ef4444';
+        const countColor = (pct: number) =>
+          pct >= 80 ? 'text-emerald-600' : pct >= 60 ? 'text-indigo-600' : pct >= 40 ? 'text-amber-500' : 'text-red-500';
+
+        return (
         <div className="space-y-6">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h2 className="text-sm font-bold text-slate-700 uppercase tracking-widest">Onboarding Funnel</h2>
@@ -1718,7 +1798,7 @@ export default function AdminSuitePage() {
               <button onClick={fetchFunnel} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600"><RefreshCw size={13} /> Refresh</button>
               <button onClick={() => handleExport('funnel')} disabled={exporting === 'funnel'}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all disabled:opacity-50">
-                {exporting === 'funnel' ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Export Excel
+                {exporting === 'funnel' ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} Export All
               </button>
             </div>
           </div>
@@ -1726,88 +1806,179 @@ export default function AdminSuitePage() {
             <div className="flex items-center justify-center py-16 text-slate-400"><Loader2 size={22} className="animate-spin mr-3" /> Loading funnel…</div>
           ) : (
             <>
-              <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 space-y-3">
+              {/* Step bars — clickable */}
+              <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 space-y-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Click a step to filter users below</p>
                 {funnelSteps.map((s) => {
                   const max = funnelSteps[0]?.count || 1;
                   const pct = Math.round((s.count / max) * 100);
+                  const isSelected = funnelStepFilter === s.step;
                   return (
-                    <div key={s.step} className="space-y-1">
+                    <button
+                      key={s.step}
+                      onClick={() => { setFunnelStepFilter(isSelected ? null : s.step); setSelectedFunnelIds(new Set()); }}
+                      className={`w-full text-left space-y-1 p-2 rounded-lg transition-all border ${isSelected ? 'border-indigo-400 bg-indigo-50/60 ring-1 ring-indigo-300' : 'border-transparent hover:bg-slate-50'}`}
+                    >
                       <div className="flex justify-between text-xs">
-                        <span className="text-slate-700 font-semibold">Step {s.step}: {s.label}</span>
-                        <span className="text-gold-400 font-bold">{s.count} ({pct}%)</span>
+                        <span className={`font-semibold ${isSelected ? 'text-indigo-700' : 'text-slate-700'}`}>
+                          Step {s.step}: {s.label}
+                        </span>
+                        <span className={`font-bold ${countColor(pct)}`}>{s.count} ({pct}%)</span>
                       </div>
                       <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#D4AF37,#B48C22)' }} />
+                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor(pct) }} />
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
+                {funnelStepFilter && (
+                  <button onClick={() => { setFunnelStepFilter(null); setSelectedFunnelIds(new Set()); }}
+                    className="mt-1 text-[10px] font-semibold text-indigo-500 hover:text-indigo-700 flex items-center gap-1">
+                    <X size={10} /> Clear filter — show all steps
+                  </button>
+                )}
               </div>
-              <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                <table className="w-full text-xs text-slate-700">
-                  <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
-                    {['Phone', 'Name', 'Email', 'State', 'Step', 'Last Active', 'Done', ''].map(h => (
-                      <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-[10px]">{h}</th>
-                    ))}
-                  </tr></thead>
-                  <tbody>
-                    {funnelSessions.map((s, i) => {
-                      const snap = s.formSnapshot;
-                      const open = expandedFunnelRow === s.id;
-                      return (
-                        <React.Fragment key={s.id}>
-                          <tr className={`border-b border-slate-50 hover:bg-indigo-50/40 ${i % 2 === 0 ? '' : 'bg-slate-50/60'}`}>
-                            <td className="px-4 py-3 font-mono">{s.phoneNumber}</td>
-                            <td className="px-4 py-3 font-medium">{snap?.fullName || '—'}</td>
-                            <td className="px-4 py-3 text-slate-400">{snap?.email || '—'}</td>
-                            <td className="px-4 py-3">{snap?.state || '—'}</td>
-                            <td className="px-4 py-3">{s.currentStep}/8 · <span className="text-slate-400">{s.stepLabel}</span></td>
-                            <td className="px-4 py-3 text-slate-500">{new Date(s.lastActiveAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
-                            <td className="px-4 py-3 text-center">{s.advisorId ? <CheckCircle size={13} className="text-emerald-400 mx-auto" /> : <XCircle size={13} className="text-red-400 mx-auto" />}</td>
-                            <td className="px-4 py-3">
-                              {snap && Object.keys(snap).some(k => (snap as any)[k]) && (
-                                <button onClick={() => setExpandedFunnelRow(open ? null : s.id)}
-                                  className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
-                                  {open ? 'Hide' : 'Details'} {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                          {open && snap && (
-                            <tr className="bg-indigo-50/60 border-b border-indigo-100">
-                              <td colSpan={8} className="px-6 py-3">
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                                  {([
-                                    ['Type', snap.advisorType],
-                                    ['Business', snap.businessName],
-                                    ['City', snap.city],
-                                    ['Experience', snap.experienceYears ? `${snap.experienceYears} yrs` : undefined],
-                                    ['Fee', snap.consultationFee ? `₹${snap.consultationFee}` : undefined],
-                                    ['Languages', snap.languages?.join(', ')],
-                                    ['License', snap.licenseNumber],
-                                    ['GST', snap.gstNumber],
-                                    ['Services', snap.selectedSlugs?.join(', ')],
-                                  ] as [string, string | undefined][]).filter(([, v]) => v).map(([label, value]) => (
-                                    <div key={label}>
-                                      <p className="text-[9px] font-black uppercase tracking-wider text-indigo-500 mb-0.5">{label}</p>
-                                      <p className="font-semibold text-slate-700 truncate">{value}</p>
-                                    </div>
-                                  ))}
-                                </div>
+
+              {/* Bulk action bar */}
+              <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-slate-50/60">
+                  <div className="flex items-center gap-2">
+                    {stepInfo ? (
+                      <span className="text-xs font-bold text-indigo-700">
+                        Step {funnelStepFilter}: {stepInfo.label}
+                        <span className="ml-2 text-slate-400 font-normal">({filteredFunnelSessions.length} users)</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs font-semibold text-slate-600">All Sessions ({funnelSessions.length})</span>
+                    )}
+                    {selectedFunnelIds.size > 0 && (
+                      <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">{selectedFunnelIds.size} selected</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {isSuperAdmin && selectedFunnelIds.size > 0 && (
+                      <>
+                        {assignableSessions.length < selectedFunnelIds.size && (
+                          <span className="text-[10px] text-amber-600">{selectedFunnelIds.size - assignableSessions.length} without advisor ID — will be skipped</span>
+                        )}
+                        <select value={funnelAssignSubAdminId} onChange={e => setFunnelAssignSubAdminId(e.target.value)}
+                          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                          <option value="">Assign to sub-admin...</option>
+                          {subAdmins.filter(sa => sa.isActive).map(sa => (
+                            <option key={sa.id} value={sa.id}>{sa.fullName}</option>
+                          ))}
+                        </select>
+                        <button onClick={handleFunnelAssign}
+                          disabled={!funnelAssignSubAdminId || !assignableSessions.length || funnelAssigning}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-all disabled:opacity-40">
+                          {funnelAssigning ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />}
+                          Assign Follow-up ({assignableSessions.length})
+                        </button>
+                      </>
+                    )}
+                    <button onClick={exportFunnelStep}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-all">
+                      <Download size={12} />
+                      {selectedFunnelIds.size > 0 ? `Export ${selectedFunnelIds.size} Selected` : 'Export CSV'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-slate-700">
+                    <thead><tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
+                      <th className="px-4 py-3 w-8">
+                        <input type="checkbox" checked={allSelected} onChange={e => {
+                          if (e.target.checked) setSelectedFunnelIds(new Set(allFilteredIds));
+                          else setSelectedFunnelIds(new Set());
+                        }} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-400" />
+                      </th>
+                      {['Phone', 'Name', 'Email', 'State', 'Step', 'Last Active', 'Done', ''].map(h => (
+                        <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-[10px]">{h}</th>
+                      ))}
+                    </tr></thead>
+                    <tbody>
+                      {filteredFunnelSessions.map((s, i) => {
+                        const snap = s.formSnapshot;
+                        const open = expandedFunnelRow === s.id;
+                        const checked = selectedFunnelIds.has(s.id);
+                        const max = funnelSteps[0]?.count || 1;
+                        const stepObj = funnelSteps.find(fs => fs.step === s.currentStep);
+                        const pct = stepObj ? Math.round((stepObj.count / max) * 100) : 0;
+                        return (
+                          <React.Fragment key={s.id}>
+                            <tr className={`border-b border-slate-50 hover:bg-indigo-50/40 ${checked ? 'bg-indigo-50' : i % 2 === 0 ? '' : 'bg-slate-50/60'}`}>
+                              <td className="px-4 py-3">
+                                <input type="checkbox" checked={checked} onChange={e => {
+                                  const next = new Set(selectedFunnelIds);
+                                  e.target.checked ? next.add(s.id) : next.delete(s.id);
+                                  setSelectedFunnelIds(next);
+                                }} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-400" />
+                              </td>
+                              <td className="px-4 py-3 font-mono">{s.phoneNumber}</td>
+                              <td className="px-4 py-3 font-medium">{snap?.fullName || '—'}</td>
+                              <td className="px-4 py-3 text-slate-400">{snap?.email || '—'}</td>
+                              <td className="px-4 py-3">{snap?.state || '—'}</td>
+                              <td className="px-4 py-3">
+                                <span className="inline-flex items-center gap-1.5">
+                                  <span className="font-semibold" style={{ color: barColor(pct) }}>{s.currentStep}/8</span>
+                                  <span className="text-slate-300">/</span>
+                                  <span className="text-slate-500">{s.stepLabel}</span>
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-slate-500">{new Date(s.lastActiveAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                              <td className="px-4 py-3 text-center">{s.advisorId ? <CheckCircle size={13} className="text-emerald-400 mx-auto" /> : <XCircle size={13} className="text-red-400 mx-auto" />}</td>
+                              <td className="px-4 py-3">
+                                {snap && Object.keys(snap).some(k => (snap as any)[k]) && (
+                                  <button onClick={() => setExpandedFunnelRow(open ? null : s.id)}
+                                    className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                                    {open ? 'Hide' : 'Details'} {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                                  </button>
+                                )}
                               </td>
                             </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                {funnelSessions.length === 0 && <p className="text-center py-12 text-slate-500 text-sm">No onboarding sessions recorded yet.</p>}
+                            {open && snap && (
+                              <tr className="bg-indigo-50/60 border-b border-indigo-100">
+                                <td colSpan={9} className="px-6 py-3">
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                                    {([
+                                      ['Type', snap.advisorType],
+                                      ['Business', snap.businessName],
+                                      ['City', snap.city],
+                                      ['Experience', snap.experienceYears ? `${snap.experienceYears} yrs` : undefined],
+                                      ['Fee', snap.consultationFee ? `${snap.consultationFee}` : undefined],
+                                      ['Languages', snap.languages?.join(', ')],
+                                      ['License', snap.licenseNumber],
+                                      ['GST', snap.gstNumber],
+                                      ['Services', snap.selectedSlugs?.join(', ')],
+                                    ] as [string, string | undefined][]).filter(([, v]) => v).map(([label, value]) => (
+                                      <div key={label}>
+                                        <p className="text-[9px] font-black uppercase tracking-wider text-indigo-500 mb-0.5">{label}</p>
+                                        <p className="font-semibold text-slate-700 truncate">{value}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {filteredFunnelSessions.length === 0 && (
+                    <p className="text-center py-12 text-slate-500 text-sm">
+                      {funnelStepFilter ? `No users found at Step ${funnelStepFilter}.` : 'No onboarding sessions recorded yet.'}
+                    </p>
+                  )}
+                </div>
               </div>
             </>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* ── SUBSCRIPTIONS ── */}
       {activeTab === 'subscriptions' && (
