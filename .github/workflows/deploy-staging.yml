@@ -5,6 +5,7 @@ on:
     branches: [develop]
     paths:
       - 'apps/frontend/**'
+      - 'vercel.json'
       - '.github/workflows/deploy-staging.yml'
 
 jobs:
