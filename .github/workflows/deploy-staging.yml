@@ -21,12 +21,13 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Deploy to Vercel (Production)
-        id: deploy
+      - name: Link Vercel project
+        run: |
+          mkdir -p apps/frontend/.vercel
+          echo '{"projectId":"prj_wb8juX3GZmJ0dBkJDdYwZbMr6KTs","orgId":"team_3PsO9fLuagTumWgO8BZhDAVy"}' > apps/frontend/.vercel/project.json
+
+      - name: Deploy to Vercel
         working-directory: apps/frontend
         run: |
           url=$(vercel --token ${{ secrets.VERCEL_TOKEN }} --prod --yes 2>&1 | tail -1)
           echo "Deployed to: $url"
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
