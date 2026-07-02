@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 const API      = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-const WS_URL   = process.env.NEXT_PUBLIC_WS_URL  || (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'https://brokersaab-backend.onrender.com');
+const WS_URL   = process.env.NEXT_PUBLIC_WS_URL  || (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || '');
 const BACKEND  = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/api\/v1\/?$/, '');
 const resolveImg = (url?: string | null) => !url ? null : url.startsWith('http') ? url : `${BACKEND}${url.startsWith('/') ? url : `/${url}`}`;
 

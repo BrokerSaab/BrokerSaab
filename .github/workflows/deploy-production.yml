@@ -16,18 +16,23 @@ jobs:
           username: ${{ secrets.HOSTINGER_USER }}
           key: ${{ secrets.HOSTINGER_SSH_KEY }}
           port: ${{ secrets.HOSTINGER_PORT }}
-          envs: APP_PATH,NEXT_PUBLIC_API_URL
+          envs: APP_PATH,NEXT_PUBLIC_API_URL,NEXT_PUBLIC_WS_URL,BACKEND_URL
           script: |
             set -e
             cd "$APP_PATH"
             git pull origin main
             cd apps/frontend
             npm ci
+            NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
+            NEXT_PUBLIC_WS_URL="$NEXT_PUBLIC_WS_URL" \
+            BACKEND_URL="$BACKEND_URL" \
             npm run build
             pm2 restart brokersaab-frontend || pm2 start npm --name brokersaab-frontend -- start
         env:
           APP_PATH: ${{ secrets.HOSTINGER_APP_PATH }}
           NEXT_PUBLIC_API_URL: ${{ secrets.PROD_API_URL }}
+          NEXT_PUBLIC_WS_URL: ${{ secrets.PROD_WS_URL }}
+          BACKEND_URL: ${{ secrets.PROD_BACKEND_URL }}
 
   backend:
     name: Backend → Render

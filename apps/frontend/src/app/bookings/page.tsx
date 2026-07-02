@@ -17,7 +17,7 @@ import { io as ioClient } from 'socket.io-client';
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 const BACKEND_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/api\/v1\/?$/, '');
 const resolveImg = (url?: string | null) => !url ? null : url.startsWith('http') ? url : `${BACKEND_BASE}${url.startsWith('/') ? url : `/${url}`}`;
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'https://brokersaab-backend.onrender.com');
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || (process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || '');
 
 type BookingStatus = 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
 
