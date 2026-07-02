@@ -285,6 +285,35 @@ export default function TicketDetailPage() {
           )}
         </div>
 
+        {/* Commission breakdown */}
+        <div className="rounded-2xl overflow-hidden bg-white border border-slate-100 shadow-sm">
+          <div className="px-4 py-3 border-b border-slate-50 bg-slate-50">
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Payment Breakdown</p>
+          </div>
+          <div className="px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-500">Client Paid (Escrow)</span>
+              <span className="text-sm font-bold text-slate-800">₹{Number(ticket.totalAmount).toLocaleString('en-IN')}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs text-slate-500">Platform Commission (15%)</span>
+              </div>
+              <span className="text-sm font-semibold text-red-600">− ₹{Number(ticket.commission).toLocaleString('en-IN')}</span>
+            </div>
+            <div className="border-t border-dashed border-slate-200 pt-2 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700">Advisor Receives</span>
+              <span className="text-base font-black text-emerald-700">₹{Number(ticket.netAmount).toLocaleString('en-IN')}</span>
+            </div>
+            {isClosed && (
+              <div className="mt-1 flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
+                <p className="text-[11px] text-emerald-700 font-semibold">₹{Number(ticket.netAmount).toLocaleString('en-IN')} credited to advisor wallet</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Closed / Payout info */}
         {isClosed && (
           <div className="rounded-2xl px-4 py-3 border border-emerald-200 bg-emerald-50">

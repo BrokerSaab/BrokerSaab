@@ -162,10 +162,17 @@ model Advisor {
   rejectionComment   String?            @db.Text
   subAdminNote       String?            @db.Text
   assignedAt         DateTime?
-  trialStartDate     DateTime?
-  trialEndDate       DateTime?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  trialStartDate          DateTime?
+  trialEndDate            DateTime?
+  walletBalance           Decimal            @default(0.00) @db.Decimal(10, 2)
+  razorpayContactId       String?
+  razorpayFundAccountId   String?
+  bankAccountNumber       String?
+  bankIfsc                String?
+  bankAccountHolder       String?
+  bankAccountType         String?            @default("savings")
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
 
   // Relations
   assignedSubAdmin   AdminUsers?        @relation("SubAdminAdvisors", fields: [assignedSubAdminId], references: [id])
@@ -210,6 +217,7 @@ model AdvisorSubscription {
   razorpayPaymentId  String?            @unique
   razorpaySignature  String?
   amount             Decimal            @db.Decimal(10, 2)
+  plan               AdvisorType        @default(REGULAR)
   status             TransactionStatus  @default(PENDING)
   subscribedAt       DateTime?
   expiresAt          DateTime?
@@ -377,15 +385,24 @@ model Wallet {
 }
 
 model Payout {
-  id          String            @id @default(uuid())
-  advisorId   String
-  advisor     Advisor           @relation(fields: [advisorId], references: [id])
-  amount      Decimal           @db.Decimal(10, 2)
-  status      TransactionStatus @default(PENDING)
-  bankAccount String            // Masked account info
-  referenceId String?           @unique // Transfer reference
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  id              String            @id @default(uuid())
+  advisorId       String
+  advisor         Advisor           @relation(fields: [advisorId], references: [id])
+  ticketId        String?
+  ticket          ServiceTicket?    @relation(fields: [ticketId], references: [id])
+  amount          Decimal           @db.Decimal(10, 2)
+  commission      Decimal           @db.Decimal(10, 2) @default(0.00)
+  netAmount       Decimal           @db.Decimal(10, 2) @default(0.00)
+  status            TransactionStatus @default(PENDING)
+  bankAccount       String
+  referenceId       String?           @unique
+  rejectionReason   String?           @db.Text
+  razorpayPayoutId  String?           @unique
+  payoutMode        String?           // NEFT | RTGS | IMPS | UPI | WALLET_CREDIT
+  releasedByAdminId String?
+  releasedAt        DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 }
 
 model Review {
@@ -623,6 +640,7 @@ model ServiceTicket {
 
   stages           TicketStage[]
   comments         TicketComment[]
+  payouts          Payout[]
 
   @@index([clientId])
   @@index([advisorId])

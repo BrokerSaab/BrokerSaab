@@ -22,7 +22,7 @@ import { INDIA_STATES_SORTED } from '@/data/indiaStates';
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-type Step = 'welcome' | 'phone_otp' | 'advisor_type' | 'account' | 'profile' | 'kyc' | 'services' | 'availability' | 'review' | 'payment' | 'success';
+type Step = 'welcome' | 'phone_otp' | 'advisor_type' | 'account' | 'profile' | 'kyc' | 'services' | 'availability' | 'review' | 'payment' | 'payment_choice' | 'success';
 
 interface Slot {
   id: string;
@@ -78,6 +78,13 @@ const DISCOUNT_AMT = ORIGINAL_PRICE - BASE_PRICE;
 const CGST_AMT     = Math.round(BASE_PRICE * 0.09 * 100) / 100;  // 179.91
 const SGST_AMT     = Math.round(BASE_PRICE * 0.09 * 100) / 100;  // 179.91
 const TOTAL_PAYABLE = BASE_PRICE + CGST_AMT + SGST_AMT;          // 2358.82
+
+// Regular plan pricing (display-only)
+const REG_BASE       = 499;
+const REG_ORIGINAL   = 4990;
+const REG_CGST       = Math.round(REG_BASE * 0.09 * 100) / 100;  // 44.91
+const REG_SGST       = Math.round(REG_BASE * 0.09 * 100) / 100;  // 44.91
+const REG_TOTAL      = REG_BASE + REG_CGST + REG_SGST;            // 588.82
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -706,9 +713,8 @@ export default function AdvisorOnboarding() {
         }
       }
 
-      // AUTHORIZED advisors go to payment step so they can pay before being submitted
-      // REGULAR advisors are submitted immediately
-      setStep(formData.advisorType === 'AUTHORIZED' ? 'payment' : 'success');
+      // AUTHORIZED advisors go to payment step; REGULAR advisors see the plan choice
+      setStep(formData.advisorType === 'AUTHORIZED' ? 'payment' : 'payment_choice');
     } catch {
       setError('Network error. Please check your connection and try again.');
     } finally {
@@ -931,7 +937,7 @@ ${availLines ? `<div class="section">
     <tr>
       <td>
         <strong>Authorized Advisor Subscription — Annual Plan</strong><br/>
-        <span style="font-size:10px;color:#6b7280;">Platform access, Authorized badge &amp; priority search listing<br/>Validity: 12 months from activation</span>
+        <span style="font-size:10px;color:#6b7280;">Platform access, Authorized badge &amp; priority search listing<br/>Validity: 18 months from activation</span>
       </td>
       <td>9983</td>
       <td>1</td>
@@ -2609,6 +2615,180 @@ ${availLines ? `<div class="section">
           </div>
         )}
 
+        {/* ── Step: Payment Choice (REGULAR advisors) ── */}
+        {step === 'payment_choice' && (
+          <div className="p-5 sm:p-6 space-y-4">
+            {/* Header */}
+            <div className="text-center space-y-1.5">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(212,175,55,0.1)', border: '2px solid rgba(212,175,55,0.35)' }}>
+                <CheckCircle2 size={32} className="text-[#D4AF37]" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">Account Created!</h2>
+              <p className="text-sm text-gray-500">Choose how you want to activate your profile</p>
+            </div>
+
+            {/* Two plan cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+              {/* Pay Now — Regular Plan */}
+              <div className="rounded-2xl border-2 border-[#D4AF37] overflow-hidden flex flex-col" style={{ background: 'linear-gradient(135deg,#fffbf0,#fef9e7)' }}>
+                <div className="px-4 py-3 text-center" style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)' }}>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-white/80">Best Value</p>
+                  <p className="text-xs font-black text-white mt-0.5">Regular Plan</p>
+                </div>
+                <div className="px-4 py-3 flex-1 space-y-2">
+                  <div className="text-center">
+                    <p className="text-2xl font-black text-gray-900">₹{REG_BASE}</p>
+                    <p className="text-[10px] text-gray-400 line-through">₹{REG_ORIGINAL.toLocaleString('en-IN')} MRP</p>
+                    <p className="text-[10px] font-semibold text-emerald-600">90% Launch Discount</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">+₹{(REG_CGST + REG_SGST).toFixed(2)} GST = <strong>₹{REG_TOTAL.toFixed(2)}</strong></p>
+                  </div>
+                  <div className="space-y-1.5 pt-1">
+                    {['1.5 years validity from today', 'Full platform access', 'Bookings, quotes & escrow', 'Client ratings & reviews', 'Upgrade to Authorized anytime'].map((b, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                        <p className="text-[11px] text-gray-700">{b}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="px-4 pb-4 space-y-2">
+                  <button
+                    onClick={async () => {
+                      setPaymentLoading(true);
+                      setError('');
+                      try {
+                        const token = uploadedToken || sessionStorage.getItem('accessToken') || '';
+                        const orderRes = await fetch(`${API}/subscriptions/create-order`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ plan: 'REGULAR' }),
+                        });
+                        const orderData = await orderRes.json();
+                        if (!orderRes.ok) { setError(orderData.message || 'Could not initiate payment'); setPaymentLoading(false); return; }
+
+                        await new Promise<void>((resolve, reject) => {
+                          if ((window as any).Razorpay) { resolve(); return; }
+                          const s = document.createElement('script');
+                          s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                          s.onload = () => resolve();
+                          s.onerror = () => reject(new Error('Payment gateway unavailable'));
+                          document.body.appendChild(s);
+                        });
+
+                        const rzp = new (window as any).Razorpay({
+                          key: orderData.keyId,
+                          amount: orderData.amount,
+                          currency: 'INR',
+                          name: 'BrokerSaab',
+                          description: 'Regular Advisor Plan — 2 Years',
+                          order_id: orderData.orderId,
+                          theme: { color: '#D4AF37' },
+                          prefill: { name: formData.fullName, email: formData.email, contact: `+91${formData.phoneNumber}` },
+                          notes: { purpose: 'REGULAR_ADVISOR_SUBSCRIPTION', advisorName: formData.fullName },
+                          handler: async (response: any) => {
+                            try {
+                              const verifyRes = await fetch(`${API}/subscriptions/verify-payment`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({
+                                  razorpayOrderId: orderData.orderId,
+                                  razorpayPaymentId: response.razorpay_payment_id,
+                                  razorpaySignature: response.razorpay_signature,
+                                }),
+                              });
+                              const vd = await verifyRes.json();
+                              if (vd.success) {
+                                setPaymentDone(true);
+                                setInvoiceData({
+                                  invoiceNo: `BS-REG-${Date.now().toString().slice(-8)}`,
+                                  paymentId: response.razorpay_payment_id,
+                                  orderId: orderData.orderId,
+                                  paidAt: new Date(),
+                                });
+                                setStep('success');
+                              } else {
+                                setError('Payment verification failed. Contact support with Payment ID: ' + response.razorpay_payment_id);
+                              }
+                            } catch { setError('Verification error. Please contact support.'); }
+                            finally { setPaymentLoading(false); }
+                          },
+                          modal: { ondismiss: () => setPaymentLoading(false) },
+                        });
+                        rzp.open();
+                      } catch (e: any) { setError(e.message || 'Payment failed.'); setPaymentLoading(false); }
+                    }}
+                    disabled={paymentLoading}
+                    className="w-full py-2.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 transition-all hover:scale-[1.01] disabled:opacity-60"
+                    style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}>
+                    {paymentLoading ? <Loader2 size={15} className="animate-spin" /> : <><CreditCard size={14} /> Pay ₹{REG_TOTAL.toFixed(2)} — 2 Years</>}
+                  </button>
+                  {process.env.NODE_ENV !== 'production' && (
+                    <button
+                      onClick={async () => {
+                        setPaymentLoading(true);
+                        try {
+                          const token = uploadedToken || sessionStorage.getItem('accessToken') || '';
+                          const res = await fetch(`${API}/subscriptions/test-payment`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ plan: 'REGULAR' }),
+                          });
+                          const data = await res.json();
+                          if (data.success) { setPaymentDone(true); setInvoiceData({ invoiceNo: `BS-TEST-REG-${Date.now().toString().slice(-8)}`, paymentId: data.paymentId, orderId: 'test', paidAt: new Date() }); setStep('success'); }
+                          else setError(data.message || 'Test payment failed');
+                        } catch { setError('Network error'); } finally { setPaymentLoading(false); }
+                      }}
+                      className="w-full py-1.5 rounded-lg text-[10px] font-semibold text-amber-700 border border-dashed border-amber-300 bg-amber-50 hover:bg-amber-100 transition-all">
+                      🧪 Dev: Skip Payment
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Free Trial */}
+              <div className="rounded-2xl border-2 border-slate-200 bg-white flex flex-col">
+                <div className="px-4 py-3 text-center bg-slate-50 border-b border-slate-200">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">No Payment Now</p>
+                  <p className="text-xs font-black text-slate-700 mt-0.5">Free Trial</p>
+                </div>
+                <div className="px-4 py-3 flex-1 space-y-2">
+                  <div className="text-center">
+                    <p className="text-2xl font-black text-slate-800">₹0</p>
+                    <p className="text-[10px] text-slate-500">6 months free, then pay anytime</p>
+                  </div>
+                  <div className="space-y-1.5 pt-1">
+                    {['6 months of full access', 'All bookings & features included', 'No credit card required now', 'Upgrade or pay anytime from dashboard', 'Get 1.5 years validity if you pay during trial'].map((b, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <CheckCircle2 size={12} className="text-indigo-400 shrink-0" />
+                        <p className="text-[11px] text-gray-600">{b}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="px-4 pb-4">
+                  <button
+                    onClick={() => setStep('success')}
+                    className="w-full py-2.5 rounded-xl text-sm font-black border-2 border-slate-200 text-slate-700 hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2">
+                    <Clock size={14} /> Start Free Trial
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+                <AlertCircle size={14} className="text-red-500 shrink-0" />
+                <p className="text-xs text-red-700">{error}</p>
+              </div>
+            )}
+
+            <p className="text-[11px] text-gray-400 text-center flex items-center justify-center gap-1">
+              <ShieldCheck size={11} /> Payments secured by Razorpay · 100% refund if profile rejected
+            </p>
+          </div>
+        )}
+
         {/* ── Step: Payment (AUTHORIZED only) ── */}
         {step === 'payment' && (
           <div className="p-4 sm:p-5 space-y-3">
@@ -2885,8 +3065,8 @@ ${availLines ? `<div class="section">
               <p className="text-[10px] text-gray-400 text-center mt-2">{t('onboard.success.printHint')}</p>
             </div>
 
-            {/* Invoice download for AUTHORIZED advisors who paid */}
-            {isAuthorized && invoiceData && (
+            {/* Payment confirmed banner — shown for both AUTHORIZED and REGULAR paid advisors */}
+            {invoiceData && isAuthorized && (
               <div className="rounded-2xl border-2 border-indigo-300 p-4" style={{ background: 'linear-gradient(135deg,#eef2ff,#f0f4ff)' }}>
                 <div className="flex items-center gap-2 mb-3">
                   <Award size={16} className="text-indigo-600 shrink-0" />
@@ -2899,6 +3079,16 @@ ${availLines ? `<div class="section">
                   style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: 'white' }}>
                   <Download size={15} /> Download GST Invoice (PDF)
                 </button>
+              </div>
+            )}
+            {invoiceData && !isAuthorized && (
+              <div className="rounded-2xl border-2 border-amber-300 p-4" style={{ background: 'linear-gradient(135deg,#fffbf0,#fef9e7)' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 size={16} className="text-amber-600 shrink-0" />
+                  <span className="font-black text-gray-800 text-sm">Regular Plan Activated — 1.5 Years Validity!</span>
+                </div>
+                <p className="text-xs text-gray-600">Payment ID: <span className="font-mono text-[10px]">{invoiceData.paymentId}</span></p>
+                <p className="text-[11px] text-gray-500 mt-1">You can upgrade to Authorized anytime from your dashboard.</p>
               </div>
             )}
 

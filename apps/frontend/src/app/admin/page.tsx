@@ -12,7 +12,7 @@ import {
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
-type AdminTab = 'overview' | 'advisors' | 'users' | 'funnel' | 'subscriptions' | 'contact-packs' | 'contact-unlocks' | 'bookings' | 'support' | 'sub-admins';
+type AdminTab = 'overview' | 'advisors' | 'users' | 'funnel' | 'subscriptions' | 'contact-packs' | 'contact-unlocks' | 'bookings' | 'support' | 'sub-admins' | 'payouts';
 type BookingStatus = 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
 
 const STATUS_BADGE: Record<BookingStatus, string> = {
@@ -397,6 +397,25 @@ export default function AdminSuitePage() {
   const [crReviewing, setCrReviewing] = useState<string | null>(null);
   const [pendingCrCount, setPendingCrCount] = useState(0);
 
+  // Payouts tab
+  interface PayoutRecord {
+    id: string; amount: string; commission: string; netAmount: string;
+    status: string; bankAccount: string; referenceId: string | null;
+    rejectionReason: string | null; createdAt: string;
+    advisor: { id: string; fullName: string; email: string; phoneNumber: string };
+    ticket: { ticketNumber: string; totalAmount: string } | null;
+  }
+  const [payouts, setPayouts]             = useState<PayoutRecord[]>([]);
+  const [payoutsLoading, setPayoutsLoading] = useState(false);
+  const [payoutSummary, setPayoutSummary] = useState<{
+    totalPending: number; totalSuccess: number; totalAmountPaid: number; totalCommission: number;
+  } | null>(null);
+  const [payoutActionId, setPayoutActionId]       = useState<string | null>(null);
+  const [payoutRefId,    setPayoutRefId]           = useState('');
+  const [payoutRejectReason, setPayoutRejectReason] = useState('');
+  const [payoutActioning,    setPayoutActioning]    = useState(false);
+  const [payoutFilter,       setPayoutFilter]       = useState<'ALL' | 'PENDING' | 'SUCCESS' | 'FAILED'>('ALL');
+
   const token = () => (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('accessToken') || '' : '');
 
   useEffect(() => {
@@ -409,6 +428,48 @@ export default function AdminSuitePage() {
   }, []);
 
   const isSuperAdmin = adminRole === 'SUPER_ADMIN';
+
+  const fetchPayouts = useCallback(async () => {
+    setPayoutsLoading(true);
+    try {
+      const r = await fetch(`${API}/admin/payouts`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.success) { setPayouts(d.data); setPayoutSummary(d.summary); }
+    } catch { /* ignore */ }
+    finally { setPayoutsLoading(false); }
+  }, []);
+
+  const handlePayoutAction = async (id: string, action: 'release' | 'reject') => {
+    setPayoutActioning(true);
+    try {
+      const r = await fetch(`${API}/admin/payouts/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({
+          action,
+          rejectionReason: action === 'reject' ? payoutRejectReason || 'Rejected by admin' : undefined,
+        }),
+      });
+      const d = await r.json();
+      if (d.success) { setPayoutActionId(null); setPayoutRefId(''); setPayoutRejectReason(''); fetchPayouts(); fetchPayoutSummary(); }
+    } catch { /* ignore */ }
+    finally { setPayoutActioning(false); }
+  };
+
+  const fetchPayoutSummary = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/admin/payout-summary`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.success) {
+        setPayoutSummary({
+          totalPending:    d.pending.count,
+          totalSuccess:    d.released.count,
+          totalAmountPaid: d.released.netAmount,
+          totalCommission: d.released.commission,
+        });
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -753,6 +814,8 @@ export default function AdminSuitePage() {
   useEffect(() => { if (activeTab === 'bookings') fetchBookings(); }, [activeTab, fetchBookings]);
   useEffect(() => { if (activeTab === 'support') { fetchTickets(); fetchTicketSubAdmins(); } }, [activeTab, fetchTickets, fetchTicketSubAdmins]);
   useEffect(() => { if (activeTab === 'sub-admins') fetchSubAdmins(); }, [activeTab, fetchSubAdmins]);
+  useEffect(() => { if (activeTab === 'payouts') { fetchPayouts(); fetchPayoutSummary(); } }, [activeTab, fetchPayouts, fetchPayoutSummary]);
+  useEffect(() => { fetchPayoutSummary(); }, [fetchPayoutSummary]);
   useEffect(() => {
     fetch(`${API}/admin/tickets?status=OPEN&limit=0`, { headers: { Authorization: `Bearer ${token()}` } })
       .then(r => r.json()).then(d => { if (d.success) setOpenTicketCount(d.total); }).catch(() => {});
@@ -1061,6 +1124,7 @@ export default function AdminSuitePage() {
     { key: 'contact-unlocks', label: 'Contact Unlocks', icon: UserCheck },
     { key: 'bookings', label: 'Bookings', icon: BookOpen },
     { key: 'support', label: openTicketCount > 0 ? `Support (${openTicketCount})` : 'Support', icon: MessageSquare },
+    { key: 'payouts', label: payoutSummary?.totalPending ? `Payouts (${payoutSummary.totalPending})` : 'Payouts', icon: CreditCard },
   ];
 
   const TABS = isSuperAdmin
@@ -1158,6 +1222,46 @@ export default function AdminSuitePage() {
               >
                 <RefreshCw size={11} /> Run Repair
               </button>
+            </div>
+          )}
+
+          {/* Commission & Payouts Summary tile */}
+          {payoutSummary && (
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-xs font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2">
+                  <CreditCard size={13} className="text-emerald-500" /> Advisor Payouts &amp; Commission
+                </h4>
+                <button onClick={() => setActiveTab('payouts')} className="text-[10px] font-semibold text-indigo-600 hover:underline">
+                  Manage Payouts →
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: 'Pending Release', value: payoutSummary.totalPending, color: 'border-l-amber-500 bg-amber-50', text: 'text-amber-700', desc: payoutSummary.totalPending > 0 ? 'Action required' : 'All clear' },
+                  { label: 'Released Payouts', value: payoutSummary.totalSuccess, color: 'border-l-emerald-500 bg-emerald-50', text: 'text-emerald-700', desc: 'Processed to advisors' },
+                  { label: 'Total Paid to Advisors', value: `₹${payoutSummary.totalAmountPaid.toLocaleString('en-IN')}`, color: 'border-l-slate-400 bg-slate-50', text: 'text-slate-800', desc: 'Net transfers' },
+                  { label: 'Commission Earned', value: `₹${payoutSummary.totalCommission.toLocaleString('en-IN')}`, color: 'border-l-indigo-500 bg-indigo-50', text: 'text-indigo-700', desc: '15% platform cut' },
+                ].map((s, i) => (
+                  <div key={i} className={`${s.color.split(' ')[1]} rounded-xl p-4 border-l-4 ${s.color.split(' ')[0]}`}>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider ${s.text} mb-1`}>{s.label}</p>
+                    <p className={`text-lg font-black ${s.text}`}>{s.value}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{s.desc}</p>
+                  </div>
+                ))}
+              </div>
+              {payoutSummary.totalPending > 0 && (
+                <div className="mt-3 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+                  <AlertTriangle size={13} className="text-amber-600 animate-pulse shrink-0" />
+                  <p className="text-xs text-amber-700 font-semibold">
+                    {payoutSummary.totalPending} payout{payoutSummary.totalPending > 1 ? 's' : ''} pending release — advisors are waiting for their earnings
+                  </p>
+                  <button onClick={() => setActiveTab('payouts')}
+                    className="ml-auto text-[10px] font-black text-white bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap">
+                    Release Now
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -1336,8 +1440,8 @@ export default function AdminSuitePage() {
                           <h3 className="text-lg font-bold text-slate-800">{selectedAdv.fullName}</h3>
                           <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">{genDisplayId('advisor', selectedAdv.seqId)}</span>
                         </div>
-                        <p className="text-xs text-slate-400">{selectedAdv.location} Â· {selectedAdv.experienceYears}y exp Â· ₹{selectedAdv.consultationFee}/session</p>
-                        <p className="text-[11px] text-slate-500 font-mono">{selectedAdv.email} Â· {selectedAdv.phoneNumber}</p>
+                        <p className="text-xs text-slate-400">{selectedAdv.location} · {selectedAdv.experienceYears}y exp · ₹{selectedAdv.consultationFee}/session</p>
+                        <p className="text-[11px] text-slate-500 font-mono">{selectedAdv.email} · {selectedAdv.phoneNumber}</p>
                         {selectedAdv.aadhaarLast4 && <p className="text-[11px] text-slate-500">Aadhaar: ****{selectedAdv.aadhaarLast4}</p>}
                         {selectedAdv.licenseNumber && <p className="text-[11px] text-slate-500">License: {selectedAdv.licenseNumber}</p>}
                         {selectedAdv.gstNumber && <p className="text-[11px] text-slate-500">GST: {selectedAdv.gstNumber}</p>}
@@ -1657,7 +1761,7 @@ export default function AdminSuitePage() {
                             <td className="px-4 py-3 font-medium">{snap?.fullName || '—'}</td>
                             <td className="px-4 py-3 text-slate-400">{snap?.email || '—'}</td>
                             <td className="px-4 py-3">{snap?.state || '—'}</td>
-                            <td className="px-4 py-3">{s.currentStep}/8 Â· <span className="text-slate-400">{s.stepLabel}</span></td>
+                            <td className="px-4 py-3">{s.currentStep}/8 · <span className="text-slate-400">{s.stepLabel}</span></td>
                             <td className="px-4 py-3 text-slate-500">{new Date(s.lastActiveAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
                             <td className="px-4 py-3 text-center">{s.advisorId ? <CheckCircle size={13} className="text-emerald-400 mx-auto" /> : <XCircle size={13} className="text-red-400 mx-auto" />}</td>
                             <td className="px-4 py-3">
@@ -2182,8 +2286,8 @@ export default function AdminSuitePage() {
                       <h3 className="text-base font-bold text-slate-800 mt-0.5">{selectedTicket.subject}</h3>
                       <p className="text-xs text-slate-400 mt-0.5">
                         From: <strong className="text-slate-600">{selectedTicket.user.fullName || 'User'}</strong>
-                        {' Â· '}{selectedTicket.user.phoneNumber}
-                        {selectedTicket.user.email && <> Â· {selectedTicket.user.email}</>}
+                        {' · '}{selectedTicket.user.phoneNumber}
+                        {selectedTicket.user.email && <> · {selectedTicket.user.email}</>}
                         {selectedTicket.user.role && <span className="ml-1 text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{selectedTicket.user.role}</span>}
                       </p>
                     </div>
@@ -2422,6 +2526,143 @@ export default function AdminSuitePage() {
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── PAYOUTS ── */}
+      {activeTab === 'payouts' && (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h2 className="text-sm font-bold text-slate-700 uppercase tracking-widest flex items-center gap-2">
+              <CreditCard size={15} className="text-emerald-500" /> Advisor Payouts
+            </h2>
+            <button onClick={fetchPayouts} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-emerald-600"><RefreshCw size={13} /> Refresh</button>
+          </div>
+
+          {/* Summary cards */}
+          {payoutSummary && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Pending Withdrawals', value: payoutSummary.totalPending, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200' },
+                { label: 'Processed Payouts', value: payoutSummary.totalSuccess, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
+                { label: 'Total Paid Out', value: `₹${payoutSummary.totalAmountPaid.toLocaleString('en-IN')}`, color: 'text-slate-800', bg: 'bg-white border-slate-200' },
+                { label: 'Commission Earned', value: `₹${payoutSummary.totalCommission.toLocaleString('en-IN')}`, color: 'text-indigo-700', bg: 'bg-indigo-50 border-indigo-200' },
+              ].map(c => (
+                <div key={c.label} className={`rounded-xl border px-4 py-3 ${c.bg}`}>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">{c.label}</p>
+                  <p className={`text-lg font-black ${c.color}`}>{c.value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Filter */}
+          <div className="flex gap-2 flex-wrap">
+            {(['ALL', 'PENDING', 'SUCCESS', 'FAILED'] as const).map(f => (
+              <button key={f} onClick={() => setPayoutFilter(f)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${payoutFilter === f ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
+                {f === 'ALL' ? 'All' : f === 'PENDING' ? 'Pending Withdrawal' : f === 'SUCCESS' ? 'Processed' : 'Rejected'}
+              </button>
+            ))}
+          </div>
+
+          {/* Payout list */}
+          {payoutsLoading ? (
+            <div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-slate-400" /></div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+              {payouts.filter(p => payoutFilter === 'ALL' || p.status === payoutFilter).length === 0 ? (
+                <div className="py-12 text-center">
+                  <CreditCard size={32} className="text-slate-300 mx-auto mb-2" />
+                  <p className="text-slate-400 text-sm">No payout records</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-50">
+                  {payouts.filter(p => payoutFilter === 'ALL' || p.status === payoutFilter).map(p => (
+                    <div key={p.id} className="px-5 py-4">
+                      <div className="flex items-start gap-4 flex-wrap">
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
+                              p.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' :
+                              p.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                            }`}>{p.status}</span>
+                            {p.bankAccount === 'WALLET_CREDIT' ? (
+                              <span className="text-[10px] text-slate-400">Auto-credit · {p.ticket?.ticketNumber ?? 'N/A'}</span>
+                            ) : (
+                              <span className="text-[10px] text-slate-600 font-semibold">Withdrawal Request</span>
+                            )}
+                          </div>
+                          <p className="text-sm font-bold text-slate-800">{p.advisor.fullName}</p>
+                          <p className="text-xs text-slate-400">{p.advisor.email} · {p.advisor.phoneNumber}</p>
+                          {p.bankAccount !== 'WALLET_CREDIT' && (
+                            <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 font-mono">{p.bankAccount}</p>
+                          )}
+                          {p.rejectionReason && (
+                            <p className="text-xs text-red-600">Rejected: {p.rejectionReason}</p>
+                          )}
+                          <p className="text-[10px] text-slate-400">{new Date(p.createdAt).toLocaleString('en-IN')}</p>
+                        </div>
+
+                        <div className="text-right space-y-1">
+                          <p className="text-lg font-black text-emerald-700">₹{Number(p.netAmount).toLocaleString('en-IN')}</p>
+                          {Number(p.commission) > 0 && (
+                            <p className="text-[10px] text-slate-400">Commission: ₹{Number(p.commission).toLocaleString('en-IN')}</p>
+                          )}
+                          {p.referenceId && p.referenceId !== `auto_${p.id}` && (
+                            <p className="text-[10px] font-mono text-slate-500">Ref: {p.referenceId}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action buttons for all PENDING payouts */}
+                      {p.status === 'PENDING' && (
+                        <div className="mt-3">
+                          {payoutActionId === p.id ? (
+                            <div className="space-y-2 bg-slate-50 rounded-xl p-3">
+                              <p className="text-[10px] text-slate-500">Razorpay payout will be initiated automatically. Fill rejection reason only if rejecting.</p>
+                              <input
+                                type="text"
+                                placeholder="Rejection reason (required only if rejecting)"
+                                value={payoutRejectReason}
+                                onChange={e => setPayoutRejectReason(e.target.value)}
+                                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-400"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handlePayoutAction(p.id, 'release')}
+                                  disabled={payoutActioning}
+                                  className="flex-1 px-3 py-2 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all">
+                                  {payoutActioning ? 'Processing…' : 'Release via Razorpay'}
+                                </button>
+                                <button
+                                  onClick={() => handlePayoutAction(p.id, 'reject')}
+                                  disabled={payoutActioning}
+                                  className="flex-1 px-3 py-2 rounded-xl text-xs font-black text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-all">
+                                  {payoutActioning ? 'Processing…' : 'Reject & Refund'}
+                                </button>
+                                <button
+                                  onClick={() => setPayoutActionId(null)}
+                                  className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50">
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setPayoutActionId(p.id); setPayoutRefId(''); setPayoutRejectReason(''); }}
+                              className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all">
+                              Process Withdrawal
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

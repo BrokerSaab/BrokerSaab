@@ -7,6 +7,7 @@ import { authenticateJWT, requireRole, logAuditEvent, AuthenticatedRequest } fro
 import { validateRequest } from '../middlewares/validate';
 import { exportToExcel } from '../utils/excelExport';
 import { sendPushNotification } from '../utils/pushNotification';
+import { initiatePayout, mapRzpStatus } from '../services/razorpayPayout';
 
 const router = Router();
 
@@ -1654,6 +1655,246 @@ router.patch('/advisors/:id/edit', ...SUPER_ADMIN_ONLY,
     } catch (err) {
       console.error('[admin/advisors/:id/edit PATCH]', err);
       res.status(500).json({ success: false, message: 'Failed to update advisor details' });
+    }
+  }
+);
+
+// ── GET /admin/payouts ────────────────────────────────────────────────────────
+// List all payout records (withdrawal requests + auto-credits)
+router.get(
+  '/payouts',
+  ...ADMIN_GUARD,
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const payouts = await prisma.payout.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          advisor: { select: { id: true, fullName: true, email: true, phoneNumber: true } },
+          ticket:  { select: { ticketNumber: true, totalAmount: true } },
+        },
+      });
+
+      const summary = {
+        totalPending:     payouts.filter(p => p.status === 'PENDING' && p.bankAccount !== 'WALLET_CREDIT').length,
+        totalSuccess:     payouts.filter(p => p.status === 'SUCCESS').length,
+        totalAmountPaid:  payouts.filter(p => p.status === 'SUCCESS').reduce((acc, p) => acc + Number(p.netAmount), 0),
+        totalCommission:  payouts.filter(p => p.status === 'SUCCESS').reduce((acc, p) => acc + Number(p.commission), 0),
+      };
+
+      res.json({ success: true, data: payouts, summary });
+    } catch (err) {
+      console.error('[GET /admin/payouts]', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch payouts' });
+    }
+  }
+);
+
+// ── PATCH /admin/payouts/:id ──────────────────────────────────────────────────
+// Admin releases (via Razorpay Route) or rejects a payout
+// action: 'release' → Razorpay payout + wallet credit
+// action: 'reject'  → mark FAILED + notify advisor
+router.patch(
+  '/payouts/:id',
+  ...ADMIN_GUARD,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { action, rejectionReason } = req.body;
+
+    if (!action || !['release', 'reject'].includes(action)) {
+      res.status(400).json({ success: false, message: 'Action must be "release" or "reject"' });
+      return;
+    }
+
+    try {
+      const payout = await prisma.payout.findUnique({
+        where: { id: req.params.id },
+        include: {
+          advisor: {
+            select: {
+              id: true, fullName: true, email: true, phoneNumber: true,
+              walletBalance: true, pushToken: true,
+              bankAccountNumber: true, bankIfsc: true,
+              bankAccountHolder: true, bankAccountType: true,
+              razorpayContactId: true, razorpayFundAccountId: true,
+            },
+          },
+          ticket: { select: { ticketNumber: true } },
+        },
+      });
+
+      if (!payout) {
+        res.status(404).json({ success: false, message: 'Payout not found' });
+        return;
+      }
+      if (payout.status !== 'PENDING') {
+        res.status(400).json({ success: false, message: 'Payout is not in PENDING state' });
+        return;
+      }
+
+      const adminId = req.user?.id ?? 'system';
+
+      if (action === 'release') {
+        // Admin-triggered retry for FAILED or no-bank-details payouts.
+        // Uses the same idempotency key as the auto-trigger, so duplicate
+        // RazorpayX payouts are prevented even on retries.
+        const netAmount   = Number(payout.netAmount);
+        const amountPaise = Math.round(netAmount * 100);
+        const now         = new Date();
+
+        const hasBankDetails = !!(payout.advisor.bankAccountNumber && payout.advisor.bankIfsc);
+
+        if (hasBankDetails) {
+          // Use ticket_<ticketId> as idempotency key — same key as auto-trigger
+          const ticketIdForKey = payout.ticketId ?? payout.id;
+          const outcome = await initiatePayout(
+            {
+              advisorId:             payout.advisor.id,
+              fullName:              payout.advisor.fullName,
+              email:                 payout.advisor.email,
+              phoneNumber:           payout.advisor.phoneNumber,
+              bankAccountNumber:     payout.advisor.bankAccountNumber!,
+              bankIfsc:              payout.advisor.bankIfsc!,
+              bankAccountHolder:     payout.advisor.bankAccountHolder ?? payout.advisor.fullName,
+              razorpayContactId:     payout.advisor.razorpayContactId,
+              razorpayFundAccountId: payout.advisor.razorpayFundAccountId,
+            },
+            amountPaise,
+            ticketIdForKey,
+          );
+
+          const payoutStatus = mapRzpStatus(outcome.rzpStatus);
+
+          await prisma.$transaction([
+            prisma.payout.update({
+              where: { id: payout.id },
+              data: {
+                razorpayPayoutId:  outcome.razorpayPayoutId,
+                payoutMode:        outcome.mode ?? 'IMPS',
+                status:            payoutStatus,
+                releasedByAdminId: adminId,
+                releasedAt:        now,
+                ...(outcome.error ? { rejectionReason: outcome.error } : {}),
+              },
+            }),
+            // Credit wallet on successful initiation
+            ...(outcome.success ? [prisma.advisor.update({
+              where: { id: payout.advisorId },
+              data:  { walletBalance: { increment: netAmount } },
+            })] : []),
+          ]);
+
+          if (payout.advisor.pushToken && outcome.success) {
+            sendPushNotification(
+              payout.advisor.pushToken,
+              'Payment Initiated!',
+              `₹${netAmount.toLocaleString('en-IN')} from ticket ${payout.ticket?.ticketNumber ?? ''} is being transferred to your bank account.`,
+              { payoutId: payout.id, screen: 'Wallet' }
+            );
+          }
+
+          if (!outcome.success) {
+            res.status(502).json({ success: false, message: `RazorpayX payout failed: ${outcome.error}` });
+            return;
+          }
+
+          res.json({ success: true, message: 'Payout released via RazorpayX', razorpayPayoutId: outcome.razorpayPayoutId, mode: outcome.mode });
+        } else {
+          // No bank details — manual wallet credit only
+          await prisma.$transaction([
+            prisma.payout.update({
+              where: { id: payout.id },
+              data: {
+                status:            'SUCCESS',
+                payoutMode:        'WALLET_CREDIT',
+                razorpayPayoutId:  `wallet_credit_${payout.id}`,
+                releasedByAdminId: adminId,
+                releasedAt:        now,
+              },
+            }),
+            prisma.advisor.update({
+              where: { id: payout.advisorId },
+              data:  { walletBalance: { increment: netAmount } },
+            }),
+          ]);
+
+          if (payout.advisor.pushToken) {
+            sendPushNotification(
+              payout.advisor.pushToken,
+              'Payment Credited',
+              `₹${netAmount.toLocaleString('en-IN')} has been credited to your BrokerSaab wallet. Add bank details to enable direct bank transfers.`,
+              { payoutId: payout.id, screen: 'Wallet' }
+            );
+          }
+
+          res.json({ success: true, message: 'Amount credited to advisor wallet (no bank account on file)', mode: 'WALLET_CREDIT' });
+        }
+      } else {
+        // Reject — notify advisor, no wallet credit
+        const reason = rejectionReason ?? 'Rejected by admin';
+        await prisma.payout.update({
+          where: { id: payout.id },
+          data: {
+            status:           'FAILED',
+            rejectionReason:  reason,
+            releasedByAdminId: adminId,
+          },
+        });
+
+        if (payout.advisor.pushToken) {
+          sendPushNotification(
+            payout.advisor.pushToken,
+            'Payout Rejected',
+            `Your payout of ₹${Number(payout.netAmount).toLocaleString('en-IN')} was rejected. Reason: ${reason}. Please contact support.`,
+            { payoutId: payout.id, screen: 'Wallet' }
+          );
+        }
+
+        res.json({ success: true, message: 'Payout rejected and advisor notified' });
+      }
+    } catch (err: any) {
+      console.error('[PATCH /admin/payouts/:id]', err);
+      res.status(500).json({ success: false, message: err.message || 'Failed to update payout' });
+    }
+  }
+);
+
+// ── GET /admin/payout-summary ─────────────────────────────────────────────────
+// Commission summary for the admin overview tile
+router.get(
+  '/payout-summary',
+  ...ADMIN_GUARD,
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const [pending, success] = await Promise.all([
+        prisma.payout.aggregate({
+          where:  { status: 'PENDING', ticketId: { not: null } },
+          _sum:   { netAmount: true, amount: true, commission: true },
+          _count: { id: true },
+        }),
+        prisma.payout.aggregate({
+          where:  { status: 'SUCCESS', ticketId: { not: null } },
+          _sum:   { netAmount: true, amount: true, commission: true },
+          _count: { id: true },
+        }),
+      ]);
+
+      res.json({
+        success: true,
+        pending: {
+          count:      pending._count.id,
+          totalAmount: Number(pending._sum.amount ?? 0),
+          netAmount:  Number(pending._sum.netAmount ?? 0),
+          commission: Number(pending._sum.commission ?? 0),
+        },
+        released: {
+          count:      success._count.id,
+          totalAmount: Number(success._sum.amount ?? 0),
+          netAmount:  Number(success._sum.netAmount ?? 0),
+          commission: Number(success._sum.commission ?? 0),
+        },
+      });
+    } catch (err) {
+      console.error('[GET /admin/payout-summary]', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch payout summary' });
     }
   }
 );

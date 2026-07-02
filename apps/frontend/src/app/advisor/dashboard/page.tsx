@@ -7,7 +7,8 @@ import {
   Calendar, Clock, User, AlertCircle, Loader2, ArrowLeft,
   CheckCircle2, XCircle, ShieldCheck, RefreshCw, LayoutDashboard,
   Phone, MessageSquare, BadgeCheck, Camera, Layers, FileText, Bell,
-  Eye, Edit3, Send, Users, Ticket, QrCode, Copy, Check, X, Download
+  Eye, Edit3, Send, Users, Ticket, QrCode, Copy, Check, X, Download,
+  CreditCard, Crown, Zap, TrendingUp, Award, Star
 } from 'lucide-react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require('react-qr-code').default as React.ComponentType<{ value: string; size?: number; bgColor?: string; fgColor?: string; level?: string }>;
@@ -117,8 +118,63 @@ export default function AdvisorDashboard() {
   const [advisorPublicId, setAdvisorPublicId] = useState<string | null>(null);
   const [qrCopied,       setQrCopied]       = useState(false);
   const [pdfLoading,     setPdfLoading]     = useState(false);
+
+  // Upgrade plan modal
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradePaying,    setUpgradePaying]    = useState(false);
+  const [upgradeError,     setUpgradeError]     = useState('');
+  const [upgradeSuccess,   setUpgradeSuccess]   = useState<{ plan: string; expiresAt: string } | null>(null);
+
+  // Wallet & earnings
+  const [walletData, setWalletData] = useState<{
+    walletBalance: number;
+    totalEarned: number;
+    pendingWithdrawals: any[];
+    recentPayouts: any[];
+  } | null>(null);
+  const [showWalletPanel,   setShowWalletPanel]   = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawForm,      setWithdrawForm]      = useState({ amount: '', bankAccount: '', ifscCode: '', accountHolderName: '' });
+  const [withdrawing,       setWithdrawing]       = useState(false);
+  const [withdrawError,     setWithdrawError]     = useState('');
+  const [withdrawSuccess,   setWithdrawSuccess]   = useState(false);
+
   const qrSvgRef     = useRef<HTMLDivElement>(null);
   const bookingsRef  = useRef<HTMLDivElement>(null);
+
+  const fetchWallet = async () => {
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      const res = await fetch(`${API}/advisors/wallet`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) setWalletData(data.data);
+    } catch { /* ignore */ }
+  };
+
+  const handleWithdraw = async () => {
+    const { amount, bankAccount, ifscCode, accountHolderName } = withdrawForm;
+    if (!amount || !bankAccount || !ifscCode || !accountHolderName) {
+      setWithdrawError('All fields are required'); return;
+    }
+    setWithdrawing(true); setWithdrawError('');
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      const res = await fetch(`${API}/advisors/wallet/withdraw`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount: parseFloat(amount), bankAccount, ifscCode, accountHolderName }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWithdrawSuccess(true);
+        setWithdrawForm({ amount: '', bankAccount: '', ifscCode: '', accountHolderName: '' });
+        fetchWallet();
+      } else {
+        setWithdrawError(data.message || 'Withdrawal failed');
+      }
+    } catch { setWithdrawError('Network error. Please try again.'); }
+    finally { setWithdrawing(false); }
+  };
 
   const fetchQuoteRequests = async () => {
     try {
@@ -180,6 +236,7 @@ export default function AdvisorDashboard() {
     fetchConnectedClients();
     fetchTickets();
     fetchAdvisorPublicId();
+    fetchWallet();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authReady, isLoggedIn, user]);
 
@@ -517,6 +574,67 @@ export default function AdvisorDashboard() {
     } catch { /* ignore */ }
   };
 
+  const handleUpgradePay = async (plan: 'REGULAR' | 'AUTHORIZED') => {
+    setUpgradeError('');
+    setUpgradePaying(true);
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) { setUpgradeError('Session expired. Please log in again.'); setUpgradePaying(false); return; }
+
+      const orderRes = await fetch(`${API}/subscriptions/create-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ plan }),
+      });
+      const orderData = await orderRes.json();
+      if (!orderRes.ok) { setUpgradeError(orderData.message || 'Could not initiate payment'); setUpgradePaying(false); return; }
+
+      await new Promise<void>((resolve, reject) => {
+        if ((window as any).Razorpay) { resolve(); return; }
+        const s = document.createElement('script');
+        s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('Payment gateway unavailable'));
+        document.body.appendChild(s);
+      });
+
+      const rzp = new (window as any).Razorpay({
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: 'INR',
+        name: 'BrokerSaab',
+        description: orderData.planLabel,
+        order_id: orderData.orderId,
+        theme: { color: plan === 'AUTHORIZED' ? '#4F46E5' : '#D4AF37' },
+        prefill: { name: user?.fullName ?? '', contact: user?.phoneNumber ?? '' },
+        notes: { purpose: 'ADVISOR_SUBSCRIPTION', plan },
+        handler: async (response: any) => {
+          try {
+            const verifyRes = await fetch(`${API}/subscriptions/verify-payment`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({
+                razorpayOrderId: orderData.orderId,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              }),
+            });
+            const vd = await verifyRes.json();
+            if (vd.success) {
+              setUpgradeSuccess({ plan: vd.plan, expiresAt: vd.expiresAt });
+              fetchSubscriptionValidity();
+            } else {
+              setUpgradeError(vd.message || 'Payment verification failed');
+            }
+          } catch { setUpgradeError('Verification error. Please contact support.'); }
+          finally { setUpgradePaying(false); }
+        },
+        modal: { ondismiss: () => setUpgradePaying(false) },
+      });
+      rzp.open();
+    } catch (e: any) { setUpgradeError(e.message || 'Payment failed.'); setUpgradePaying(false); }
+  };
+
   const fetchBookings = async () => {
     setLoading(true);
     try {
@@ -694,18 +812,19 @@ export default function AdvisorDashboard() {
               <div>
                 <p className="text-sm font-black text-indigo-700">Free Trial — {subValidity.trialDaysLeft} days remaining</p>
                 <p className="text-xs text-slate-500">
-                  Subscribe now to get <strong>1.5 years</strong> validity ·
+                  Pay now to get <strong>1.5 years</strong> validity ·
                   Trial ends {subValidity.trialEndDate
                     ? new Date(subValidity.trialEndDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
                     : '—'}
                 </p>
               </div>
             </div>
-            <Link href="/advisor/subscription"
+            <button
+              onClick={() => { setUpgradeError(''); setUpgradeSuccess(null); setShowUpgradeModal(true); }}
               className="px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all hover:scale-105"
               style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: '#fff' }}>
-              Subscribe
-            </Link>
+              Upgrade Plan
+            </button>
           </div>
         )}
 
@@ -715,14 +834,100 @@ export default function AdvisorDashboard() {
               <AlertCircle size={18} className="text-red-600 shrink-0" />
               <div>
                 <p className="text-sm font-black text-red-700">Subscription Expired</p>
-                <p className="text-xs text-slate-500">Subscribe to restore full platform access</p>
+                <p className="text-xs text-slate-500">Choose a plan to restore full platform access</p>
               </div>
             </div>
-            <Link href="/advisor/subscription"
+            <button
+              onClick={() => { setUpgradeError(''); setUpgradeSuccess(null); setShowUpgradeModal(true); }}
               className="px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all hover:scale-105"
               style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}>
-              Subscribe Now
-            </Link>
+              Upgrade Plan
+            </button>
+          </div>
+        )}
+
+        {/* ── Wallet / Earnings card ── */}
+        {walletData && (
+          <div className="mb-5 bg-white border border-emerald-100 rounded-2xl overflow-hidden shadow-sm">
+            <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100"
+              style={{ background: 'linear-gradient(135deg,#ecfdf5,#f0fdf4)' }}>
+              <div className="flex items-center gap-2">
+                <TrendingUp size={15} className="text-emerald-600" />
+                <h3 className="text-sm font-black text-slate-800">Earnings &amp; Wallet</h3>
+              </div>
+              <button
+                onClick={() => setShowWalletPanel(v => !v)}
+                className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 transition-colors">
+                {showWalletPanel ? 'Hide' : 'View History'}
+              </button>
+            </div>
+
+            <div className="px-5 py-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <div>
+                <p className="text-[11px] text-slate-500 mb-1">Wallet Balance</p>
+                <p className="text-xl font-black text-emerald-700">
+                  ₹{walletData.walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] text-slate-500 mb-1">Total Earned</p>
+                <p className="text-xl font-black text-slate-800">
+                  ₹{walletData.totalEarned.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="col-span-2 sm:col-span-1 flex items-center">
+                <button
+                  onClick={() => { setWithdrawError(''); setWithdrawSuccess(false); setShowWithdrawModal(true); }}
+                  disabled={walletData.walletBalance <= 0}
+                  className="w-full px-4 py-2.5 rounded-xl text-xs font-black text-white transition-all hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: 'linear-gradient(135deg,#059669,#047857)' }}>
+                  Withdraw Funds
+                </button>
+              </div>
+            </div>
+
+            {showWalletPanel && walletData.recentPayouts.length > 0 && (
+              <div className="border-t border-slate-100">
+                <div className="px-5 py-3 bg-slate-50">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Recent Transactions</p>
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {walletData.recentPayouts.map((p: any) => (
+                    <div key={p.id} className="px-5 py-3 flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${
+                        p.status === 'SUCCESS' ? 'bg-emerald-500' :
+                        p.status === 'PENDING' ? 'bg-amber-400' : 'bg-red-400'
+                      }`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-slate-700">
+                          {p.bankAccount === 'WALLET_CREDIT'
+                            ? `Ticket payment — ${p.ticket?.ticketNumber ?? 'N/A'}`
+                            : `Withdrawal to ${p.bankAccount.split('|')[0]?.trim() ?? p.bankAccount}`}
+                        </p>
+                        <p className="text-[10px] text-slate-400">
+                          {new Date(p.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-black text-emerald-700">+₹{Number(p.netAmount).toLocaleString('en-IN')}</p>
+                        {Number(p.commission) > 0 && (
+                          <p className="text-[10px] text-slate-400">15% commission ₹{Number(p.commission).toLocaleString('en-IN')} deducted</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {walletData.pendingWithdrawals.filter((p: any) => p.bankAccount !== 'WALLET_CREDIT').length > 0 && (
+              <div className="border-t border-amber-100 bg-amber-50 px-5 py-3 flex items-center gap-2">
+                <Clock size={13} className="text-amber-600 shrink-0" />
+                <p className="text-xs text-amber-700 font-semibold">
+                  {walletData.pendingWithdrawals.filter((p: any) => p.bankAccount !== 'WALLET_CREDIT').length} withdrawal request(s) pending admin approval
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -1206,6 +1411,228 @@ export default function AdvisorDashboard() {
             style={{ background: 'linear-gradient(90deg,#D4AF37,#F0CC60,#D4AF37)' }} />
         </div>
         </div>{/* end centering wrapper */}
+      </div>
+    )}
+
+    {/* ── Upgrade Plan Modal ─────────────────────────────────────────────── */}
+    {showUpgradeModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
+          {/* Header */}
+          <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={16} className="text-indigo-600" />
+              <p className="text-sm font-black text-slate-800">Upgrade Your Plan</p>
+            </div>
+            <button onClick={() => setShowUpgradeModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="p-5 space-y-4">
+            {upgradeSuccess ? (
+              /* Success state */
+              <div className="text-center space-y-3 py-4">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: 'rgba(212,175,55,0.1)', border: '2px solid rgba(212,175,55,0.4)' }}>
+                  <CheckCircle2 size={32} className="text-amber-500" />
+                </div>
+                <p className="text-lg font-black text-slate-800">
+                  {upgradeSuccess.plan === 'AUTHORIZED' ? 'Authorized Plan' : 'Regular Plan'} Activated!
+                </p>
+                <p className="text-sm text-slate-500">
+                  Valid until {new Date(upgradeSuccess.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+                {upgradeSuccess.plan === 'AUTHORIZED' && (
+                  <p className="text-xs text-indigo-600 bg-indigo-50 rounded-xl px-3 py-2">Your Authorized Dealer badge is pending admin approval.</p>
+                )}
+                <button onClick={() => setShowUpgradeModal(false)}
+                  className="mt-2 px-6 py-2.5 rounded-xl text-sm font-black transition-all hover:scale-105"
+                  style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}>
+                  Done
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-slate-500 text-center">
+                  {subValidity?.status === 'TRIAL'
+                    ? `You're within 6 months → subscribing now gives you 1.5 years validity`
+                    : `Trial expired → subscribing now gives you 1 year validity`}
+                </p>
+
+                {/* Two plan cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Regular Plan */}
+                  <div className="rounded-2xl border-2 border-amber-300 overflow-hidden flex flex-col" style={{ background: 'linear-gradient(135deg,#fffbf0,#fef9e7)' }}>
+                    <div className="px-3 py-2.5 text-center" style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)' }}>
+                      <Crown size={14} className="text-white mx-auto mb-0.5" />
+                      <p className="text-[11px] font-black text-white">Regular Plan</p>
+                    </div>
+                    <div className="px-3 py-3 flex-1 space-y-2">
+                      <div className="text-center">
+                        <p className="text-xl font-black text-gray-900">₹499</p>
+                        <p className="text-[10px] text-gray-400 line-through">₹4,990 MRP</p>
+                        <p className="text-[10px] font-bold text-amber-600">Total ₹588.82 (incl. GST)</p>
+                      </div>
+                      {['Full platform access', 'Bookings, quotes & escrow', 'Upgrade to Authorized anytime'].map((b, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <CheckCircle2 size={11} className="text-emerald-500 shrink-0" />
+                          <p className="text-[11px] text-gray-700">{b}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="px-3 pb-3">
+                      <button onClick={() => handleUpgradePay('REGULAR')} disabled={upgradePaying}
+                        className="w-full py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02] disabled:opacity-60"
+                        style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}>
+                        {upgradePaying ? <Loader2 size={13} className="animate-spin" /> : <><CreditCard size={12} /> Pay ₹588.82</>}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Authorized Plan */}
+                  <div className="rounded-2xl border-2 border-indigo-300 overflow-hidden flex flex-col" style={{ background: 'linear-gradient(135deg,#eef2ff,#f0f4ff)' }}>
+                    <div className="px-3 py-2.5 text-center" style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)' }}>
+                      <Award size={14} className="text-white mx-auto mb-0.5" />
+                      <p className="text-[11px] font-black text-white">Get Authorized</p>
+                    </div>
+                    <div className="px-3 py-3 flex-1 space-y-2">
+                      <div className="text-center">
+                        <p className="text-xl font-black text-gray-900">₹1,999</p>
+                        <p className="text-[10px] text-gray-400 line-through">₹19,999 MRP</p>
+                        <p className="text-[10px] font-bold text-indigo-600">Total ₹2,358.82 (incl. GST)</p>
+                      </div>
+                      {['All Regular benefits', 'Authorized Dealer badge', 'Priority search placement', 'Trusted seal & certificate'].map((b, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <Star size={11} className="text-indigo-500 shrink-0" />
+                          <p className="text-[11px] text-gray-700">{b}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="px-3 pb-3">
+                      <button onClick={() => handleUpgradePay('AUTHORIZED')} disabled={upgradePaying}
+                        className="w-full py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02] disabled:opacity-60"
+                        style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: '#fff' }}>
+                        {upgradePaying ? <Loader2 size={13} className="animate-spin" /> : <><Zap size={12} /> Pay ₹2,358.82</>}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {upgradeError && (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+                    <AlertCircle size={13} className="text-red-500 shrink-0" />
+                    <p className="text-xs text-red-700">{upgradeError}</p>
+                  </div>
+                )}
+
+                <p className="text-[10px] text-slate-400 text-center flex items-center justify-center gap-1">
+                  <ShieldCheck size={10} /> Razorpay secured · 100% refund if profile rejected
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+    {/* ── Withdraw Funds Modal ── */}
+    {showWithdrawModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between"
+            style={{ background: 'linear-gradient(135deg,#ecfdf5,#f0fdf4)' }}>
+            <div className="flex items-center gap-2">
+              <TrendingUp size={16} className="text-emerald-600" />
+              <h2 className="text-base font-black text-slate-800">Withdraw Funds</h2>
+            </div>
+            <button onClick={() => setShowWithdrawModal(false)} className="text-slate-400 hover:text-slate-600">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="px-6 py-5 space-y-4">
+            {withdrawSuccess ? (
+              <div className="text-center py-4">
+                <CheckCircle2 size={40} className="text-emerald-500 mx-auto mb-3" />
+                <p className="text-sm font-black text-slate-800">Withdrawal Request Submitted!</p>
+                <p className="text-xs text-slate-500 mt-1">Admin will process it within 2-3 business days.</p>
+                <button
+                  onClick={() => { setShowWithdrawModal(false); setWithdrawSuccess(false); }}
+                  className="mt-4 px-5 py-2 rounded-xl text-xs font-bold text-white"
+                  style={{ background: 'linear-gradient(135deg,#059669,#047857)' }}>
+                  Done
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 flex items-center justify-between">
+                  <span className="text-xs text-slate-500">Available Balance</span>
+                  <span className="text-base font-black text-emerald-700">
+                    ₹{walletData?.walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 }) ?? '0.00'}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1 block">Amount (₹)</label>
+                  <input
+                    type="number"
+                    placeholder="Enter amount to withdraw"
+                    value={withdrawForm.amount}
+                    onChange={e => setWithdrawForm(f => ({ ...f, amount: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1 block">Account Holder Name</label>
+                  <input
+                    type="text"
+                    placeholder="As per bank records"
+                    value={withdrawForm.accountHolderName}
+                    onChange={e => setWithdrawForm(f => ({ ...f, accountHolderName: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1 block">Bank Account Number</label>
+                  <input
+                    type="text"
+                    placeholder="Account number"
+                    value={withdrawForm.bankAccount}
+                    onChange={e => setWithdrawForm(f => ({ ...f, bankAccount: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1 block">IFSC Code</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. SBIN0001234"
+                    value={withdrawForm.ifscCode}
+                    onChange={e => setWithdrawForm(f => ({ ...f, ifscCode: e.target.value.toUpperCase() }))}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {withdrawError && (
+                  <p className="text-xs text-red-600 font-semibold flex items-center gap-1">
+                    <AlertCircle size={12} /> {withdrawError}
+                  </p>
+                )}
+
+                <p className="text-[10px] text-slate-400">
+                  15% platform commission has already been deducted from earnings. Withdrawals are processed within 2-3 business days.
+                </p>
+
+                <button
+                  onClick={handleWithdraw}
+                  disabled={withdrawing}
+                  className="w-full px-4 py-3 rounded-xl text-sm font-black text-white transition-all hover:scale-[1.02] disabled:opacity-60 flex items-center justify-center gap-2"
+                  style={{ background: 'linear-gradient(135deg,#059669,#047857)' }}>
+                  {withdrawing ? <><Loader2 size={15} className="animate-spin" /> Processing…</> : 'Submit Withdrawal Request'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     )}
     </>

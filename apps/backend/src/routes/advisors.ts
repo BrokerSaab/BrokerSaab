@@ -935,4 +935,146 @@ router.get(
   }
 );
 
+// ── GET /advisors/wallet ──────────────────────────────────────────────────────
+// Returns advisor wallet balance + recent payouts
+router.get(
+  '/wallet',
+  authenticateJWT,
+  requireRole(['ADVISOR']),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const user = req.user!;
+      const advisor = await prisma.advisor.findUnique({
+        where: (user as any).advisorId ? { id: (user as any).advisorId } : { phoneNumber: user.phoneNumber },
+        select: {
+          id:            true,
+          fullName:      true,
+          walletBalance: true,
+          payouts: {
+            orderBy: { createdAt: 'desc' },
+            take:    10,
+            select: {
+              id:          true,
+              amount:      true,
+              commission:  true,
+              netAmount:   true,
+              status:      true,
+              bankAccount: true,
+              referenceId: true,
+              createdAt:   true,
+              ticket: {
+                select: { ticketNumber: true, totalAmount: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!advisor) {
+        res.status(404).json({ success: false, message: 'Advisor not found' });
+        return;
+      }
+
+      // Total earned (sum of all SUCCESS payouts)
+      const totalEarned = await prisma.payout.aggregate({
+        where:  { advisorId: advisor.id, status: 'SUCCESS' },
+        _sum:   { netAmount: true },
+      });
+
+      // Pending withdrawal requests
+      const pendingWithdrawals = await prisma.payout.findMany({
+        where:   { advisorId: advisor.id, status: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      res.json({
+        success: true,
+        data: {
+          walletBalance:    Number(advisor.walletBalance),
+          totalEarned:      Number(totalEarned._sum.netAmount ?? 0),
+          pendingWithdrawals,
+          recentPayouts:    advisor.payouts,
+        },
+      });
+    } catch (err) {
+      console.error('[GET /advisors/wallet]', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch wallet' });
+    }
+  }
+);
+
+// ── POST /advisors/wallet/withdraw ────────────────────────────────────────────
+// Advisor requests withdrawal to bank account
+router.post(
+  '/wallet/withdraw',
+  authenticateJWT,
+  requireRole(['ADVISOR']),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { amount, bankAccount, ifscCode, accountHolderName } = req.body;
+
+    if (!amount || amount <= 0) {
+      res.status(400).json({ success: false, message: 'Invalid withdrawal amount' });
+      return;
+    }
+    if (!bankAccount || !ifscCode || !accountHolderName) {
+      res.status(400).json({ success: false, message: 'Bank account details are required' });
+      return;
+    }
+
+    try {
+      const user = req.user!;
+      const advisor = await prisma.advisor.findUnique({
+        where: (user as any).advisorId ? { id: (user as any).advisorId } : { phoneNumber: user.phoneNumber },
+        select: { id: true, fullName: true, walletBalance: true },
+      });
+
+      if (!advisor) {
+        res.status(404).json({ success: false, message: 'Advisor not found' });
+        return;
+      }
+
+      const balance = Number(advisor.walletBalance);
+      if (amount > balance) {
+        res.status(400).json({ success: false, message: `Insufficient balance. Available: ₹${balance.toFixed(2)}` });
+        return;
+      }
+
+      // Check no pending withdrawal already
+      const existingPending = await prisma.payout.findFirst({
+        where: { advisorId: advisor.id, status: 'PENDING', bankAccount: { not: 'WALLET_CREDIT' } },
+      });
+      if (existingPending) {
+        res.status(400).json({ success: false, message: 'You already have a pending withdrawal request' });
+        return;
+      }
+
+      const maskedAccount = `XXXX${String(bankAccount).slice(-4)}`;
+      const bankDetails   = `${accountHolderName} | ${maskedAccount} | IFSC: ${ifscCode}`;
+
+      // Deduct from wallet and create PENDING payout in one transaction
+      await prisma.$transaction([
+        prisma.advisor.update({
+          where: { id: advisor.id },
+          data:  { walletBalance: { decrement: amount } },
+        }),
+        prisma.payout.create({
+          data: {
+            advisorId:   advisor.id,
+            amount,
+            commission:  0,
+            netAmount:   amount,
+            status:      'PENDING',
+            bankAccount: bankDetails,
+          },
+        }),
+      ]);
+
+      res.json({ success: true, message: 'Withdrawal request submitted. Admin will process it within 2-3 business days.' });
+    } catch (err) {
+      console.error('[POST /advisors/wallet/withdraw]', err);
+      res.status(500).json({ success: false, message: 'Failed to submit withdrawal request' });
+    }
+  }
+);
+
 export default router;

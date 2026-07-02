@@ -6,6 +6,7 @@ import { authenticateJWT, AuthenticatedRequest } from '../middlewares/auth';
 import { validateRequest } from '../middlewares/validate';
 import { io } from '../app';
 import { sendPushNotification } from '../utils/pushNotification';
+import { initiatePayout, mapRzpStatus } from '../services/razorpayPayout';
 
 const router = Router();
 
@@ -449,7 +450,15 @@ router.post(
     try {
       const ticket = await prisma.serviceTicket.findUnique({
         where:   { id: req.params.id },
-        include: { advisor: { select: { id: true, fullName: true, pushToken: true } } },
+        include: {
+          advisor: {
+            select: {
+              id: true, fullName: true, pushToken: true,
+              bankAccountNumber: true, bankIfsc: true, bankAccountHolder: true, bankAccountType: true,
+              razorpayContactId: true, razorpayFundAccountId: true, email: true, phoneNumber: true,
+            },
+          },
+        },
       });
       if (!ticket || ticket.clientId !== clientId) {
         res.status(404).json({ success: false, message: 'Ticket not found' });
@@ -460,51 +469,110 @@ router.post(
         return;
       }
 
-      // Resolve advisor's User.id (Wallet is keyed on User.id, not Advisor.id)
-      let advisorUserId: string | null = null;
-      try {
-        advisorUserId = await getAdvisorUserId(ticket.advisorId);
-      } catch (e) {
-        console.error('[close] getAdvisorUserId error:', e);
-      }
+      const netAmount   = Number(ticket.netAmount);
+      const commission  = Number(ticket.commission);
+      const totalAmount = Number(ticket.totalAmount);
+      const amountPaise = Math.round(netAmount * 100);   // Razorpay amounts are in paise
+      const now         = new Date();
 
-      // Close ticket — standalone update (no transaction needed for a single model)
-      const updated = await prisma.serviceTicket.update({
-        where: { id: ticket.id },
-        data: {
-          status:          ServiceTicketStatus.PAYOUT_RELEASED,
-          closedAt:        new Date(),
-          closingComment,
-          userRating,
-          userReview,
-          payoutReleasedAt: new Date(),
-        },
-      });
+      const hasBankDetails = !!(ticket.advisor.bankAccountNumber && ticket.advisor.bankIfsc);
+      const bankLabel      = hasBankDetails
+        ? `${ticket.advisor.bankAccountHolder ?? ticket.advisor.fullName} | XXXX${ticket.advisor.bankAccountNumber!.slice(-4)} | ${ticket.advisor.bankIfsc}`
+        : ticket.advisor.fullName;
 
-      // Credit advisor wallet asynchronously — non-blocking so ticket close always succeeds
-      if (advisorUserId) {
-        const netAmount = Number(ticket.netAmount);
-        prisma.wallet.upsert({
-          where:  { userId: advisorUserId },
-          update: { balance: { increment: netAmount } },
-          create: { userId: advisorUserId, balance: netAmount },
-        }).catch(err => console.error('[close] wallet upsert failed:', advisorUserId, err));
-      }
+      // ── Step 1: Atomically close the ticket and create a PENDING payout record ──
+      const [updated, payoutRecord] = await prisma.$transaction([
+        prisma.serviceTicket.update({
+          where: { id: ticket.id },
+          data: {
+            status:        ServiceTicketStatus.PAYOUT_RELEASED,
+            closedAt:      now,
+            closingComment,
+            userRating,
+            userReview,
+          },
+        }),
+        prisma.payout.create({
+          data: {
+            advisorId:   ticket.advisorId,
+            ticketId:    ticket.id,
+            amount:      totalAmount,
+            commission,
+            netAmount,
+            status:      'PENDING',
+            bankAccount: bankLabel,
+            referenceId: `ticket_${ticket.id}`,
+          },
+        }),
+      ]);
 
-      io.to(`advisor:${advisorUserId}`).emit('ticket_closed', {
-        ticketId:   ticket.id,
-        netAmount:  Number(ticket.netAmount),
-        rating:     userRating,
-      });
-
-      if (ticket.advisor.pushToken) {
-        sendPushNotification(
-          ticket.advisor.pushToken,
-          'Ticket Closed — Payment Released!',
-          `Client closed the ticket. ₹${Number(ticket.netAmount).toLocaleString('en-IN')} has been credited to your wallet.`,
-          { ticketId: ticket.id, screen: 'TicketDetail' }
+      // ── Step 2: Trigger RazorpayX payout (PAYOUT_RELEASED interceptor) ─────────
+      // Runs after the DB commit — ticket is always PAYOUT_RELEASED regardless of outcome.
+      if (hasBankDetails) {
+        const outcome = await initiatePayout(
+          {
+            advisorId:             ticket.advisor.id,
+            fullName:              ticket.advisor.fullName,
+            email:                 ticket.advisor.email,
+            phoneNumber:           ticket.advisor.phoneNumber,
+            bankAccountNumber:     ticket.advisor.bankAccountNumber!,
+            bankIfsc:              ticket.advisor.bankIfsc!,
+            bankAccountHolder:     ticket.advisor.bankAccountHolder ?? ticket.advisor.fullName,
+            razorpayContactId:     ticket.advisor.razorpayContactId,
+            razorpayFundAccountId: ticket.advisor.razorpayFundAccountId,
+          },
+          amountPaise,
+          ticket.id,
         );
+
+        const payoutStatus = mapRzpStatus(outcome.rzpStatus);
+
+        // Persist payout_id, mode, and status from RazorpayX response
+        await prisma.payout.update({
+          where: { id: payoutRecord.id },
+          data: {
+            razorpayPayoutId: outcome.razorpayPayoutId,
+            payoutMode:       outcome.mode ?? 'IMPS',
+            status:           payoutStatus,
+            ...(outcome.error ? { rejectionReason: outcome.error } : {}),
+            // Credit wallet optimistically when payout is successfully queued
+            ...(outcome.success ? { releasedAt: now } : {}),
+          },
+        });
+
+        // Credit advisor wallet balance when payout is successfully initiated
+        if (outcome.success) {
+          await prisma.advisor.update({
+            where: { id: ticket.advisorId },
+            data:  { walletBalance: { increment: netAmount } },
+          });
+        }
+
+        // Notify advisor with outcome-specific message
+        if (ticket.advisor.pushToken) {
+          const title = outcome.success ? 'Payment Initiated!' : 'Ticket Closed — Payout Pending';
+          const body  = outcome.success
+            ? `₹${netAmount.toLocaleString('en-IN')} is being transferred to your bank account (${ticket.advisor.bankAccountHolder ?? 'your account'}).`
+            : `Your ₹${netAmount.toLocaleString('en-IN')} payout will be released by BrokerSaab shortly.`;
+          sendPushNotification(ticket.advisor.pushToken, title, body, { ticketId: ticket.id, screen: 'Wallet' });
+        }
+      } else {
+        // No bank details — stays PENDING for admin to release manually
+        if (ticket.advisor.pushToken) {
+          sendPushNotification(
+            ticket.advisor.pushToken,
+            'Ticket Closed — Add Bank Details',
+            `₹${netAmount.toLocaleString('en-IN')} is ready to be released. Add your bank account in the app to receive payment.`,
+            { ticketId: ticket.id, screen: 'Wallet' }
+          );
+        }
       }
+
+      io.to(`advisor:${ticket.advisorId}`).emit('ticket_closed', {
+        ticketId:  ticket.id,
+        netAmount,
+        rating:    userRating,
+      });
 
       res.json({ success: true, data: updated });
     } catch (err) {
