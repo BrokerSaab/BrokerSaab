@@ -32,6 +32,7 @@ interface Props {
   onClose: () => void;
   onDeclined?: (quoteId: string) => void;
   onAccepted?: (quoteId: string, ticketId: string) => void;
+  inline?: boolean;
 }
 
 type View = 'quote' | 'payment' | 'success';
@@ -60,7 +61,7 @@ function validityBadge(validUntil?: string): React.ReactNode {
   );
 }
 
-export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, onAccepted }: Props) {
+export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, onAccepted, inline = false }: Props) {
   const router  = useRouter();
   const viewedRef = useRef(false);
   const [view,     setView]     = useState<View>('quote');
@@ -153,18 +154,13 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
     { id: 'STRIPE',  label: 'Stripe',             icon: <CreditCard size={16} />, desc: 'International cards' },
   ];
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+  const inner = (
+    <>
+        {/* Gold top bar — hidden in inline mode (drawer already styled) */}
+        {!inline && <div className="h-1 w-full shrink-0" style={{ background: 'linear-gradient(90deg,#D4AF37,#4F46E5,#D4AF37)' }} />}
 
-      <div
-        className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col"
-        style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', border: '1px solid rgba(212,175,55,0.25)' }}
-      >
-        {/* Gold top bar */}
-        <div className="h-1 w-full shrink-0" style={{ background: 'linear-gradient(90deg,#D4AF37,#4F46E5,#D4AF37)' }} />
-
-        {/* Header */}
+        {/* Header — only in modal mode; inline mode provides its own drawer header */}
+        {!inline && (
         <div className="px-5 pt-4 pb-3 flex items-start justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -187,6 +183,7 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
             </button>
           </div>
         </div>
+        )}
 
         {/* ── QUOTE VIEW ── */}
         {view === 'quote' && (
@@ -434,6 +431,19 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
             </div>
           </div>
         )}
+    </>
+  );
+
+  if (inline) return inner;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col"
+        style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', border: '1px solid rgba(212,175,55,0.25)' }}
+      >
+        {inner}
       </div>
     </div>
   );

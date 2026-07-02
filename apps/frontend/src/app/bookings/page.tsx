@@ -116,7 +116,7 @@ export default function BookingsPage() {
   const [quotes,         setQuotes]         = useState<FeeQuote[]>([]);
   const [quotesLoading,  setQuotesLoading]  = useState(false);
   const [selectedQuote,  setSelectedQuote]  = useState<FeeQuote | null>(null);
-  const [showQuoteModal, setShowQuoteModal] = useState(false);
+
 
   const [tickets,        setTickets]        = useState<any[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(false);
@@ -338,7 +338,7 @@ export default function BookingsPage() {
         {/* ── Alert banners for action-required items ── */}
         {newQuotes.length > 0 && (
           <button
-            onClick={() => { setSelectedQuote(newQuotes[0]); setShowQuoteModal(true); }}
+            onClick={() => { setActiveSection('quotes'); setSelectedQuote(newQuotes[0]); }}
             className="w-full flex items-center justify-between gap-3 py-3.5 px-5 rounded-2xl font-black text-sm transition-all hover:scale-[1.01] active:scale-[0.99]"
             style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: 'white', boxShadow: '0 6px 24px rgba(79,70,229,0.3)' }}>
             <div className="flex items-center gap-2">
@@ -579,33 +579,46 @@ export default function BookingsPage() {
           {/* Drawer header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-white shrink-0">
             <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                activeSection === 'bookings' ? 'bg-indigo-50 border border-indigo-100' :
-                activeSection === 'quotes'   ? 'bg-violet-50 border border-violet-100' :
-                activeSection === 'tickets'  ? 'bg-emerald-50 border border-emerald-100' :
-                'border'
-              }`} style={activeSection === 'contacts' ? { background: 'rgba(212,175,55,0.10)', borderColor: 'rgba(212,175,55,0.3)' } : {}}>
-                {activeSection === 'bookings' && <Calendar size={16} className="text-indigo-600" />}
-                {activeSection === 'quotes'   && <FileText size={16} className="text-violet-600" />}
-                {activeSection === 'tickets'  && <Ticket size={16} className="text-emerald-600" />}
-                {activeSection === 'contacts' && <UserCheck size={16} style={{ color: '#B48C22' }} />}
-              </div>
+              {/* Back button when viewing a quote detail inline */}
+              {activeSection === 'quotes' && selectedQuote ? (
+                <button onClick={() => setSelectedQuote(null)}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center bg-violet-50 border border-violet-100 hover:bg-violet-100 transition-colors">
+                  <ArrowLeft size={16} className="text-violet-600" />
+                </button>
+              ) : (
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                  activeSection === 'bookings' ? 'bg-indigo-50 border border-indigo-100' :
+                  activeSection === 'quotes'   ? 'bg-violet-50 border border-violet-100' :
+                  activeSection === 'tickets'  ? 'bg-emerald-50 border border-emerald-100' :
+                  'border'
+                }`} style={activeSection === 'contacts' ? { background: 'rgba(212,175,55,0.10)', borderColor: 'rgba(212,175,55,0.3)' } : {}}>
+                  {activeSection === 'bookings' && <Calendar size={16} className="text-indigo-600" />}
+                  {activeSection === 'quotes'   && <FileText size={16} className="text-violet-600" />}
+                  {activeSection === 'tickets'  && <Ticket size={16} className="text-emerald-600" />}
+                  {activeSection === 'contacts' && <UserCheck size={16} style={{ color: '#B48C22' }} />}
+                </div>
+              )}
               <div>
                 <h2 className="text-sm font-bold text-slate-800">
-                  {activeSection === 'bookings' ? 'My Bookings' :
-                   activeSection === 'quotes'   ? 'Fee Quotes' :
-                   activeSection === 'tickets'  ? 'Work Tickets' :
-                   'Unlocked Contacts'}
+                  {activeSection === 'quotes' && selectedQuote
+                    ? `Quote from ${selectedQuote.advisor.fullName}`
+                    : activeSection === 'bookings' ? 'My Bookings'
+                    : activeSection === 'quotes'   ? 'Fee Quotes'
+                    : activeSection === 'tickets'  ? 'Work Tickets'
+                    : 'Unlocked Contacts'}
                 </h2>
                 <p className="text-[10px] text-slate-400">
-                  {activeSection === 'bookings' ? `${bookings.length} total` :
-                   activeSection === 'quotes'   ? `${quotes.length} total` :
-                   activeSection === 'tickets'  ? `${tickets.length} total` :
-                   `${contactedAdvisors.length} advisors`}
+                  {activeSection === 'quotes' && selectedQuote
+                    ? getCategoryName(selectedQuote.categorySlug)
+                    : activeSection === 'bookings' ? `${bookings.length} total`
+                    : activeSection === 'quotes'   ? `${quotes.length} total`
+                    : activeSection === 'tickets'  ? `${tickets.length} total`
+                    : `${contactedAdvisors.length} advisors`}
                 </p>
               </div>
             </div>
-            <button onClick={() => setActiveSection(null)} className="text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-lg hover:bg-slate-100">
+            <button onClick={() => { setActiveSection(null); setSelectedQuote(null); }}
+              className="text-slate-400 hover:text-slate-600 transition-colors p-1.5 rounded-lg hover:bg-slate-100">
               <X size={18} />
             </button>
           </div>
@@ -701,9 +714,55 @@ export default function BookingsPage() {
               )
             )}
 
-            {/* Quotes list */}
+            {/* Quotes list / inline detail */}
             {activeSection === 'quotes' && (
-              quotesLoading ? (
+              selectedQuote ? (
+                /* ── Inline quote detail ── */
+                <div className="rounded-2xl overflow-hidden"
+                  style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', border: '1px solid rgba(212,175,55,0.2)' }}>
+                  {/* validity badge row */}
+                  <div className="px-4 pt-3 pb-0 flex items-center justify-between">
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedQuote.categorySlug && (
+                        <span className="text-[10px] font-semibold text-indigo-300 bg-indigo-500/15 border border-indigo-500/30 px-2 py-0.5 rounded-full">
+                          {getCategoryName(selectedQuote.categorySlug)}
+                        </span>
+                      )}
+                      {selectedQuote.status === 'ACCEPTED' && (
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                          <CheckCircle2 size={9} /> Accepted
+                        </span>
+                      )}
+                      {selectedQuote.status === 'CANCELLED' && (
+                        <span className="text-[10px] font-bold text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded-full">
+                          Declined
+                        </span>
+                      )}
+                      {selectedQuote.status === 'EXPIRED' && (
+                        <span className="text-[10px] font-bold text-slate-400 bg-slate-500/10 border border-slate-500/30 px-2 py-0.5 rounded-full">
+                          Expired
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <FeeQuoteViewModal
+                    inline
+                    quote={selectedQuote}
+                    isOpen={true}
+                    onClose={() => setSelectedQuote(null)}
+                    onDeclined={(id) => {
+                      setQuotes(prev => prev.map(q => q.id === id ? { ...q, status: 'CANCELLED' } : q));
+                      setSelectedQuote(null);
+                    }}
+                    onAccepted={(quoteId, ticketId) => {
+                      setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: 'ACCEPTED' } : q));
+                      fetchQuotes();
+                      fetchTickets();
+                      if (ticketId) router.push(`/tickets/${ticketId}`);
+                    }}
+                  />
+                </div>
+              ) : quotesLoading ? (
                 <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 size={20} className="animate-spin mr-2" /> Loading…</div>
               ) : quotes.length === 0 ? (
                 <div className="text-center py-20">
@@ -724,8 +783,8 @@ export default function BookingsPage() {
                                                   'text-amber-700 bg-amber-50 border-amber-200';
                     return (
                       <button key={q.id}
-                        onClick={() => { setSelectedQuote(q); setShowQuoteModal(true); }}
-                        className={`w-full text-left flex items-center gap-3 px-4 py-3.5 rounded-2xl border bg-white transition-all hover:shadow-sm ${isNew ? 'border-indigo-200' : 'border-slate-100 shadow-sm'}`}>
+                        onClick={() => { setSelectedQuote(q); }}
+                        className={`w-full text-left flex items-center gap-3 px-4 py-3.5 rounded-2xl border bg-white transition-all hover:shadow-md active:scale-[0.99] ${isNew ? 'border-indigo-200' : 'border-slate-100 shadow-sm'}`}>
                         <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-violet-50 border border-violet-100">
                           <FileText size={15} className="text-violet-600" />
                         </div>
@@ -860,21 +919,6 @@ export default function BookingsPage() {
       </>
     )}
 
-    <FeeQuoteViewModal
-      quote={selectedQuote}
-      isOpen={showQuoteModal}
-      onClose={() => setShowQuoteModal(false)}
-      onDeclined={(id) => {
-        setQuotes(prev => prev.map(q => q.id === id ? { ...q, status: 'CANCELLED' } : q));
-        setShowQuoteModal(false);
-      }}
-      onAccepted={(quoteId, ticketId) => {
-        setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: 'ACCEPTED' } : q));
-        fetchQuotes();
-        fetchTickets();
-        if (ticketId) router.push(`/tickets/${ticketId}`);
-      }}
-    />
     </>
   );
 }
