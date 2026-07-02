@@ -168,113 +168,108 @@ export default function AdvisorProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* ── DARK HERO HEADER ── */}
-      <div className="relative text-white overflow-hidden">
-        {/* Cover image or gradient */}
-        {advisor.coverImageUrl ? (
-          <>
-            <img
-              src={resolveImg(advisor.coverImageUrl)!}
-              alt="Cover"
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/80" />
-          </>
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
-        )}
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-10">
+      {/* ── DARK HERO — cover photo area ── */}
+      <div className="relative text-white overflow-visible">
+        {/* Background (clipped to hero bounds) */}
+        <div className="absolute inset-0 overflow-hidden rounded-b-[2rem]">
+          {advisor.coverImageUrl ? (
+            <>
+              <img
+                src={resolveImg(advisor.coverImageUrl)!}
+                alt="Cover"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/75" />
+            </>
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
+          )}
+        </div>
 
-          {/* Back link */}
-          <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 transition-colors mb-8 group">
+        {/* Hero content — back link only */}
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-16 sm:pb-20">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors group">
             <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
             Back to Advisors
           </Link>
+        </div>
 
-          {/* Profile header row */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-            {/* Avatar with crown badge */}
-            <div className="relative shrink-0">
+        {/* Avatar — pinned to bottom-left, protrudes below hero */}
+        <div className="absolute bottom-0 left-0 right-0 z-20">
+          <div className="max-w-6xl mx-auto px-4 sm:px-8">
+            <div className="relative inline-block" style={{ transform: 'translateY(50%)' }}>
               {advisor.avatarUrl ? (
                 <img
                   src={resolveImg(advisor.avatarUrl)!}
                   alt={advisor.fullName}
-                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-4 border-white/20 shadow-xl"
+                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl object-cover shadow-2xl"
+                  style={{ border: '4px solid #fff' }}
                 />
               ) : (
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl font-black text-white shadow-xl">
+                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-3xl font-black text-white shadow-2xl"
+                  style={{ border: '4px solid #fff' }}>
                   {initials}
                 </div>
               )}
-              {/* Crown badge — top-right corner of avatar */}
+              {/* Crown badge */}
               {advisor.isAuthorizedDealer && (
-                <div className="absolute -top-3 -right-3">
-                  {/* outer pulse ring */}
+                <div className="absolute -top-3 -right-3 z-30">
                   <span className="absolute inset-0 rounded-full animate-ping"
-                    style={{ background: 'rgba(212,175,55,0.45)' }} />
-                  <div className="relative w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
-                    style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', boxShadow: '0 0 12px rgba(212,175,55,0.7)' }}>
-                    <Crown size={14} className="text-slate-900" fill="currentColor" />
+                    style={{ background: 'rgba(212,175,55,0.5)' }} />
+                  <div className="relative w-9 h-9 rounded-full flex items-center justify-center shadow-xl"
+                    style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', boxShadow: '0 0 14px rgba(212,175,55,0.8)' }}>
+                    <Crown size={16} className="text-slate-900" fill="currentColor" />
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Name & meta */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap mb-1">
-                <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight">{advisor.fullName}</h1>
-                <ShieldCheck size={22} className="text-emerald-400 shrink-0" />
-                {advisor.isAuthorizedDealer && (
-                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider"
-                    style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#1e1b4b' }}>
-                    <Crown size={8} fill="currentColor" /> Authorised
-                  </span>
-                )}
-              </div>
-              {advisor.businessName && <p className="text-white/60 text-sm mb-3">{advisor.businessName}</p>}
-
-              {/* Quick stats row */}
-              <div className="flex flex-wrap items-center gap-4 text-sm text-white/70">
-                <div className="flex items-center gap-1.5">
-                  <StarRating rating={advisor.averageRating} size={13} />
-                  <span className="font-bold text-amber-300">{advisor.averageRating > 0 ? advisor.averageRating.toFixed(1) : 'New'}</span>
-                  <span className="text-white/40 text-xs">({advisor.ratingsCount})</span>
-                </div>
-                <div className="flex items-center gap-1"><Award size={13} className="text-indigo-400" />{advisor.experienceYears} yrs exp</div>
-                <div className="flex items-center gap-1"><MapPin size={13} className="text-indigo-400" />{advisor.location.split(',')[0]}</div>
-                {advisor.state && <div className="flex items-center gap-1"><span className="text-xs bg-white/10 border border-white/20 px-2 py-0.5 rounded-full">📍 {advisor.state}</span></div>}
-              </div>
-
-              {/* Category badges */}
-              {advisor.categories.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {advisor.categories.slice(0, 4).map(cat => (
-                    <span key={cat} className="text-[10px] font-semibold bg-indigo-500/20 border border-indigo-400/30 text-indigo-200 px-2.5 py-1 rounded-full">
-                      {cat}
-                    </span>
-                  ))}
-                  {advisor.categories.length > 4 && (
-                    <span className="text-[10px] text-white/40 px-2 py-1">+{advisor.categories.length - 4} more</span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Fee pill (desktop) */}
-            <div className="hidden sm:flex flex-col items-center bg-white/10 border border-white/20 backdrop-blur-sm rounded-2xl px-6 py-4 shrink-0">
-              <span className="text-xs text-white/50 uppercase tracking-widest font-bold mb-1">Fee / session</span>
-              <span className="text-3xl font-black text-white">₹{advisor.consultationFee}</span>
-            </div>
           </div>
         </div>
-
-        {/* Curved bottom edge */}
-        <div className="h-8 bg-gray-50 rounded-t-[2.5rem]" />
       </div>
 
-      {/* ── MAIN CONTENT (white) ── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-28 lg:pb-16 -mt-2">
+      {/* ── PROFILE IDENTITY STRIP (white area, below hero) ── */}
+      <div className="bg-gray-50 max-w-6xl mx-auto px-4 sm:px-8 pt-14 sm:pt-20 pb-4">
+        {/* Name + badges row — offset to the right of avatar */}
+        <div className="flex items-center gap-2 flex-wrap mb-2 sm:ml-36">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">{advisor.fullName}</h1>
+          <ShieldCheck size={22} className="text-emerald-500 shrink-0" />
+          {advisor.isAuthorizedDealer && (
+            <span className="inline-flex items-center gap-1 text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shrink-0"
+              style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#1e1b4b' }}>
+              <Crown size={8} fill="currentColor" /> Authorised
+            </span>
+          )}
+        </div>
+
+        {/* Stats row */}
+        <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 mb-3 sm:ml-36">
+          <div className="flex items-center gap-1.5">
+            <StarRating rating={advisor.averageRating} size={13} />
+            <span className="font-bold text-amber-600">{advisor.averageRating > 0 ? advisor.averageRating.toFixed(1) : 'New'}</span>
+            <span className="text-slate-400 text-xs">({advisor.ratingsCount})</span>
+          </div>
+          <div className="flex items-center gap-1 text-slate-600"><Award size={13} className="text-amber-500" />{advisor.experienceYears} yrs exp</div>
+          <div className="flex items-center gap-1 text-slate-600"><MapPin size={13} className="text-blue-500" />{advisor.location.split(',')[0]}</div>
+          {advisor.state && <span className="text-xs bg-slate-100 border border-slate-200 text-slate-500 px-2 py-0.5 rounded-full">📍 {advisor.state}</span>}
+        </div>
+
+        {/* Category badges */}
+        {advisor.categories.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 sm:ml-36">
+            {advisor.categories.slice(0, 4).map(cat => (
+              <span key={cat} className="text-[10px] font-semibold bg-indigo-50 border border-indigo-200 text-indigo-700 px-2.5 py-1 rounded-full">
+                {cat}
+              </span>
+            ))}
+            {advisor.categories.length > 4 && (
+              <span className="text-[10px] text-slate-400 px-2 py-1">+{advisor.categories.length - 4} more</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── MAIN CONTENT ── */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-28 lg:pb-16 mt-4">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* ── LEFT — Main content ── */}
