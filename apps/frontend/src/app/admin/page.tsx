@@ -9,6 +9,7 @@ import {
   UserPlus, Send, ClipboardCheck, Shield, Search, Lock, Edit3, Save,
   Phone, AlertCircle,
 } from 'lucide-react';
+import LiveClock from '@/components/LiveClock';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
@@ -1201,14 +1202,17 @@ export default function AdminSuitePage() {
   return (
     <div className="min-h-screen bg-[#F4F6FB]">
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
-          Admin Operations Suite
-          <span className={`text-xs border font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider ${isSuperAdmin ? 'border-indigo-200 text-indigo-700 bg-indigo-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
-            {isSuperAdmin ? 'Super Admin' : 'Sub-Admin'}
-          </span>
-        </h1>
-        <p className="text-slate-500 text-xs mt-1">Manage advisors, users, onboarding funnel, subscriptions, and bookings.</p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
+            Admin Operations Suite
+            <span className={`text-xs border font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider ${isSuperAdmin ? 'border-indigo-200 text-indigo-700 bg-indigo-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
+              {isSuperAdmin ? 'Super Admin' : 'Sub-Admin'}
+            </span>
+          </h1>
+          <p className="text-slate-500 text-xs mt-1">Manage advisors, users, onboarding funnel, subscriptions, and bookings.</p>
+        </div>
+        <LiveClock className="text-sm text-slate-500 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm" showDate={true} iconSize={15} />
       </div>
 
       {/* Tab bar */}

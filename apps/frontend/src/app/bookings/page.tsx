@@ -9,6 +9,7 @@ import {
   UserCheck, MessageSquare, FileText, Bell, Ticket,
   X, ChevronRight, LayoutDashboard, CreditCard,
 } from 'lucide-react';
+import LiveClock from '@/components/LiveClock';
 import { useAuth } from '@/contexts/AuthContext';
 import FeeQuoteViewModal from '@/components/FeeQuoteViewModal';
 import { getCategoryName } from '@/data/categoryMap';
@@ -264,6 +265,7 @@ export default function BookingsPage() {
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <LiveClock className="text-[11px] text-slate-400 hidden sm:flex" showDate={false} />
             <Link href="/advisors"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all hover:scale-105"
               style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}>

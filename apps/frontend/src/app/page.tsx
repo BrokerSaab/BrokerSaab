@@ -9,8 +9,10 @@ import {
   Search, MapPin, Star, Award, ShieldCheck, Languages, ArrowRight, UserCheck,
   Home, Shield, FileCheck, Briefcase, Percent, FileText, Coins, Landmark,
   Scale, Building2, CreditCard, Phone, Mail, CheckCircle2, Users, Clock, ChevronDown,
-  User, Sun, Moon, BadgeCheck, Loader2, Copy, Check
+  User, Sun, Moon, BadgeCheck, Loader2, Copy, Check, QrCode,
 } from 'lucide-react';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const QRCode = require('react-qr-code').default as React.ComponentType<{ value: string; size?: number; bgColor?: string; fgColor?: string; level?: string }>;
 import Link from 'next/link';
 
 import {
@@ -18,6 +20,7 @@ import {
 } from '@/data/servicesData';
 import { Info, X } from 'lucide-react';
 import LaunchOfferPopup from '@/components/LaunchOfferPopup';
+import LiveClock from '@/components/LiveClock';
 import StatePickerPopup from '@/components/StatePickerPopup';
 import ServiceDetailModal from '@/components/ServiceDetailModal';
 import ContactUnlockModal from '@/components/ContactUnlockModal';
@@ -645,6 +648,9 @@ export default function DiscoverPage() {
 
   const [showOffer, setShowOffer] = useState(false);
   const [showStatePicker, setShowStatePicker] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+  const [siteUrl, setSiteUrl] = useState('');
+  useEffect(() => { setSiteUrl(window.location.origin); }, []);
 
   /* Listen to state-selected and district-selected events from the popup */
   React.useEffect(() => {
@@ -686,6 +692,34 @@ export default function DiscoverPage() {
             setUnlockModal(null);
           }}
         />
+      )}
+
+      {/* ── QR Code Modal ── */}
+      {showQR && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowQR(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 flex flex-col items-center gap-4 max-w-xs w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between w-full">
+              <div>
+                <h3 className="text-sm font-black text-slate-800">Scan to Open BrokerSaab</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">Share this QR code with anyone</p>
+              </div>
+              <button onClick={() => setShowQR(false)} className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                <X size={14} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="p-4 bg-white rounded-xl border-2 border-slate-100">
+              {siteUrl && <QRCode value={siteUrl} size={180} bgColor="#ffffff" fgColor="#0F172A" level="M" />}
+            </div>
+            <div className="w-full bg-slate-50 rounded-xl px-3 py-2 text-center">
+              <p className="text-[10px] text-slate-400 font-mono truncate">{siteUrl}</p>
+            </div>
+            <button
+              onClick={() => { navigator.clipboard.writeText(siteUrl); }}
+              className="flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+              <Copy size={12} /> Copy link
+            </button>
+          </div>
+        </div>
       )}
 
       {/* ══════════════════════════════════════════════════════════
@@ -782,8 +816,16 @@ export default function DiscoverPage() {
           )}
         </button>
 
-        {/* Right: showing count + clear */}
+        {/* Right: clock + QR + showing count + clear */}
         <div className="flex items-center gap-3">
+          <LiveClock className="text-[11px] text-white/50 hidden sm:flex" />
+          <button
+            onClick={() => setShowQR(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all hover:bg-white/10"
+            style={{ color: 'rgba(212,175,55,0.8)', border: '1px solid rgba(212,175,55,0.25)' }}
+            title="Scan QR to share BrokerSaab">
+            <QrCode size={13} /> QR
+          </button>
           {selectedState && (
             <span className="text-[11px] text-white/40 hidden sm:inline">
               Showing advisors in{' '}

@@ -13,6 +13,7 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require('react-qr-code').default as React.ComponentType<{ value: string; size?: number; bgColor?: string; fgColor?: string; level?: string }>;
 import { useAuth } from '@/contexts/AuthContext';
+import LiveClock from '@/components/LiveClock';
 import AdvisorFillQuotePanel, { QuoteRequest } from '@/components/AdvisorFillQuotePanel';
 import { getCategoryName } from '@/data/categoryMap';
 import { io as ioClient } from 'socket.io-client';
@@ -725,6 +726,7 @@ export default function AdvisorDashboard() {
           </div>
 
           <div className="ml-auto flex items-center gap-2 flex-wrap">
+            <LiveClock className="text-[11px] text-slate-400 hidden sm:flex" />
             {/* Tickets badge */}
             <button onClick={() => { setShowTickets(v => !v); if (!showTickets) fetchTickets(); }}
               className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-600 border border-emerald-200 hover:bg-emerald-50 transition-all">
