@@ -28,6 +28,4 @@ jobs:
 
       - name: Deploy to Vercel
         working-directory: apps/frontend
-        run: |
-          url=$(vercel --token ${{ secrets.VERCEL_TOKEN }} --prod --yes 2>&1 | tail -1)
-          echo "Deployed to: $url"
+        run: vercel --token ${{ secrets.VERCEL_TOKEN }} --prod --yes
