@@ -12,20 +12,7 @@ jobs:
     name: Frontend → Vercel Staging
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel@latest
-
-      - name: Link Vercel project
+      - name: Trigger Vercel Deploy Hook
         run: |
-          mkdir -p apps/frontend/.vercel
-          echo '{"projectId":"prj_wb8juX3GZmJ0dBkJDdYwZbMr6KTs","orgId":"team_3PsO9fLuagTumWgO8BZhDAVy"}' > apps/frontend/.vercel/project.json
-
-      - name: Deploy to Vercel
-        working-directory: apps/frontend
-        run: vercel --token ${{ secrets.VERCEL_TOKEN }} --prod --yes
+          curl -sf -X POST "https://api.vercel.com/v1/integrations/deploy/prj_wb8juX3GZmJ0dBkJDdYwZbMr6KTs/6ybjsnMe1A"
+          echo "Vercel deployment triggered successfully"
