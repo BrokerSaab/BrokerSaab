@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Star, ShieldCheck, MapPin, Award, Languages, Calendar, Clock,
   ArrowLeft, User, BadgeCheck, Phone, Mail, Eye, Loader2, Copy,
-  Check, DollarSign, MessageSquare, Briefcase, ChevronRight, FileText
+  Check, DollarSign, MessageSquare, Briefcase, ChevronRight, FileText, Crown
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -191,33 +191,34 @@ export default function AdvisorProfilePage() {
             Back to Advisors
           </Link>
 
-          {/* Authorized Dealer banner */}
-          {advisor.isAuthorizedDealer && (
-            <div className="mb-6 flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl px-4 py-3">
-              <BadgeCheck size={18} className="text-amber-400 shrink-0" />
-              <span className="text-amber-300 text-sm font-bold">BrokerSaab Authorised Dealer</span>
-              {advisor.dealerAuthorizedAt && (
-                <span className="text-amber-400/60 text-xs ml-auto">
-                  Since {new Date(advisor.dealerAuthorizedAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
-                </span>
-              )}
-            </div>
-          )}
-
           {/* Profile header row */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-            {/* Avatar */}
-            {advisor.avatarUrl ? (
-              <img
-                src={resolveImg(advisor.avatarUrl)!}
-                alt={advisor.fullName}
-                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-4 border-white/20 shadow-xl shrink-0"
-              />
-            ) : (
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl font-black text-white shadow-xl shrink-0">
-                {initials}
-              </div>
-            )}
+            {/* Avatar with crown badge */}
+            <div className="relative shrink-0">
+              {advisor.avatarUrl ? (
+                <img
+                  src={resolveImg(advisor.avatarUrl)!}
+                  alt={advisor.fullName}
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-4 border-white/20 shadow-xl"
+                />
+              ) : (
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl font-black text-white shadow-xl">
+                  {initials}
+                </div>
+              )}
+              {/* Crown badge — top-right corner of avatar */}
+              {advisor.isAuthorizedDealer && (
+                <div className="absolute -top-3 -right-3">
+                  {/* outer pulse ring */}
+                  <span className="absolute inset-0 rounded-full animate-ping"
+                    style={{ background: 'rgba(212,175,55,0.45)' }} />
+                  <div className="relative w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
+                    style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', boxShadow: '0 0 12px rgba(212,175,55,0.7)' }}>
+                    <Crown size={14} className="text-slate-900" fill="currentColor" />
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Name & meta */}
             <div className="flex-1 min-w-0">
@@ -225,7 +226,10 @@ export default function AdvisorProfilePage() {
                 <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight">{advisor.fullName}</h1>
                 <ShieldCheck size={22} className="text-emerald-400 shrink-0" />
                 {advisor.isAuthorizedDealer && (
-                  <span className="text-[9px] font-black bg-amber-500 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">Authorised</span>
+                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider"
+                    style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#1e1b4b' }}>
+                    <Crown size={8} fill="currentColor" /> Authorised
+                  </span>
                 )}
               </div>
               {advisor.businessName && <p className="text-white/60 text-sm mb-3">{advisor.businessName}</p>}

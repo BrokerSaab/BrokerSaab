@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Star, Award, MapPin, Languages, ShieldCheck, BadgeCheck,
-  ArrowLeft, ArrowRight, Search, Loader2, UserCheck, X,
+  ArrowLeft, ArrowRight, Search, Loader2, UserCheck, X, Crown,
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
@@ -263,19 +263,10 @@ function AdvisorsListingInner() {
                 key={advisor.id}
                 className={`bg-white rounded-2xl border flex flex-col justify-between overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 ${
                   advisor.isAuthorizedDealer
-                    ? 'border-amber-300 shadow-[0_0_0_1px_rgba(212,175,55,0.2)]'
+                    ? 'border-amber-300 shadow-[0_4px_20px_rgba(212,175,55,0.18)]'
                     : 'border-gray-200'
                 }`}
               >
-                {advisor.isAuthorizedDealer && (
-                  <div className="px-5 py-2 bg-gradient-to-r from-amber-50 to-yellow-50 border-b border-amber-200 flex items-center gap-2">
-                    <BadgeCheck size={13} className="text-amber-600 shrink-0" />
-                    <span className="text-amber-700 text-[10px] font-bold uppercase tracking-widest">
-                      BrokerSaab Authorised Dealer
-                    </span>
-                  </div>
-                )}
-
                 <div className="p-5 space-y-4 flex-1">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -290,17 +281,30 @@ function AdvisorsListingInner() {
                         <p className="text-xs text-gray-400 mt-0.5 truncate">{advisor.businessName}</p>
                       )}
                     </div>
-                    {advisor.avatarUrl ? (
-                      <img
-                        src={resolveImg(advisor.avatarUrl)!}
-                        alt={advisor.fullName}
-                        className="w-12 h-12 rounded-full object-cover shrink-0 shadow-md border-2 border-white"
-                      />
-                    ) : (
-                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${advisor.avatarColor} flex items-center justify-center text-white font-black text-base shrink-0 shadow-md`}>
-                        {advisor.fullName.split(' ').slice(-1)[0]?.[0] ?? '?'}
-                      </div>
-                    )}
+                    {/* Avatar with crown badge for authorised dealers */}
+                    <div className="relative shrink-0">
+                      {advisor.avatarUrl ? (
+                        <img
+                          src={resolveImg(advisor.avatarUrl)!}
+                          alt={advisor.fullName}
+                          className={`w-12 h-12 rounded-full object-cover shadow-md ${advisor.isAuthorizedDealer ? 'border-2 border-amber-400' : 'border-2 border-white'}`}
+                        />
+                      ) : (
+                        <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${advisor.avatarColor} flex items-center justify-center text-white font-black text-base shadow-md ${advisor.isAuthorizedDealer ? 'ring-2 ring-amber-400' : ''}`}>
+                          {advisor.fullName.split(' ').slice(-1)[0]?.[0] ?? '?'}
+                        </div>
+                      )}
+                      {advisor.isAuthorizedDealer && (
+                        <div className="absolute -top-2 -right-2">
+                          <span className="absolute inset-0 rounded-full animate-ping"
+                            style={{ background: 'rgba(212,175,55,0.5)' }} />
+                          <div className="relative w-6 h-6 rounded-full flex items-center justify-center shadow-md"
+                            style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', boxShadow: '0 0 8px rgba(212,175,55,0.8)' }}>
+                            <Crown size={11} className="text-slate-900" fill="currentColor" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 border-y border-gray-100 py-3 text-xs text-gray-500">
