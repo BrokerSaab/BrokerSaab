@@ -9,7 +9,7 @@ import {
   Search, MapPin, Star, Award, ShieldCheck, Languages, ArrowRight, UserCheck,
   Home, Shield, FileCheck, Briefcase, Percent, FileText, Coins, Landmark,
   Scale, Building2, CreditCard, Phone, Mail, CheckCircle2, Users, Clock, ChevronDown,
-  User, Sun, Moon, BadgeCheck, Loader2, Copy, Check, QrCode,
+  User, Sun, Moon, BadgeCheck, Loader2, Copy, Check, QrCode, Crown,
 } from 'lucide-react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require('react-qr-code').default as React.ComponentType<{ value: string; size?: number; bgColor?: string; fgColor?: string; level?: string }>;
@@ -1480,39 +1480,49 @@ export default function DiscoverPage() {
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  {/* Authorised Dealer top accent */}
-                  {advisor.isAuthorizedDealer && (
-                    <div className="-mx-5 sm:-mx-6 -mt-5 sm:-mt-6 mb-0 px-5 sm:px-6 py-2 bg-gradient-to-r from-amber-50 to-yellow-50 border-b border-amber-200 rounded-t-2xl flex items-center gap-2">
-                      <BadgeCheck size={13} className="text-amber-600 shrink-0" />
-                      <span className="text-amber-700 text-[10px] font-bold uppercase tracking-widest">
-                        {language === 'EN' ? 'BrokerSaab Authorised Dealer' : 'BrokerSaab अधिकृत डीलर'}
-                      </span>
-                    </div>
-                  )}
                   {/* Header */}
                   <div className="space-y-4">
-                    <div className="flex items-start justify-between">
-                      <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
                         <span className="inline-block px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-100 mb-2">
                           {advisor.category}
                         </span>
-                        <h3 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-1.5">
-                          {advisor.fullName}
-                          <ShieldCheck className="text-emerald-500 inline shrink-0" size={16} />
+                        <h3 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-1.5 flex-wrap">
+                          <span className="truncate">{advisor.fullName}</span>
+                          <ShieldCheck className="text-emerald-500 shrink-0" size={15} />
+                          {advisor.isAuthorizedDealer && (
+                            <span className="inline-flex items-center gap-0.5 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0"
+                              style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#1e1b4b' }}>
+                              <Crown size={7} fill="currentColor" />
+                              {language === 'EN' ? 'Authorised' : 'अधिकृत'}
+                            </span>
+                          )}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-0.5">{advisor.businessName}</p>
                       </div>
-                      {advisor.avatarUrl ? (
-                        <img
-                          src={resolveImg(advisor.avatarUrl)!}
-                          alt={advisor.fullName}
-                          className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover shrink-0 shadow-md border-2 border-white"
-                        />
-                      ) : (
-                        <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br ${advisor.avatarColor} flex items-center justify-center text-white font-black text-base sm:text-lg shrink-0 shadow-md`}>
-                          {advisor.fullName.split(' ').slice(-1)[0]?.[0] || '?'}
-                        </div>
-                      )}
+                      {/* Avatar with crown badge */}
+                      <div className="relative shrink-0">
+                        {advisor.avatarUrl ? (
+                          <img
+                            src={resolveImg(advisor.avatarUrl)!}
+                            alt={advisor.fullName}
+                            className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover shadow-md ${advisor.isAuthorizedDealer ? 'border-2 border-amber-400' : 'border-2 border-white'}`}
+                          />
+                        ) : (
+                          <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br ${advisor.avatarColor} flex items-center justify-center text-white font-black text-base sm:text-lg shadow-md ${advisor.isAuthorizedDealer ? 'ring-2 ring-amber-400' : ''}`}>
+                            {advisor.fullName.split(' ').slice(-1)[0]?.[0] || '?'}
+                          </div>
+                        )}
+                        {advisor.isAuthorizedDealer && (
+                          <div className="absolute -top-2 -right-2 z-10">
+                            <span className="absolute inset-0 rounded-full animate-ping"
+                              style={{ background: 'rgba(212,175,55,0.5)' }} />
+                            <div className="relative w-6 h-6 rounded-full flex items-center justify-center shadow-md"
+                              style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', boxShadow: '0 0 8px rgba(212,175,55,0.85)' }}>
+                              <Crown size={11} className="text-slate-900" fill="currentColor" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Stats */}
