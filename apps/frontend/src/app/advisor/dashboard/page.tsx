@@ -119,6 +119,10 @@ export default function AdvisorDashboard() {
   const [advisorPublicId, setAdvisorPublicId] = useState<string | null>(null);
   const [qrCopied,       setQrCopied]       = useState(false);
   const [pdfLoading,     setPdfLoading]     = useState(false);
+  const [advisorProfile, setAdvisorProfile] = useState<{
+    advisorType?: string; location?: string; experienceYears?: number;
+    avatarUrl?: string; licenseNumber?: string; businessName?: string;
+  } | null>(null);
 
   // Upgrade plan modal
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -222,7 +226,17 @@ export default function AdvisorDashboard() {
       const token = sessionStorage.getItem('accessToken');
       const res = await fetch(`${API}/advisors/me`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (data.success && data.data?.id) setAdvisorPublicId(data.data.id);
+      if (data.success && data.data?.id) {
+        setAdvisorPublicId(data.data.id);
+        setAdvisorProfile({
+          advisorType:     data.data.advisorType,
+          location:        data.data.location,
+          experienceYears: data.data.experienceYears,
+          avatarUrl:       data.data.avatarUrl,
+          licenseNumber:   data.data.licenseNumber,
+          businessName:    data.data.businessName,
+        });
+      }
     } catch { /* ignore */ }
   };
 
@@ -245,10 +259,15 @@ export default function AdvisorDashboard() {
     if (!advisorPublicId || !qrSvgRef.current) return;
     setPdfLoading(true);
     try {
+      const BACKEND_BASE = API.replace(/\/api\/v1\/?$/, '');
       const profileUrl  = `${window.location.origin}/advisors/${advisorPublicId}`;
       const advisorName = user?.fullName || 'Advisor';
+      const advisorType = advisorProfile?.advisorType || 'Financial Advisor';
+      const location    = advisorProfile?.location || '';
+      const expYears    = advisorProfile?.experienceYears;
+      const initials    = advisorName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
-      // ── 1. QR SVG → image ──────────────────────────────────────────────
+      // ── 1. QR SVG → image ─────────────────────────────────────────────
       const svgEl = qrSvgRef.current.querySelector('svg');
       if (!svgEl) return;
       const svgData = new XMLSerializer().serializeToString(svgEl);
@@ -258,293 +277,211 @@ export default function AdvisorDashboard() {
         const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = svgUrl;
       });
 
-      // ── 2. Logo ────────────────────────────────────────────────────────
+      // ── 2. Logo ───────────────────────────────────────────────────────
       const logoImg = await new Promise<HTMLImageElement | null>(res => {
         const img = new Image();
         img.onload = () => res(img); img.onerror = () => res(null); img.src = '/logo-icon.png';
       });
 
-      // ── 3. Canvas — A4 @ 2× for crisp output ─────────────────────────
+      // ── 3. Avatar (photo or null) ────────────────────────────────────
+      const avatarImg = await new Promise<HTMLImageElement | null>(res => {
+        if (!advisorProfile?.avatarUrl) return res(null);
+        const raw = advisorProfile.avatarUrl;
+        const url = raw.startsWith('http') ? raw : `${BACKEND_BASE}${raw.startsWith('/') ? raw : `/${raw}`}`;
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => res(img); img.onerror = () => res(null); img.src = url;
+      });
+
+      // ── 4. Canvas — A4 @ 2× for crisp output ─────────────────────────
       const W = 595, H = 842;
       const canvas = document.createElement('canvas');
-      canvas.width  = W * 2;
-      canvas.height = H * 2;
+      canvas.width  = W * 2; canvas.height = H * 2;
       const ctx = canvas.getContext('2d')!;
       ctx.scale(2, 2);
 
-      // ── Palette ────────────────────────────────────────────────────────
-      const GOLD   = '#D4AF37';
-      const GOLD_LT = '#F5D77A';
-      const GOLD_DK = '#AA771C';
-      const INDIGO_HEX = '#312e81';   // indigo-900 hero base
-      const INDIGO_LT  = '#4338ca';   // indigo-700 hero top
-      const NAVY   = '#0B1F3A';
-      const WHITE  = '#FFFFFF';
+      // ── Palette ───────────────────────────────────────────────────────
+      const GOLD = '#D4AF37', GOLD_LT = '#F5D77A', GOLD_DK = '#AA771C';
+      const NAVY = '#0B1F3A', WHITE = '#FFFFFF';
+      const INDIGO = '#312e81', INDIGO_LT = '#4338ca';
 
-      // Gold gradient helper
-      const makeGoldGrad = (x0: number, y0: number, x1: number, y1: number) => {
+      const makeGold = (x0: number, y0: number, x1: number, y1: number) => {
         const g = ctx.createLinearGradient(x0, y0, x1, y1);
-        g.addColorStop(0,    GOLD_DK);
-        g.addColorStop(0.25, GOLD_LT);
-        g.addColorStop(0.5,  GOLD);
-        g.addColorStop(0.75, GOLD_LT);
-        g.addColorStop(1,    GOLD_DK);
-        return g;
+        g.addColorStop(0, GOLD_DK); g.addColorStop(0.3, GOLD_LT);
+        g.addColorStop(0.5, GOLD);  g.addColorStop(0.7, GOLD_LT);
+        g.addColorStop(1, GOLD_DK); return g;
       };
 
-      const BDR = 3;   // gold border thickness
-      const RAD = 18;  // card corner radius
+      const BDR = 3, RAD = 20;
 
-      // ── Step A: full white background + gold rounded border ────────────
-      ctx.fillStyle = WHITE;
-      ctx.fillRect(0, 0, W, H);
-
+      // White background + gold border
+      ctx.fillStyle = WHITE; ctx.fillRect(0, 0, W, H);
       ctx.save();
-      ctx.strokeStyle = makeGoldGrad(0, 0, W, H);
-      ctx.lineWidth   = BDR * 2;
-      ctx.beginPath();
-      ctx.roundRect(BDR, BDR, W - BDR * 2, H - BDR * 2, RAD);
-      ctx.stroke();
+      ctx.strokeStyle = makeGold(0, 0, W, H);
+      ctx.lineWidth = BDR * 2;
+      ctx.beginPath(); ctx.roundRect(BDR, BDR, W - BDR*2, H - BDR*2, RAD); ctx.stroke();
       ctx.restore();
 
-      // ══════════════════════════════════════════════════════════════════
-      // HERO — indigo blue, top ~220px
-      // ══════════════════════════════════════════════════════════════════
-      const heroH = 218;
-
-      // Indigo gradient fill clipped to rounded top corners
+      // ═══ HERO (top 195px) ════════════════════════════════════════════
+      const heroH = 195;
       ctx.save();
       ctx.beginPath();
-      ctx.moveTo(BDR + RAD, BDR);
-      ctx.lineTo(W - BDR - RAD, BDR);
-      ctx.arcTo(W - BDR, BDR, W - BDR, BDR + RAD, RAD);
-      ctx.lineTo(W - BDR, heroH);
-      ctx.lineTo(BDR, heroH);
-      ctx.arcTo(BDR, BDR, BDR + RAD, BDR, RAD);
-      ctx.closePath();
+      ctx.moveTo(BDR + RAD, BDR); ctx.lineTo(W - BDR - RAD, BDR);
+      ctx.arcTo(W-BDR, BDR, W-BDR, BDR+RAD, RAD);
+      ctx.lineTo(W-BDR, heroH); ctx.lineTo(BDR, heroH);
+      ctx.arcTo(BDR, BDR, BDR+RAD, BDR, RAD); ctx.closePath();
       const heroBg = ctx.createLinearGradient(0, 0, W, heroH);
-      heroBg.addColorStop(0, INDIGO_LT);
-      heroBg.addColorStop(1, INDIGO_HEX);
-      ctx.fillStyle = heroBg;
-      ctx.fill();
-      ctx.restore();
+      heroBg.addColorStop(0, INDIGO_LT); heroBg.addColorStop(1, INDIGO);
+      ctx.fillStyle = heroBg; ctx.fill(); ctx.restore();
 
-      // Subtle dot-grid on hero
-      ctx.save();
-      ctx.globalAlpha = 0.06;
-      ctx.fillStyle = WHITE;
-      for (let gx = 20; gx < W; gx += 28) {
-        for (let gy = 14; gy < heroH; gy += 28) {
-          ctx.beginPath(); ctx.arc(gx, gy, 1, 0, Math.PI * 2); ctx.fill();
+      // Dot grid on hero
+      ctx.save(); ctx.globalAlpha = 0.07; ctx.fillStyle = WHITE;
+      for (let gx = 18; gx < W; gx += 26)
+        for (let gy = 12; gy < heroH; gy += 26) {
+          ctx.beginPath(); ctx.arc(gx, gy, 1.2, 0, Math.PI*2); ctx.fill();
         }
-      }
       ctx.restore();
 
-      // Logo + "BrokerSaab" inline row — exactly like the navbar
-      const logoSz  = 54;
-      const brandFs = 34;
-      ctx.font = `bold ${brandFs}px Arial, sans-serif`;
-      const brokerW = ctx.measureText('Broker').width;
-      const saabW   = ctx.measureText('Saab').width;
-      const gap     = 14;
-      const rowW    = logoSz + gap + brokerW + saabW;
-      const rowX    = (W - rowW) / 2;
-      const rowCY   = heroH / 2 - 12;   // vertical centre of the inline row
-
-      // Logo at left of row
-      const logoX = rowX;
-      const logoY = rowCY - logoSz / 2;
+      // Logo + BrokerSaab text
+      const logoSz = 44, brandFs = 30, gap = 10;
+      ctx.font = `bold ${brandFs}px Arial`;
+      const bW = ctx.measureText('Broker').width, sW = ctx.measureText('Saab').width;
+      const rowW = logoSz + gap + bW + sW;
+      const rowX = (W - rowW) / 2, rowCY = 72;
       if (logoImg) {
         ctx.save();
-        ctx.shadowColor = 'rgba(212,175,55,0.5)';
-        ctx.shadowBlur  = 18;
-        ctx.fillStyle   = WHITE;
-        ctx.beginPath();
-        ctx.roundRect(logoX, logoY, logoSz, logoSz, 12);
-        ctx.fill();
+        ctx.shadowColor = 'rgba(212,175,55,0.5)'; ctx.shadowBlur = 14;
+        ctx.fillStyle = WHITE;
+        ctx.beginPath(); ctx.roundRect(rowX, rowCY - logoSz/2, logoSz, logoSz, 10); ctx.fill();
         ctx.restore();
         ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(logoX, logoY, logoSz, logoSz, 12);
-        ctx.clip();
-        ctx.drawImage(logoImg, logoX, logoY, logoSz, logoSz);
-        ctx.restore();
-      } else {
-        ctx.fillStyle = makeGoldGrad(logoX, logoY, logoX + logoSz, logoY + logoSz);
-        ctx.beginPath();
-        ctx.roundRect(logoX, logoY, logoSz, logoSz, 12);
-        ctx.fill();
-        ctx.font = 'bold 24px Arial';
-        ctx.fillStyle = NAVY;
-        ctx.textAlign = 'center';
-        ctx.fillText('BS', logoX + logoSz / 2, logoY + logoSz * 0.65);
+        ctx.beginPath(); ctx.roundRect(rowX, rowCY - logoSz/2, logoSz, logoSz, 10); ctx.clip();
+        ctx.drawImage(logoImg, rowX, rowCY - logoSz/2, logoSz, logoSz); ctx.restore();
       }
+      const tX = rowX + logoSz + gap, tBY = rowCY + brandFs * 0.35;
+      ctx.font = `bold ${brandFs}px Arial`; ctx.textAlign = 'left';
+      ctx.fillStyle = WHITE; ctx.fillText('Broker', tX, tBY);
+      ctx.fillStyle = makeGold(tX + bW, tBY - brandFs, tX + bW + sW, tBY);
+      ctx.fillText('Saab', tX + bW, tBY);
 
-      // "Broker" white + "Saab" gold — to the right of logo on same baseline
-      const textX  = rowX + logoSz + gap;
-      const textBY = rowCY + brandFs * 0.36;
-      ctx.font = `bold ${brandFs}px Arial, sans-serif`;
-      ctx.textAlign = 'left';
-      ctx.fillStyle = WHITE;
-      ctx.fillText('Broker', textX, textBY);
-      ctx.fillStyle = makeGoldGrad(textX + brokerW, textBY - brandFs, textX + brokerW + saabW, textBY);
-      ctx.fillText('Saab', textX + brokerW, textBY);
-
-      // Tagline below the row with manual letter-spacing
-      const tagText = 'TRUSTED ADVISORY PLATFORM';
-      const tagSp   = 3.2;
-      ctx.font = '700 11px Arial, sans-serif';
-      const tagTotalW = ctx.measureText(tagText).width + tagSp * (tagText.length - 1);
-      let tagX = (W - tagTotalW) / 2;
-      const tagY = rowCY + logoSz / 2 + 24;
-      ctx.fillStyle = 'rgba(212,175,55,0.80)';
-      ctx.textAlign = 'left';
-      for (const ch of tagText) {
-        ctx.fillText(ch, tagX, tagY);
-        tagX += ctx.measureText(ch).width + tagSp;
-      }
+      // Tagline
+      const tag = 'TRUSTED ADVISORY PLATFORM';
+      ctx.font = 'bold 9px Arial'; ctx.fillStyle = 'rgba(212,175,55,0.75)';
+      ctx.textAlign = 'center'; ctx.fillText(tag, W/2, rowCY + logoSz/2 + 18);
 
       // Gold divider at hero bottom
-      const heroDiv = heroH;
-      const dg1 = makeGoldGrad(40, heroDiv, W - 40, heroDiv);
-      ctx.strokeStyle = dg1;
-      ctx.lineWidth   = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(40, heroDiv);
-      ctx.lineTo(W - 40, heroDiv);
-      ctx.stroke();
+      ctx.strokeStyle = makeGold(40, heroH, W-40, heroH);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(40, heroH); ctx.lineTo(W-40, heroH); ctx.stroke();
 
-      // ══════════════════════════════════════════════════════════════════
-      // BODY — white, QR + advisor card
-      // ══════════════════════════════════════════════════════════════════
-
-      // "SCAN QR TO VIEW MY PROFILE" label
-      const scanText = 'SCAN QR TO VIEW MY PROFILE';
-      const scanSp   = 3;
-      ctx.font = 'bold 11px Arial, sans-serif';
-      const scanTotalW = ctx.measureText(scanText).width + scanSp * (scanText.length - 1);
-      let scanX = (W - scanTotalW) / 2;
-      const scanY = heroH + 30;
-      ctx.fillStyle = INDIGO_HEX;
-      ctx.textAlign = 'left';
-      for (const ch of scanText) {
-        ctx.fillText(ch, scanX, scanY);
-        scanX += ctx.measureText(ch).width + scanSp;
-      }
-      // Gold dot accent under label
-      ctx.fillStyle = GOLD;
-      ctx.beginPath();
-      ctx.arc(W / 2, scanY + 8, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // QR code box — white card with gold border
-      const qrSize = 240;
-      const qrPad  = 14;
-      const qrBoxW = qrSize + qrPad * 2;
-      const qrBoxX = (W - qrBoxW) / 2;
-      const qrBoxY = heroH + 48;
-
+      // ═══ AVATAR (overlapping hero/body) ══════════════════════════════
+      const avatarCY = heroH, avatarR = 52;
+      // White ring (background)
       ctx.save();
-      ctx.shadowColor = 'rgba(212,175,55,0.20)';
-      ctx.shadowBlur  = 18;
-      ctx.shadowOffsetY = 4;
-      ctx.strokeStyle = makeGoldGrad(qrBoxX, qrBoxY, qrBoxX + qrBoxW, qrBoxY + qrBoxW);
-      ctx.lineWidth   = 2;
-      ctx.fillStyle   = WHITE;
-      ctx.beginPath();
-      ctx.roundRect(qrBoxX, qrBoxY, qrBoxW, qrBoxW, 14);
-      ctx.fill();
-      ctx.stroke();
+      ctx.shadowColor = 'rgba(0,0,0,0.15)'; ctx.shadowBlur = 12;
+      ctx.fillStyle = WHITE;
+      ctx.beginPath(); ctx.arc(W/2, avatarCY, avatarR + 5, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+      // Avatar clip
+      ctx.save();
+      ctx.beginPath(); ctx.arc(W/2, avatarCY, avatarR, 0, Math.PI*2); ctx.clip();
+      if (avatarImg) {
+        ctx.drawImage(avatarImg, W/2 - avatarR, avatarCY - avatarR, avatarR*2, avatarR*2);
+      } else {
+        // Initials fallback
+        const avBg = ctx.createLinearGradient(W/2-avatarR, avatarCY-avatarR, W/2+avatarR, avatarCY+avatarR);
+        avBg.addColorStop(0, INDIGO_LT); avBg.addColorStop(1, INDIGO);
+        ctx.fillStyle = avBg; ctx.fillRect(W/2-avatarR, avatarCY-avatarR, avatarR*2, avatarR*2);
+        ctx.fillStyle = GOLD; ctx.font = `bold ${avatarR * 0.75}px Arial`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(initials, W/2, avatarCY); ctx.textBaseline = 'alphabetic';
+      }
+      ctx.restore();
+      // Gold ring around avatar
+      ctx.save();
+      ctx.strokeStyle = makeGold(W/2-avatarR, avatarCY, W/2+avatarR, avatarCY);
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(W/2, avatarCY, avatarR + 2, 0, Math.PI*2); ctx.stroke();
       ctx.restore();
 
-      ctx.drawImage(qrImg, qrBoxX + qrPad, qrBoxY + qrPad, qrSize, qrSize);
+      // ═══ ADVISOR INFO (below avatar) ═════════════════════════════════
+      const nameY = avatarCY + avatarR + 30;
+      ctx.font = 'bold 24px Arial'; ctx.fillStyle = NAVY;
+      ctx.textAlign = 'center'; ctx.fillText(advisorName, W/2, nameY);
+      // Gold underline
+      const nw = ctx.measureText(advisorName).width;
+      ctx.strokeStyle = makeGold(W/2 - nw/2, 0, W/2 + nw/2, 0);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(W/2-nw/2, nameY+6); ctx.lineTo(W/2+nw/2, nameY+6); ctx.stroke();
+
+      // Advisor type
+      ctx.font = '13px Arial'; ctx.fillStyle = INDIGO_LT; ctx.textAlign = 'center';
+      ctx.fillText(advisorType, W/2, nameY + 26);
+
+      // Location + experience row
+      const detailParts: string[] = [];
+      if (location) detailParts.push(`📍 ${location}`);
+      if (expYears)  detailParts.push(`${expYears} yrs experience`);
+      if (detailParts.length) {
+        ctx.font = '11px Arial'; ctx.fillStyle = '#64748b';
+        ctx.fillText(detailParts.join('   •   '), W/2, nameY + 46);
+      }
+
+      // Divider
+      const divY = nameY + 66;
+      ctx.strokeStyle = makeGold(60, divY, W-60, divY);
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(60, divY); ctx.lineTo(W-60, divY); ctx.stroke();
+
+      // ═══ QR SECTION ══════════════════════════════════════════════════
+      // "SCAN QR TO CONNECT" label
+      const scanY = divY + 22;
+      ctx.font = 'bold 10px Arial'; ctx.fillStyle = INDIGO; ctx.textAlign = 'center';
+      ctx.fillText('SCAN QR CODE TO VIEW MY PROFILE', W/2, scanY);
+      ctx.fillStyle = GOLD;
+      ctx.beginPath(); ctx.arc(W/2, scanY + 7, 2, 0, Math.PI*2); ctx.fill();
+
+      // QR box
+      const qrSize = 210, qrPad = 14, qrBoxW = qrSize + qrPad*2;
+      const qrBoxX = (W - qrBoxW) / 2, qrBoxY = scanY + 18;
+      ctx.save();
+      ctx.shadowColor = 'rgba(212,175,55,0.18)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 4;
+      ctx.fillStyle = WHITE;
+      ctx.strokeStyle = makeGold(qrBoxX, qrBoxY, qrBoxX+qrBoxW, qrBoxY+qrBoxW);
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(qrBoxX, qrBoxY, qrBoxW, qrBoxW, 14);
+      ctx.fill(); ctx.stroke(); ctx.restore();
+      ctx.drawImage(qrImg, qrBoxX+qrPad, qrBoxY+qrPad, qrSize, qrSize);
       URL.revokeObjectURL(svgUrl);
 
-      // ── Advisor info card (below QR) ───────────────────────────────────
-      const cardY  = qrBoxY + qrBoxW + 26;
-      const cardH  = 118;
-      const cardX  = 55;
-      const cardW  = W - 110;
-
-      ctx.save();
-      ctx.strokeStyle = makeGoldGrad(cardX, cardY, cardX + cardW, cardY + cardH);
-      ctx.lineWidth   = 1.5;
-      ctx.fillStyle   = '#f8f9ff';  // very light indigo tint
-      ctx.beginPath();
-      ctx.roundRect(cardX, cardY, cardW, cardH, 14);
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-
-      // Thin indigo top accent bar on card
-      ctx.save();
-      ctx.beginPath();
-      ctx.roundRect(cardX, cardY, cardW, 4, [14, 14, 0, 0]);
-      ctx.fillStyle = INDIGO_HEX;
-      ctx.fill();
-      ctx.restore();
-
-      // Advisor name
-      ctx.font = 'bold 26px Arial, sans-serif';
-      ctx.fillStyle = NAVY;
-      ctx.textAlign = 'center';
-      ctx.fillText(advisorName, W / 2, cardY + 38);
-
-      // Gold underline under name
-      const nw = ctx.measureText(advisorName).width;
-      ctx.strokeStyle = makeGoldGrad(W / 2 - nw / 2, 0, W / 2 + nw / 2, 0);
-      ctx.lineWidth   = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(W / 2 - nw / 2, cardY + 44);
-      ctx.lineTo(W / 2 + nw / 2, cardY + 44);
-      ctx.stroke();
-
-      // Subtitle
-      ctx.font = '13px Arial, sans-serif';
-      ctx.fillStyle = '#4338ca';  // indigo-700
-      ctx.fillText('Financial Advisor  ·  BrokerSaab', W / 2, cardY + 66);
-
-      // "Verified by BrokerSaab" pill
-      const pillW = 172, pillH = 24, pillX = (W - pillW) / 2, pillY = cardY + 80;
-      ctx.fillStyle = makeGoldGrad(pillX, pillY, pillX + pillW, pillY + pillH);
-      ctx.beginPath();
-      ctx.roundRect(pillX, pillY, pillW, pillH, 12);
-      ctx.fill();
-      ctx.font = 'bold 10px Arial, sans-serif';
-      ctx.fillStyle = '#1e1b4b';
-      ctx.fillText('✓  VERIFIED BY BROKERSAAB', W / 2, pillY + 16);
+      // Verified pill
+      const pillY = qrBoxY + qrBoxW + 18;
+      const pillW = 180, pillH = 26, pillX = (W-pillW)/2;
+      ctx.fillStyle = makeGold(pillX, pillY, pillX+pillW, pillY+pillH);
+      ctx.beginPath(); ctx.roundRect(pillX, pillY, pillW, pillH, 13); ctx.fill();
+      ctx.font = 'bold 10px Arial'; ctx.fillStyle = '#1e1b4b'; ctx.textAlign = 'center';
+      ctx.fillText('✓  VERIFIED BY BROKERSAAB', W/2, pillY + 17);
 
       // Profile URL
-      ctx.font = '9.5px Arial, sans-serif';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText(profileUrl, W / 2, cardY + cardH + 18);
+      ctx.font = '8.5px Arial'; ctx.fillStyle = '#94a3b8';
+      ctx.fillText(profileUrl, W/2, pillY + 44);
 
-      // ══════════════════════════════════════════════════════════════════
-      // FOOTER — bottom ~50px, white with gold accent line + domain
-      // ══════════════════════════════════════════════════════════════════
-      const footerDivY = H - 52;
-      ctx.strokeStyle = makeGoldGrad(40, footerDivY, W - 40, footerDivY);
-      ctx.lineWidth   = 1;
-      ctx.beginPath();
-      ctx.moveTo(40, footerDivY);
-      ctx.lineTo(W - 40, footerDivY);
-      ctx.stroke();
+      // ═══ FOOTER ══════════════════════════════════════════════════════
+      const footerY = H - 50;
+      ctx.strokeStyle = makeGold(40, footerY, W-40, footerY);
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(40, footerY); ctx.lineTo(W-40, footerY); ctx.stroke();
+      ctx.font = 'bold 12px Arial'; ctx.fillStyle = INDIGO; ctx.textAlign = 'center';
+      ctx.fillText('brokersaab.com', W/2, H - 28);
+      ctx.font = '8px Arial'; ctx.fillStyle = '#94a3b8';
+      ctx.fillText('TRUSTED ADVISORY PLATFORM', W/2, H - 13);
 
-      ctx.font = 'bold 13px Arial, sans-serif';
-      ctx.fillStyle = INDIGO_HEX;
-      ctx.textAlign = 'center';
-      ctx.fillText('brokersaab.com', W / 2, H - 28);
-
-      ctx.font = '9px Arial, sans-serif';
-      ctx.fillStyle = '#94a3b8';
-      ctx.fillText('TRUSTED ADVISORY PLATFORM', W / 2, H - 14);
-
-      // ── 4. Canvas → PDF ────────────────────────────────────────────────
-      const imgData = canvas.toDataURL('image/jpeg', 0.96);
+      // ── Canvas → PDF ──────────────────────────────────────────────────
+      const imgData = canvas.toDataURL('image/jpeg', 0.97);
       const { jsPDF } = await import('jspdf');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
       pdf.addImage(imgData, 'JPEG', 0, 0, 595, 842);
-      pdf.save(`BrokerSaab-QR-${advisorName.replace(/\s+/g, '_')}.pdf`);
+      pdf.save(`BrokerSaab-${advisorName.replace(/\s+/g, '_')}-QR-Card.pdf`);
     } catch (e) {
       console.error('PDF generation failed', e);
     } finally {
@@ -1339,42 +1276,119 @@ export default function AdvisorDashboard() {
 
           {/* Body */}
           <div className="overflow-y-auto flex-1">
-            {/* Advisor name */}
-            <div className="px-5 pt-2 pb-0 text-center">
-              <p className="text-xs font-bold text-amber-400 truncate">{user?.fullName}</p>
+
+            {/* ── Mini card preview ─────────────────────────────────────── */}
+            <div className="mx-5 mt-4 rounded-2xl overflow-hidden shadow-xl"
+              style={{ border: '1px solid rgba(212,175,55,0.35)' }}>
+
+              {/* Card hero (indigo) */}
+              <div className="relative flex flex-col items-center pt-4 pb-7"
+                style={{ background: 'linear-gradient(135deg,#4338ca,#312e81)' }}>
+                {/* dot grid */}
+                <div className="absolute inset-0 opacity-[0.06]"
+                  style={{ backgroundImage: 'radial-gradient(circle,#fff 1px,transparent 1px)', backgroundSize: '18px 18px' }} />
+                {/* logo + brand text */}
+                <div className="flex items-center gap-1.5 z-10 mb-1">
+                  <div className="w-5 h-5 rounded-md overflow-hidden shrink-0 bg-white/10 flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/logo-icon.png" alt="logo" className="w-full h-full object-cover"
+                      onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
+                  </div>
+                  <span className="text-xs font-black text-white leading-none">
+                    Broker<span style={{ color: '#F5D77A' }}>Saab</span>
+                  </span>
+                </div>
+                <p className="text-[8px] tracking-widest z-10" style={{ color: 'rgba(212,175,55,0.7)' }}>
+                  TRUSTED ADVISORY PLATFORM
+                </p>
+              </div>
+
+              {/* Avatar overlapping hero/body */}
+              <div className="relative bg-white flex flex-col items-center pb-4 pt-0"
+                style={{ borderTop: '1px solid rgba(212,175,55,0.2)' }}>
+                <div className="absolute -top-8 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-full ring-4 ring-white shadow-lg overflow-hidden"
+                    style={{ background: 'linear-gradient(135deg,#4338ca,#312e81)' }}>
+                    {advisorProfile?.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={advisorProfile.avatarUrl.startsWith('http')
+                          ? advisorProfile.avatarUrl
+                          : `${API.replace(/\/api\/v1\/?$/, '')}${advisorProfile.avatarUrl.startsWith('/') ? advisorProfile.avatarUrl : `/${advisorProfile.avatarUrl}`}`}
+                        alt={user?.fullName || ''}
+                        className="w-full h-full object-cover"
+                        onError={e => { (e.target as HTMLImageElement).style.display='none'; }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-lg font-black" style={{ color: '#D4AF37' }}>
+                          {(user?.fullName || 'A').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Advisor info */}
+                <div className="mt-10 text-center space-y-0.5 px-4 w-full">
+                  <p className="text-sm font-black text-slate-900 leading-tight truncate">{user?.fullName}</p>
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold"
+                      style={{ background: 'rgba(67,56,202,0.1)', color: '#4338ca' }}>
+                      {advisorProfile?.advisorType || 'Financial Advisor'}
+                    </span>
+                  </div>
+                  {(advisorProfile?.location || advisorProfile?.experienceYears) && (
+                    <p className="text-[9px] text-slate-400 flex items-center justify-center gap-1.5 flex-wrap">
+                      {advisorProfile?.location && <span>📍 {advisorProfile.location}</span>}
+                      {advisorProfile?.location && advisorProfile?.experienceYears && <span className="opacity-40">·</span>}
+                      {advisorProfile?.experienceYears && <span>{advisorProfile.experienceYears} yrs exp</span>}
+                    </p>
+                  )}
+                  {/* Verified pill */}
+                  <div className="flex justify-center pt-1">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[8px] font-bold"
+                      style={{ background: 'linear-gradient(90deg,#D4AF37,#B48C22)', color: '#1e1b4b' }}>
+                      ✓ VERIFIED BY BROKERSAAB
+                    </span>
+                  </div>
+                </div>
+
+                {/* QR code */}
+                <div className="mt-3 flex justify-center">
+                  {advisorPublicId ? (
+                    <div ref={qrSvgRef} className="p-2 bg-white rounded-xl shadow-md inline-block"
+                      style={{ border: '1.5px solid rgba(212,175,55,0.4)' }}>
+                      <QRCode
+                        value={`${typeof window !== 'undefined' ? window.location.origin : 'https://brokersaab.com'}/advisors/${advisorPublicId}`}
+                        size={132}
+                        bgColor="#ffffff"
+                        fgColor="#312e81"
+                        level="M"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-[148px] h-[148px] rounded-xl flex items-center justify-center bg-slate-50">
+                      <Loader2 size={22} className="animate-spin text-slate-300" />
+                    </div>
+                  )}
+                </div>
+                <p className="text-[8px] text-slate-400 tracking-widest mt-1.5">SCAN QR TO VIEW MY PROFILE</p>
+              </div>
+
+              {/* Card footer stripe */}
+              <div className="h-0.5 w-full"
+                style={{ background: 'linear-gradient(90deg,#D4AF37,#F0CC60,#D4AF37)' }} />
             </div>
 
-            {/* QR code */}
-            <div className="flex justify-center px-5 pt-2 pb-1">
-              {advisorPublicId ? (
-                <div ref={qrSvgRef} className="p-2.5 bg-white rounded-xl shadow-lg inline-block">
-                  <QRCode
-                    value={`${typeof window !== 'undefined' ? window.location.origin : 'https://frontend-tellar.vercel.app'}/advisors/${advisorPublicId}`}
-                    size={148}
-                    bgColor="#ffffff"
-                    fgColor="#0B1F3A"
-                    level="M"
-                  />
-                </div>
-              ) : (
-                <div className="w-[173px] h-[173px] rounded-xl flex items-center justify-center bg-white/5">
-                  <Loader2 size={22} className="animate-spin text-white/30" />
-                </div>
-              )}
-            </div>
-
-            <p className="text-[10px] text-white/35 text-center tracking-widest mb-2">
-              SCAN TO VIEW MY PROFILE
-            </p>
-
-            {/* URL + copy + download */}
+            {/* ── URL + copy + download ──────────────────────────────── */}
             {advisorPublicId && (
-              <div className="px-5 pb-4 space-y-2">
+              <div className="px-5 pt-3 pb-5 space-y-2">
                 {/* URL row */}
                 <div className="flex items-center gap-2 rounded-xl px-3 py-2"
                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <p className="flex-1 text-[9px] text-white/40 truncate font-mono">
-                    {`${typeof window !== 'undefined' ? window.location.origin : 'https://frontend-tellar.vercel.app'}/advisors/${advisorPublicId}`}
+                    {`${typeof window !== 'undefined' ? window.location.origin : 'https://brokersaab.com'}/advisors/${advisorPublicId}`}
                   </p>
                   <button
                     onClick={() => {
@@ -1397,12 +1411,12 @@ export default function AdvisorDashboard() {
                   className="w-full py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-wait"
                   style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 4px 16px rgba(212,175,55,0.25)' }}>
                   {pdfLoading
-                    ? <><Loader2 size={14} className="animate-spin" /> Generating…</>
-                    : <><Download size={14} /> Download Branded PDF Card</>
+                    ? <><Loader2 size={14} className="animate-spin" /> Generating PDF…</>
+                    : <><Download size={14} /> Download PDF Card</>
                   }
                 </button>
                 <p className="text-[9px] text-white/20 text-center">
-                  Professional card · Share with clients
+                  A4 branded card · Share with clients
                 </p>
               </div>
             )}
