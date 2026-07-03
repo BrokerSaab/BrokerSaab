@@ -18,11 +18,11 @@ function calcClientFees(base: number) {
 }
 
 function calcAdvisorFees(base: number) {
-  const commission       = parseFloat((base * 0.15).toFixed(2));
-  const net              = parseFloat((base - commission).toFixed(2));
-  const advGatewayFee    = parseFloat((net * 0.015).toFixed(2));
-  const advPlatformFee   = net <= 3000 ? 30 : net <= 5000 ? 50 : parseFloat((net * 0.01).toFixed(2));
-  const advisorPayout    = parseFloat((net - advGatewayFee - advPlatformFee).toFixed(2));
+  const commission     = parseFloat((base * 0.15).toFixed(2));
+  const net            = parseFloat((base - commission).toFixed(2));
+  const advGatewayFee  = parseFloat((net * 0.015).toFixed(2));
+  const advPlatformFee = net <= 3000 ? 30 : net <= 5000 ? 50 : parseFloat((net * 0.01).toFixed(2));
+  const advisorPayout  = parseFloat((net - advGatewayFee - advPlatformFee).toFixed(2));
   return { commission, net, advGatewayFee, advPlatformFee, advisorPayout };
 }
 
@@ -36,33 +36,31 @@ function platformFeeLabel(amount: number) {
 
 /* ── component ────────────────────────────────────────── */
 export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
-  const [raw, setRaw] = useState('');
+  const [raw, setRaw]             = useState('');
   const [showTiers, setShowTiers] = useState(false);
 
   if (!isOpen) return null;
 
-  const amount = parseFloat(raw) || 0;
+  const amount    = parseFloat(raw) || 0;
   const hasAmount = amount > 0;
-
   const isAdvisor = role === 'ADVISOR';
 
-  /* derived */
-  const clientFees  = hasAmount ? calcClientFees(amount) : null;
+  const clientFees  = hasAmount ? calcClientFees(amount)  : null;
   const advisorFees = hasAmount ? calcAdvisorFees(amount) : null;
 
-  /* ── row helpers ── */
+  /* ── row helper ── */
   const Row = ({ label, value, sub, red, bold, green, divider }: {
     label: string; value: string; sub?: string;
     red?: boolean; bold?: boolean; green?: boolean; divider?: boolean;
   }) => (
     <>
-      {divider && <div className="border-t border-white/10 my-1" />}
-      <div className={`flex items-center justify-between py-1.5 ${divider ? 'pt-2.5' : ''}`}>
-        <div>
-          <span className={`text-xs ${bold ? 'font-black text-white' : 'text-white/60'}`}>{label}</span>
-          {sub && <span className="text-[10px] text-white/30 ml-1">{sub}</span>}
+      {divider && <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '3px 0' }} />}
+      <div className={`flex items-center justify-between ${divider ? 'pt-2' : 'py-1'}`}>
+        <div className="flex items-center gap-1 min-w-0">
+          <span className={`text-xs truncate ${bold ? 'font-bold text-white' : 'text-white/60'}`}>{label}</span>
+          {sub && <span className="text-[10px] shrink-0" style={{ color: 'rgba(255,255,255,0.3)' }}>{sub}</span>}
         </div>
-        <span className={`text-sm font-bold tabular-nums ${
+        <span className={`text-xs font-bold tabular-nums shrink-0 ml-2 ${
           green ? 'text-emerald-400' : red ? 'text-red-400' : bold ? 'text-white' : 'text-white/80'
         }`}>{value}</span>
       </div>
@@ -71,72 +69,107 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Modal — capped at 80vh so it fits 13" screens */}
       <div
-        className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col"
-        style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', border: '1px solid rgba(212,175,55,0.25)' }}
+        className="relative w-full sm:max-w-[420px] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col"
+        style={{
+          background: 'linear-gradient(160deg, #0B1F3A 0%, #111827 50%, #1a1040 100%)',
+          border: '1px solid rgba(212,175,55,0.3)',
+          maxHeight: 'min(80vh, 580px)',
+        }}
       >
-        {/* Gold accent bar */}
-        <div className="h-1 w-full shrink-0" style={{ background: 'linear-gradient(90deg,#D4AF37,#4F46E5,#D4AF37)' }} />
+        {/* Gold–indigo accent bar */}
+        <div className="h-0.5 w-full shrink-0"
+          style={{ background: 'linear-gradient(90deg, #D4AF37 0%, #4F46E5 50%, #D4AF37 100%)' }} />
 
         {/* Header */}
-        <div className="px-5 pt-4 pb-3 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.35)' }}>
-              <Calculator size={16} style={{ color: '#D4AF37' }} />
+        <div className="px-4 pt-3 pb-2 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.4)' }}>
+              <Calculator size={15} style={{ color: '#D4AF37' }} />
             </div>
             <div>
               <h2 className="text-sm font-black text-white leading-tight">
                 {isAdvisor ? 'What will I earn?' : 'What will I pay?'}
               </h2>
-              <p className="text-white/40 text-xs mt-0.5">
-                {isAdvisor ? 'BrokerSaab fee breakdown for advisors' : 'BrokerSaab fee breakdown for clients'}
+              <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                {isAdvisor ? 'Advisor fee breakdown' : 'Client fee breakdown'}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-white/30 hover:text-white/70 transition-colors p-1">
-            <X size={16} />
+          <button onClick={onClose}
+            className="w-7 h-7 rounded-full flex items-center justify-center transition-colors hover:bg-white/10"
+            style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <X size={14} />
           </button>
         </div>
 
-        <div className="px-5 pb-6 overflow-y-auto flex-1 space-y-4">
+        {/* Divider */}
+        <div className="shrink-0 mx-4" style={{ height: 1, background: 'rgba(255,255,255,0.07)' }} />
+
+        {/* Scrollable body */}
+        <div className="px-4 py-3 overflow-y-auto flex-1 space-y-3">
 
           {/* Amount input */}
           <div>
-            <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5 block">
+            <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5"
+              style={{ color: 'rgba(212,175,55,0.7)' }}>
               {isAdvisor ? 'Enter your quote amount (₹)' : 'Enter advisory service amount (₹)'}
             </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-black text-amber-400">₹</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base font-black"
+                style={{ color: '#D4AF37' }}>₹</span>
               <input
                 type="number"
                 min="0"
                 value={raw}
                 onChange={e => setRaw(e.target.value)}
                 placeholder="e.g. 5000"
-                className="w-full pl-9 pr-4 py-3 rounded-xl text-lg font-black text-white bg-white/8 border border-white/15 focus:border-amber-400/60 focus:outline-none focus:bg-white/10 transition-all placeholder:text-white/20 tabular-nums"
+                className="w-full pl-8 pr-3 py-2.5 rounded-xl text-base font-black tabular-nums focus:outline-none"
+                style={{
+                  background: 'rgba(11, 31, 58, 0.95)',
+                  border: '1px solid rgba(79, 70, 229, 0.45)',
+                  color: '#ffffff',
+                  caretColor: '#D4AF37',
+                  transition: 'border-color 0.15s, box-shadow 0.15s',
+                }}
+                onFocus={e => {
+                  e.currentTarget.style.borderColor = 'rgba(212,175,55,0.7)';
+                  e.currentTarget.style.boxShadow   = '0 0 0 3px rgba(212,175,55,0.12)';
+                }}
+                onBlur={e => {
+                  e.currentTarget.style.borderColor = 'rgba(79, 70, 229, 0.45)';
+                  e.currentTarget.style.boxShadow   = 'none';
+                }}
               />
             </div>
           </div>
 
           {/* ── CLIENT VIEW ── */}
           {!isAdvisor && clientFees && hasAmount && (
-            <div className="rounded-xl overflow-hidden border border-white/10">
-              <div className="px-4 py-2.5 bg-white/5 border-b border-white/10">
-                <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Client pays</p>
+            <div className="rounded-xl overflow-hidden"
+              style={{ border: '1px solid rgba(212,175,55,0.2)', background: 'rgba(212,175,55,0.04)' }}>
+              <div className="px-3 py-2 border-b"
+                style={{ borderColor: 'rgba(212,175,55,0.15)', background: 'rgba(212,175,55,0.09)' }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#D4AF37' }}>You pay</p>
               </div>
-              <div className="px-4 py-2">
-                <Row label="Advisory Service Fee"           value={`₹${fmt(amount)}`} />
-                <Row label="Platform Fee"  sub={`(${platformFeeLabel(amount)})`}    value={`₹${fmt(clientFees.platformFee)}`} />
-                <Row label="Payment Gateway Fee"  sub="(1.5%)"                       value={`₹${fmt(clientFees.gatewayFee)}`} />
-                <Row label="Total Payable" value={`₹${fmt(clientFees.clientTotal)}`} bold divider />
+              <div className="px-3 py-2">
+                <Row label="Advisory Service Fee"       value={`₹${fmt(amount)}`} />
+                <Row label="Platform Fee" sub={`(${platformFeeLabel(amount)})`}   value={`₹${fmt(clientFees.platformFee)}`} />
+                <Row label="Gateway Fee"  sub="(1.5%)"                            value={`₹${fmt(clientFees.gatewayFee)}`} />
+                <Row label="Total Payable"              value={`₹${fmt(clientFees.clientTotal)}`} bold divider />
               </div>
-              <div className="px-4 pb-3">
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2.5 flex items-start gap-2">
-                  <Info size={12} className="text-amber-400 shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-amber-200/70 leading-relaxed">
-                    Advisory fee (₹{fmt(amount)}) is held in escrow until work is confirmed. Platform and gateway fees are <span className="text-red-400 font-semibold">non-refundable</span>.
+              <div className="px-3 pb-2.5">
+                <div className="rounded-lg px-2.5 py-2 flex items-start gap-1.5"
+                  style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                  <Info size={11} className="shrink-0 mt-0.5" style={{ color: '#F59E0B' }} />
+                  <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(253,230,138,0.75)' }}>
+                    Advisory fee (₹{fmt(amount)}) held in escrow. Platform & gateway fees are{' '}
+                    <span className="text-red-400 font-semibold">non-refundable</span>.
                   </p>
                 </div>
               </div>
@@ -146,42 +179,43 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
           {/* ── ADVISOR VIEW ── */}
           {isAdvisor && advisorFees && clientFees && hasAmount && (
             <>
-              {/* What client pays — for advisor's awareness */}
-              <div className="rounded-xl overflow-hidden border border-indigo-500/20 bg-indigo-500/5">
-                <div className="px-4 py-2.5 bg-indigo-500/10 border-b border-indigo-500/15">
-                  <p className="text-[10px] font-bold text-indigo-300/70 uppercase tracking-wider">Client will pay</p>
+              {/* Client total — for advisor awareness */}
+              <div className="rounded-xl overflow-hidden"
+                style={{ border: '1px solid rgba(79,70,229,0.25)', background: 'rgba(79,70,229,0.05)' }}>
+                <div className="px-3 py-2 border-b"
+                  style={{ borderColor: 'rgba(79,70,229,0.2)', background: 'rgba(79,70,229,0.12)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#818CF8' }}>Client will pay</p>
                 </div>
-                <div className="px-4 py-2">
-                  <Row label="Advisory Fee (your quote)"          value={`₹${fmt(amount)}`} />
-                  <Row label="Platform Fee"  sub={`(${platformFeeLabel(amount)})`}           value={`₹${fmt(clientFees.platformFee)}`} />
-                  <Row label="Gateway Fee"   sub="(1.5%)"                                    value={`₹${fmt(clientFees.gatewayFee)}`} />
-                  <Row label="Client's Total" value={`₹${fmt(clientFees.clientTotal)}`} bold divider />
+                <div className="px-3 py-2">
+                  <Row label="Advisory Fee (your quote)"      value={`₹${fmt(amount)}`} />
+                  <Row label="Platform Fee" sub={`(${platformFeeLabel(amount)})`}        value={`₹${fmt(clientFees.platformFee)}`} />
+                  <Row label="Gateway Fee"  sub="(1.5%)"                                 value={`₹${fmt(clientFees.gatewayFee)}`} />
+                  <Row label="Client's Total"                 value={`₹${fmt(clientFees.clientTotal)}`} bold divider />
                 </div>
               </div>
 
-              {/* What advisor earns */}
-              <div className="rounded-xl overflow-hidden border border-amber-500/25">
-                <div className="px-4 py-2.5 border-b border-white/10" style={{ background: 'rgba(212,175,55,0.1)' }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#D4AF37' }}>Your earnings breakdown</p>
+              {/* Advisor earnings */}
+              <div className="rounded-xl overflow-hidden"
+                style={{ border: '1px solid rgba(212,175,55,0.3)', background: 'rgba(212,175,55,0.04)' }}>
+                <div className="px-3 py-2 border-b"
+                  style={{ borderColor: 'rgba(212,175,55,0.2)', background: 'rgba(212,175,55,0.1)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#D4AF37' }}>Your earnings</p>
                 </div>
-                <div className="px-4 py-2">
-                  <Row label="Quote Amount"                                                          value={`₹${fmt(amount)}`} />
-                  <Row label={`Platform Commission`}  sub="(15%)"      red                           value={`− ₹${fmt(advisorFees.commission)}`} />
-                  <Row label="Sub-total after commission"                                             value={`₹${fmt(advisorFees.net)}`}          divider />
-                  <Row label="Payment Gateway Fee"    sub="(1.5%)"     red                           value={`− ₹${fmt(advisorFees.advGatewayFee)}`} />
-                  <Row
-                    label="Platform Fee"
-                    sub={`(${platformFeeLabel(advisorFees.net)})`}
-                    red
-                    value={`− ₹${fmt(advisorFees.advPlatformFee)}`}
-                  />
-                  <Row label="You Actually Receive"                    green bold divider             value={`₹${fmt(advisorFees.advisorPayout)}`} />
+                <div className="px-3 py-2">
+                  <Row label="Quote Amount"                                                            value={`₹${fmt(amount)}`} />
+                  <Row label="Platform Commission"  sub="(15%)"   red                                  value={`− ₹${fmt(advisorFees.commission)}`} />
+                  <Row label="Sub-total"                                                               value={`₹${fmt(advisorFees.net)}`} divider />
+                  <Row label="Gateway Fee"          sub="(1.5%)"  red                                  value={`− ₹${fmt(advisorFees.advGatewayFee)}`} />
+                  <Row label="Platform Fee"         sub={`(${platformFeeLabel(advisorFees.net)})`} red  value={`− ₹${fmt(advisorFees.advPlatformFee)}`} />
+                  <Row label="You Receive"                        green bold divider                    value={`₹${fmt(advisorFees.advisorPayout)}`} />
                 </div>
-                <div className="px-4 pb-3">
-                  <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl px-3 py-2.5 flex items-start gap-2">
-                    <Info size={12} className="text-orange-400 shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-orange-200/70 leading-relaxed">
-                      Gateway fee (₹{fmt(advisorFees.advGatewayFee)}) and platform fee (₹{fmt(advisorFees.advPlatformFee)}) are deducted from your payout and are <span className="text-red-400 font-semibold">non-refundable</span>.
+                <div className="px-3 pb-2.5">
+                  <div className="rounded-lg px-2.5 py-2 flex items-start gap-1.5"
+                    style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>
+                    <Info size={11} className="shrink-0 mt-0.5" style={{ color: '#FB923C' }} />
+                    <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(254,215,170,0.75)' }}>
+                      Deductions (₹{fmt(advisorFees.advGatewayFee + advisorFees.advPlatformFee)}) are{' '}
+                      <span className="text-red-400 font-semibold">non-refundable</span>.
                     </p>
                   </div>
                 </div>
@@ -191,43 +225,55 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
 
           {/* Empty state */}
           {!hasAmount && (
-            <div className="text-center py-6 text-white/25 text-sm">
+            <div className="text-center py-5 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
               Enter an amount above to see the breakdown
             </div>
           )}
 
-          {/* Fee tiers reference */}
+          {/* Fee tiers toggle */}
           <button
             onClick={() => setShowTiers(v => !v)}
-            className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/8 transition-colors"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', transition: 'background 0.15s' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
           >
-            <span className="text-xs font-semibold text-white/50">View Platform Fee Tiers</span>
-            <ChevronDown size={14} className={`text-white/30 transition-transform ${showTiers ? 'rotate-180' : ''}`} />
+            <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>Platform Fee Tiers</span>
+            <ChevronDown size={13} className={`transition-transform ${showTiers ? 'rotate-180' : ''}`}
+              style={{ color: 'rgba(255,255,255,0.35)' }} />
           </button>
 
           {showTiers && (
-            <div className="rounded-xl overflow-hidden border border-white/10 text-xs">
-              <div className="grid grid-cols-3 px-4 py-2 bg-white/5 border-b border-white/10">
-                <span className="font-bold text-white/40 uppercase tracking-wider text-[10px]">Amount</span>
-                <span className="font-bold text-white/40 uppercase tracking-wider text-[10px] text-center">Client Fee</span>
-                <span className="font-bold text-white/40 uppercase tracking-wider text-[10px] text-right">Advisor Fee</span>
+            <div className="rounded-xl overflow-hidden text-xs" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div className="grid grid-cols-3 px-3 py-1.5"
+                style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                {['Amount', 'Client Fee', 'Advisor Fee'].map(h => (
+                  <span key={h} className={`font-bold text-[10px] uppercase tracking-wider ${h !== 'Amount' ? 'text-center' : ''}`}
+                    style={{ color: 'rgba(255,255,255,0.35)' }}>{h}</span>
+                ))}
               </div>
               {[
-                { range: 'Up to ₹3,000',      client: '₹30 flat',   advisor: '₹30 flat' },
-                { range: '₹3,001 – ₹5,000',   client: '₹50 flat',   advisor: '₹50 flat (of net)' },
-                { range: 'Above ₹5,000',       client: '1% of quote', advisor: '1% of net' },
+                { range: 'Up to ₹3k',  client: '₹30',  advisor: '₹30' },
+                { range: '₹3k – ₹5k', client: '₹50',  advisor: '₹50 of net' },
+                { range: 'Above ₹5k',  client: '1%',   advisor: '1% of net' },
               ].map((row, i) => (
-                <div key={i} className={`grid grid-cols-3 px-4 py-2.5 ${i < 2 ? 'border-b border-white/5' : ''}`}>
-                  <span className="text-white/60">{row.range}</span>
-                  <span className="text-amber-400 text-center">{row.client}</span>
-                  <span className="text-indigo-400 text-right">{row.advisor}</span>
+                <div key={i} className="grid grid-cols-3 px-3 py-2"
+                  style={{ borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
+                  <span style={{ color: 'rgba(255,255,255,0.55)' }}>{row.range}</span>
+                  <span className="text-center" style={{ color: '#D4AF37' }}>{row.client}</span>
+                  <span className="text-center" style={{ color: '#818CF8' }}>{row.advisor}</span>
                 </div>
               ))}
-              <div className="px-4 py-2 bg-white/3 border-t border-white/10">
-                <p className="text-[10px] text-white/30">Payment Gateway Fee: 1.5% charged to both client and advisor separately.</p>
+              <div className="px-3 py-2"
+                style={{ background: 'rgba(255,255,255,0.03)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                  +1.5% payment gateway fee charged separately to both parties.
+                </p>
               </div>
             </div>
           )}
+
+          <div className="h-1" />
         </div>
       </div>
     </div>
