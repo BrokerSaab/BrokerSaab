@@ -625,6 +625,9 @@ model ServiceTicket {
   client           User                @relation("ClientServiceTickets", fields: [clientId], references: [id])
   advisorId        String
   advisor          Advisor             @relation("AdvisorServiceTickets", fields: [advisorId], references: [id])
+  baseAmount       Decimal             @db.Decimal(10, 2) @default(0)
+  platformFee      Decimal             @db.Decimal(10, 2) @default(0)
+  gatewayFee       Decimal             @db.Decimal(10, 2) @default(0)
   totalAmount      Decimal             @db.Decimal(10, 2)
   commission       Decimal             @db.Decimal(10, 2) @default(0)
   netAmount        Decimal             @db.Decimal(10, 2)

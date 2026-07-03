@@ -187,15 +187,20 @@ router.post(
         return;
       }
 
-      const totalAmount = Number(quote.totalAmount ?? 0);
-      if (totalAmount <= 0) {
+      const baseAmount = Number(quote.totalAmount ?? 0);
+      if (baseAmount <= 0) {
         res.status(400).json({ success: false, message: 'Invalid quote amount' });
         return;
       }
 
-      const commissionRate = 0.15;
-      const commission     = parseFloat((totalAmount * commissionRate).toFixed(2));
-      const netAmount      = parseFloat((totalAmount - commission).toFixed(2));
+      // Client-side fee structure
+      const gatewayFee  = parseFloat((baseAmount * 0.015).toFixed(2));
+      const platformFee = baseAmount <= 3000 ? 30 : baseAmount <= 5000 ? 50 : parseFloat((baseAmount * 0.01).toFixed(2));
+      const totalAmount = parseFloat((baseAmount + gatewayFee + platformFee).toFixed(2)); // total client pays
+
+      // Advisor-side commission (unchanged)
+      const commission = parseFloat((baseAmount * 0.15).toFixed(2));
+      const netAmount  = parseFloat((baseAmount - commission).toFixed(2));
 
       let paymentRef = '';
 
@@ -239,6 +244,9 @@ router.post(
             quoteId,
             clientId:   quote.clientId,
             advisorId:  quote.advisor.id,
+            baseAmount,
+            platformFee,
+            gatewayFee,
             totalAmount,
             commission,
             netAmount,
@@ -252,14 +260,14 @@ router.post(
         ticketId:     ticket.id,
         ticketNumber: ticket.ticketNumber,
         clientName:   quote.client.fullName,
-        totalAmount,
+        totalAmount:  baseAmount,
       });
 
       if (quote.advisor.pushToken) {
         sendPushNotification(
           quote.advisor.pushToken,
           'New Work Order Received!',
-          `${quote.client.fullName} paid ₹${totalAmount.toLocaleString('en-IN')}. Start the work and add stages.`,
+          `${quote.client.fullName} has accepted your quote of ₹${baseAmount.toLocaleString('en-IN')}. Start the work and add stages.`,
           { ticketId: ticket.id, screen: 'TicketDetail' }
         );
       }
