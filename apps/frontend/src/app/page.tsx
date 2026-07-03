@@ -9,7 +9,7 @@ import {
   Search, MapPin, Star, Award, ShieldCheck, Languages, ArrowRight, UserCheck,
   Home, Shield, FileCheck, Briefcase, Percent, FileText, Coins, Landmark,
   Scale, Building2, CreditCard, Phone, Mail, CheckCircle2, Users, Clock, ChevronDown,
-  User, Sun, Moon, BadgeCheck, Loader2, Copy, Check, QrCode, Crown,
+  User, Sun, Moon, BadgeCheck, Loader2, Copy, Check, QrCode, Crown, Download,
 } from 'lucide-react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require('react-qr-code').default as React.ComponentType<{ value: string; size?: number; bgColor?: string; fgColor?: string; level?: string }>;
@@ -650,7 +650,41 @@ export default function DiscoverPage() {
   const [showStatePicker, setShowStatePicker] = useState(false);
   const [showQR, setShowQR] = useState(false);
   const [siteUrl, setSiteUrl] = useState('');
+  const [qrCopied, setQrCopied] = useState(false);
+  const [qrDownloading, setQrDownloading] = useState(false);
+  const qrSvgRef = useRef<HTMLDivElement>(null);
   useEffect(() => { setSiteUrl(window.location.origin); }, []);
+
+  const downloadSiteQR = async () => {
+    if (!qrSvgRef.current) return;
+    setQrDownloading(true);
+    try {
+      const svgEl = qrSvgRef.current.querySelector('svg');
+      if (!svgEl) return;
+      const svgData = new XMLSerializer().serializeToString(svgEl);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      const img = await new Promise<HTMLImageElement>((res, rej) => {
+        const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = svgUrl;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 220;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 220, 220);
+      ctx.drawImage(img, 20, 20, 180, 180);
+      URL.revokeObjectURL(svgUrl);
+      canvas.toBlob(blob => {
+        if (!blob) return;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'brokersaab-qr.png';
+        a.click();
+      }, 'image/png');
+    } finally {
+      setQrDownloading(false);
+    }
+  };
 
   /* Listen to state-selected and district-selected events from the popup */
   React.useEffect(() => {
@@ -697,26 +731,57 @@ export default function DiscoverPage() {
       {/* ── QR Code Modal ── */}
       {showQR && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowQR(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 flex flex-col items-center gap-4 max-w-xs w-full" onClick={e => e.stopPropagation()}>
+          <div
+            className="rounded-2xl shadow-2xl p-6 flex flex-col items-center gap-4 max-w-xs w-full"
+            style={{ background: 'linear-gradient(160deg,#0F172A 0%,#1E293B 100%)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
             <div className="flex items-center justify-between w-full">
               <div>
-                <h3 className="text-sm font-black text-slate-800">Scan to Open BrokerSaab</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">Share this QR code with anyone</p>
+                <h3 className="text-sm font-black text-white">Scan to Open BrokerSaab</h3>
+                <p className="text-[11px] text-white/40 mt-0.5">Share this QR code with anyone</p>
               </div>
-              <button onClick={() => setShowQR(false)} className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
-                <X size={14} className="text-slate-500" />
+              <button onClick={() => setShowQR(false)} className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                <X size={14} className="text-white/60" />
               </button>
             </div>
-            <div className="p-4 bg-white rounded-xl border-2 border-slate-100">
+
+            {/* QR box */}
+            <div
+              ref={qrSvgRef}
+              className="p-4 bg-white rounded-xl inline-block"
+              style={{ border: '1.5px solid rgba(212,175,55,0.4)', boxShadow: '0 0 24px rgba(212,175,55,0.15)' }}
+            >
               {siteUrl && <QRCode value={siteUrl} size={180} bgColor="#ffffff" fgColor="#0F172A" level="M" />}
             </div>
-            <div className="w-full bg-slate-50 rounded-xl px-3 py-2 text-center">
-              <p className="text-[10px] text-slate-400 font-mono truncate">{siteUrl}</p>
+
+            {/* Gold divider */}
+            <div className="w-full h-px" style={{ background: 'linear-gradient(90deg,transparent,#D4AF37,transparent)' }} />
+
+            {/* URL + copy */}
+            <div className="w-full flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2">
+              <p className="flex-1 text-[10px] text-white/40 font-mono truncate">{siteUrl}</p>
+              <button
+                onClick={() => { navigator.clipboard.writeText(siteUrl); setQrCopied(true); setTimeout(() => setQrCopied(false), 2000); }}
+                className="shrink-0 text-white/50 hover:text-amber-400 transition-colors"
+              >
+                {qrCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+              </button>
             </div>
+            {qrCopied && <p className="text-[10px] text-emerald-400 text-center -mt-2">Link copied!</p>}
+
+            {/* Download PNG */}
             <button
-              onClick={() => { navigator.clipboard.writeText(siteUrl); }}
-              className="flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
-              <Copy size={12} /> Copy link
+              onClick={downloadSiteQR}
+              disabled={qrDownloading}
+              className="w-full py-2.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:cursor-wait"
+              style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A', boxShadow: '0 4px 16px rgba(212,175,55,0.25)' }}
+            >
+              {qrDownloading
+                ? <><Loader2 size={14} className="animate-spin" /> Preparing…</>
+                : <><Download size={14} /> Download QR Code</>
+              }
             </button>
           </div>
         </div>
