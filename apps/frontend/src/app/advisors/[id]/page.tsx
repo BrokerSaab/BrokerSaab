@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Star, ShieldCheck, MapPin, Award, Languages, Calendar, Clock,
   ArrowLeft, User, BadgeCheck, Phone, Mail, Eye, Loader2, Copy,
-  Check, DollarSign, MessageSquare, Briefcase, ChevronRight, FileText, Crown
+  Check, DollarSign, MessageSquare, Briefcase, ChevronRight, FileText, Crown, AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -73,11 +73,26 @@ export default function AdvisorProfilePage() {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [isBooked, setIsBooked]         = useState(false);
   const [paymentGateway, setPaymentGateway] = useState<'RAZORPAY' | 'STRIPE' | 'WALLET'>('RAZORPAY');
+  const [consultMode, setConsultMode]       = useState<'PHONE' | 'VIDEO' | 'CHAT' | 'PHYSICAL'>('VIDEO');
+  const [notes, setNotes]                   = useState('');
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingError, setBookingError]     = useState<string | null>(null);
   const [showQuoteModal,  setShowQuoteModal]  = useState(false);
   const [quoteRequested,  setQuoteRequested]  = useState(false);
   const bookingRef = useRef<HTMLDivElement>(null);
 
-  const token = () => typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('accessToken') || '' : '';
+  const token = () => typeof window !== 'undefined' ? localStorage.getItem('accessToken') || '' : '';
+
+  // Returns the nearest future date that falls on `dayOfWeek` (0=Sun … 6=Sat)
+  const nextDateForDay = (dayOfWeek: number, startTime: string): string => {
+    const now = new Date();
+    const diff = (dayOfWeek - now.getDay() + 7) % 7 || 7; // always push to next occurrence
+    const d = new Date(now);
+    d.setDate(now.getDate() + diff);
+    const [h, m] = startTime.split(':').map(Number);
+    d.setHours(h, m, 0, 0);
+    return d.toISOString();
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -125,15 +140,50 @@ export default function AdvisorProfilePage() {
     e.preventDefault();
     if (!isLoggedIn) { openLoginModal(); return; }
     if (!selectedSlot) return;
+
+    const slotData = advisor?.availability.find(s => s.id === selectedSlot);
+    if (!slotData) return;
+
+    setBookingError(null);
+    setBookingLoading(true);
+
     try {
-      const res = await fetch(`${API}/bookings`, {
+      // Step 1: Create booking (PENDING)
+      const bookingRes = await fetch(`${API}/bookings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ advisorId, slotId: selectedSlot, paymentGateway }),
+        body: JSON.stringify({
+          advisorId,
+          slotId: selectedSlot,
+          scheduledDate: nextDateForDay(slotData.dayOfWeek, slotData.startTime),
+          mode: consultMode,
+          notes: notes.trim() || undefined,
+        }),
       });
-      const data = await res.json();
-      if (data.success) setIsBooked(true);
-    } catch { /* ignore */ }
+      const bookingData = await bookingRes.json();
+      if (!bookingData.success) {
+        setBookingError(bookingData.message || 'Failed to create booking');
+        return;
+      }
+
+      // Step 2: Process payment → moves booking to ACCEPTED
+      const payRes = await fetch(`${API}/payments/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ bookingId: bookingData.data.id, gateway: paymentGateway }),
+      });
+      const payData = await payRes.json();
+      if (!payData.success) {
+        setBookingError(payData.message || 'Payment failed. Please try again.');
+        return;
+      }
+
+      setIsBooked(true);
+    } catch {
+      setBookingError('Something went wrong. Please check your connection and try again.');
+    } finally {
+      setBookingLoading(false);
+    }
   };
 
   if (loading) {
@@ -494,13 +544,14 @@ export default function AdvisorProfilePage() {
                       </div>
                     ) : null}
 
+                    {/* Step 1: Select slot */}
                     <div>
                       <label className="text-[10px] text-gray-400 uppercase tracking-widest font-bold flex items-center gap-1.5 mb-2">
                         <Calendar size={11} /> Select Slot
                       </label>
                       <div className="space-y-1.5 max-h-44 overflow-y-auto">
                         {advisor.availability.length > 0 ? advisor.availability.map(slot => (
-                          <button type="button" key={slot.id} onClick={() => setSelectedSlot(slot.id)}
+                          <button type="button" key={slot.id} onClick={() => { setSelectedSlot(slot.id); setBookingError(null); }}
                             className={`w-full text-left px-3 py-2.5 rounded-xl border text-xs flex justify-between items-center transition-all ${
                               selectedSlot === slot.id
                                 ? 'bg-indigo-600 border-indigo-500 text-white'
@@ -516,31 +567,79 @@ export default function AdvisorProfilePage() {
                     </div>
 
                     {selectedSlot && (
-                      <div>
-                        <label className="text-[10px] text-gray-400 uppercase tracking-widest font-bold flex items-center gap-1.5 mb-2">
-                          <DollarSign size={11} /> Payment
-                        </label>
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {(['RAZORPAY', 'STRIPE', 'WALLET'] as const).map(gw => (
-                            <button type="button" key={gw} onClick={() => setPaymentGateway(gw)}
-                              className={`py-2 rounded-lg text-[9px] font-bold transition-all text-center border ${
-                                paymentGateway === gw ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-indigo-300'
-                              }`}>
-                              {gw}
-                            </button>
-                          ))}
+                      <>
+                        {/* Step 2: Consultation mode */}
+                        <div>
+                          <label className="text-[10px] text-gray-400 uppercase tracking-widest font-bold flex items-center gap-1.5 mb-2">
+                            <MessageSquare size={11} /> Consultation Mode
+                          </label>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {([
+                              { key: 'VIDEO',    label: '📹 Video' },
+                              { key: 'PHONE',    label: '📞 Phone' },
+                              { key: 'CHAT',     label: '💬 Chat' },
+                              { key: 'PHYSICAL', label: '🤝 In-Person' },
+                            ] as const).map(({ key, label }) => (
+                              <button type="button" key={key} onClick={() => setConsultMode(key)}
+                                className={`py-2 rounded-xl text-[11px] font-semibold border transition-all text-center ${
+                                  consultMode === key ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-indigo-300'
+                                }`}>
+                                {label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
+
+                        {/* Step 3: Notes */}
+                        <div>
+                          <label className="text-[10px] text-gray-400 uppercase tracking-widest font-bold flex items-center gap-1.5 mb-2">
+                            <FileText size={11} /> Notes <span className="normal-case font-normal">(optional)</span>
+                          </label>
+                          <textarea
+                            value={notes}
+                            onChange={e => setNotes(e.target.value)}
+                            placeholder="Describe your requirements briefly…"
+                            rows={2}
+                            className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:border-indigo-300 bg-gray-50 placeholder-gray-300"
+                          />
+                        </div>
+
+                        {/* Step 4: Payment gateway */}
+                        <div>
+                          <label className="text-[10px] text-gray-400 uppercase tracking-widest font-bold flex items-center gap-1.5 mb-2">
+                            <DollarSign size={11} /> Payment Method
+                          </label>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {(['RAZORPAY', 'STRIPE', 'WALLET'] as const).map(gw => (
+                              <button type="button" key={gw} onClick={() => setPaymentGateway(gw)}
+                                className={`py-2 rounded-lg text-[9px] font-bold transition-all text-center border ${
+                                  paymentGateway === gw ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-indigo-300'
+                                }`}>
+                                {gw}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Error */}
+                    {bookingError && (
+                      <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl">
+                        <AlertCircle size={12} className="text-red-500 shrink-0 mt-0.5" />
+                        <span className="text-[11px] text-red-600">{bookingError}</span>
                       </div>
                     )}
 
-                    <button type="submit" disabled={!selectedSlot}
+                    <button type="submit" disabled={!selectedSlot || bookingLoading}
                       className={`w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-                        selectedSlot
+                        selectedSlot && !bookingLoading
                           ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:opacity-90 shadow-md'
                           : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
                       }`}>
-                      {!isLoggedIn ? 'Sign In & Book' : 'Book Consultation'}
-                      {selectedSlot && <ChevronRight size={15} />}
+                      {bookingLoading && <Loader2 size={15} className="animate-spin" />}
+                      {!isLoggedIn ? 'Sign In & Book' : bookingLoading ? 'Processing…' : 'Book & Pay'}
+                      {selectedSlot && !bookingLoading && <ChevronRight size={15} />}
                     </button>
                   </form>
                 )}
