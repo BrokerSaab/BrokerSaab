@@ -70,7 +70,8 @@ export default function TicketDetailPage() {
 
   const [comment,   setComment]   = useState('');
   const [sending,   setSending]   = useState(false);
-  const commentEndRef = useRef<HTMLDivElement>(null);
+  const commentEndRef   = useRef<HTMLDivElement>(null);
+  const isInitialMount  = useRef(true);
 
   const [showAddStage,   setShowAddStage]   = useState(false);
   const [stageTitle,     setStageTitle]     = useState('');
@@ -120,6 +121,7 @@ export default function TicketDetailPage() {
   }, [user?.id, id]);
 
   useEffect(() => {
+    if (isInitialMount.current) { isInitialMount.current = false; return; }
     commentEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [ticket?.comments.length]);
 
@@ -610,7 +612,6 @@ export default function TicketDetailPage() {
 
   const statusInfo = TICKET_STATUS_MAP[ticket.status] ?? { label: ticket.status, color: 'text-gray-500 bg-gray-100 border-gray-200' };
   const isClosed   = ticket.status === 'CLOSED' || ticket.status === 'PAYOUT_RELEASED';
-  const canClose   = isClient && !isClosed && ticket.status !== 'DISPUTED';
   const confirmedStages = ticket.stages.filter(s => s.status === 'CONFIRMED').length;
 
   return (
@@ -725,9 +726,22 @@ export default function TicketDetailPage() {
                   </div>
                 )}
                 {isClosed && (
-                  <div className="mt-1 flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
-                    <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
-                    <p className="text-[11px] text-emerald-700 font-semibold">Payment successfully released upon work completion</p>
+                  <div className="mt-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
+                      <p className="text-[11px] text-emerald-700 font-semibold">Payment released upon work completion</p>
+                    </div>
+                    {ticket.closingComment && (
+                      <p className="text-[11px] text-emerald-700/70 italic pl-4">"{ticket.closingComment}"</p>
+                    )}
+                    {ticket.userRating && (
+                      <div className="flex items-center gap-1 pl-4">
+                        {[1,2,3,4,5].map(n => (
+                          <Star key={n} size={12} className={n <= ticket.userRating! ? 'text-amber-400 fill-amber-400' : 'text-gray-300'} />
+                        ))}
+                        <span className="text-[10px] text-gray-400 ml-1">{ticket.userRating}/5</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -819,26 +833,6 @@ export default function TicketDetailPage() {
           );
         })()}
 
-        {/* Closed / Payout info */}
-        {isClosed && (
-          <div className="rounded-2xl px-4 py-3 border border-emerald-200 bg-emerald-50">
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle2 size={14} className="text-emerald-600" />
-              <p className="text-sm font-bold text-emerald-700">Work Completed & Payment Released</p>
-            </div>
-            {ticket.closingComment && (
-              <p className="text-xs text-emerald-700/70 leading-relaxed mb-2">"{ticket.closingComment}"</p>
-            )}
-            {ticket.userRating && (
-              <div className="flex items-center gap-1">
-                {[1,2,3,4,5].map(n => (
-                  <Star key={n} size={13} className={n <= ticket.userRating! ? 'text-amber-400 fill-amber-400' : 'text-gray-300'} />
-                ))}
-                <span className="text-xs text-gray-400 ml-1">{ticket.userRating}/5</span>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ── STAGES ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">

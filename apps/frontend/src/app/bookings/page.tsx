@@ -818,32 +818,63 @@ export default function BookingsPage() {
               ) : (
                 <div className="space-y-2">
                   {tickets.map((t: any) => {
-                    const statusColor =
-                      t.status === 'OPEN'             ? 'text-blue-700 bg-blue-50 border-blue-200' :
-                      t.status === 'IN_PROGRESS'      ? 'text-amber-700 bg-amber-50 border-amber-200' :
-                      t.status === 'AWAITING_CONFIRM' ? 'text-purple-700 bg-purple-50 border-purple-200' :
-                      t.status === 'PAYOUT_RELEASED'  ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
-                      t.status === 'DISPUTED'         ? 'text-red-600 bg-red-50 border-red-200' :
-                                                        'text-slate-500 bg-slate-50 border-slate-200';
                     const needsAction = t.status === 'AWAITING_CONFIRM';
+                    const isDone      = t.status === 'PAYOUT_RELEASED' || t.status === 'CLOSED';
+                    const isDisputed  = t.status === 'DISPUTED';
+                    const statusMap: Record<string, { label: string; color: string }> = {
+                      OPEN:             { label: 'Open',          color: 'text-blue-700 bg-blue-50 border-blue-200' },
+                      IN_PROGRESS:      { label: 'In Progress',   color: 'text-amber-700 bg-amber-50 border-amber-200' },
+                      AWAITING_CONFIRM: { label: 'Action Needed', color: 'text-purple-700 bg-purple-50 border-purple-200' },
+                      PAYOUT_RELEASED:  { label: 'Completed',     color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+                      CLOSED:           { label: 'Closed',        color: 'text-slate-500 bg-slate-50 border-slate-200' },
+                      DISPUTED:         { label: 'Disputed',      color: 'text-red-600 bg-red-50 border-red-200' },
+                    };
+                    const status = statusMap[t.status] ?? { label: t.status, color: 'text-slate-500 bg-slate-50 border-slate-200' };
+                    const confirmedStages = t.stages?.filter((s: any) => s.status === 'CONFIRMED').length ?? 0;
                     return (
                       <button key={t.id}
                         onClick={() => { router.push(`/tickets/${t.id}`); setActiveSection(null); }}
-                        className={`w-full text-left flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all hover:shadow-sm ${needsAction ? 'border-purple-200 bg-purple-50/60' : 'border-slate-100 bg-white shadow-sm'}`}>
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50 border border-emerald-100">
-                          <Ticket size={15} className="text-emerald-600" />
+                        className={`w-full text-left p-4 rounded-2xl border transition-all active:scale-[0.98] ${
+                          needsAction ? 'border-purple-200 bg-purple-50/70 hover:shadow-md' :
+                          isDone      ? 'border-emerald-100 bg-emerald-50/50 hover:shadow-md' :
+                          isDisputed  ? 'border-red-100 bg-red-50/50 hover:shadow-md' :
+                                        'border-slate-100 bg-white shadow-sm hover:shadow-md hover:border-indigo-200'
+                        }`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                            needsAction ? 'bg-purple-100 border border-purple-200' :
+                            isDone      ? 'bg-emerald-100 border border-emerald-200' :
+                            isDisputed  ? 'bg-red-100 border border-red-200' :
+                                          'bg-slate-100 border border-slate-200'
+                          }`}>
+                            <Ticket size={16} className={
+                              needsAction ? 'text-purple-600' :
+                              isDone      ? 'text-emerald-600' :
+                              isDisputed  ? 'text-red-500' :
+                                            'text-slate-500'
+                            } />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-800 truncate">{t.advisor?.fullName ?? 'Advisor'}</p>
+                            <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                              ₹{Number(t.totalAmount).toLocaleString('en-IN')}
+                              {t.stages?.length ? ` · ${confirmedStages}/${t.stages.length} stages` : ''}
+                              {' · '}{new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${status.color}`}>
+                              {status.label}
+                            </span>
+                            <ChevronRight size={13} className="text-slate-300" />
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-slate-800 truncate">{t.advisor?.fullName}</p>
-                          <p className="text-[11px] text-slate-500">
-                            {t.ticketNumber} · ₹{Number(t.totalAmount).toLocaleString('en-IN')}
-                            {t.stages?.length ? ` · ${t.stages.filter((s: any) => s.status === 'CONFIRMED').length}/${t.stages.length} stages` : ''}
-                          </p>
-                        </div>
-                        <div className="flex flex-col items-end gap-1.5 shrink-0">
-                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${statusColor}`}>{t.status.replace('_', ' ')}</span>
-                          {needsAction && <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />}
-                        </div>
+                        {needsAction && (
+                          <div className="mt-2.5 flex items-center gap-1.5 bg-purple-100 border border-purple-200 rounded-xl px-3 py-1.5">
+                            <AlertCircle size={11} className="text-purple-600 shrink-0" />
+                            <p className="text-[10px] font-semibold text-purple-700">Stage completion awaiting your confirmation — tap to review</p>
+                          </div>
+                        )}
                       </button>
                     );
                   })}
