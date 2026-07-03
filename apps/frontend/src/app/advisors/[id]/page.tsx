@@ -69,6 +69,7 @@ export default function AdvisorProfilePage() {
   const [revealedContact, setRevealed]  = useState<{ phone: string; email: string } | null>(null);
   const [unlockLoading, setUnlockLoading] = useState(false);
   const [showModal, setShowModal]       = useState(false);
+  const [avatarError, setAvatarError]   = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [isBooked, setIsBooked]         = useState(false);
   const [paymentGateway, setPaymentGateway] = useState<'RAZORPAY' | 'STRIPE' | 'WALLET'>('RAZORPAY');
@@ -191,15 +192,16 @@ export default function AdvisorProfilePage() {
       <div className="bg-white border-b border-slate-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-8">
 
-          {/* Avatar + name row — items-end so name aligns with avatar bottom */}
-          <div className="flex items-end gap-4 sm:gap-6 -mt-12 sm:-mt-16 pb-4">
+          {/* Avatar + name row — col on mobile (name stays in white bar), row on sm+ */}
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-6 -mt-10 sm:-mt-16 pb-4">
 
             {/* Avatar (overlaps up into cover via negative margin on parent) */}
             <div className="relative shrink-0 z-10">
-              {advisor.avatarUrl ? (
+              {advisor.avatarUrl && !avatarError ? (
                 <img src={resolveImg(advisor.avatarUrl)!} alt={advisor.fullName}
                   className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover shadow-2xl"
-                  style={{ border: '4px solid white' }} />
+                  style={{ border: '4px solid white' }}
+                  onError={() => setAvatarError(true)} />
               ) : (
                 <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-2xl sm:text-3xl font-black text-white shadow-2xl"
                   style={{ border: '4px solid white' }}>
@@ -219,8 +221,8 @@ export default function AdvisorProfilePage() {
               )}
             </div>
 
-            {/* Name + badges + stats — sits to the right, bottom-aligned */}
-            <div className="flex-1 min-w-0 pb-1">
+            {/* Name + badges + stats */}
+            <div className="sm:flex-1 min-w-0 pb-1">
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{advisor.fullName}</h1>
                 <ShieldCheck size={18} className="text-emerald-500 shrink-0" />
@@ -277,7 +279,7 @@ export default function AdvisorProfilePage() {
                   </div>
                   <h2 className="text-sm font-black text-gray-900 uppercase tracking-wide">About</h2>
                 </div>
-                <p className="text-sm text-gray-600 leading-relaxed">{advisor.bio}</p>
+                <p className="text-sm text-gray-600 leading-relaxed break-words">{advisor.bio}</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-5 pt-5 border-t border-gray-100">
                   <div className="flex items-center gap-2 text-xs text-gray-600">
                     <Award size={14} className="text-indigo-500 shrink-0" />
