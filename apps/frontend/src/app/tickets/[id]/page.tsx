@@ -70,8 +70,8 @@ export default function TicketDetailPage() {
 
   const [comment,   setComment]   = useState('');
   const [sending,   setSending]   = useState(false);
-  const commentEndRef   = useRef<HTMLDivElement>(null);
-  const isInitialMount  = useRef(true);
+  const commentEndRef      = useRef<HTMLDivElement>(null);
+  const prevCommentCount   = useRef<number | undefined>(undefined);
 
   const [showAddStage,   setShowAddStage]   = useState(false);
   const [stageTitle,     setStageTitle]     = useState('');
@@ -121,8 +121,11 @@ export default function TicketDetailPage() {
   }, [user?.id, id]);
 
   useEffect(() => {
-    if (isInitialMount.current) { isInitialMount.current = false; return; }
-    commentEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const count = ticket?.comments.length;
+    if (count !== undefined && prevCommentCount.current !== undefined && count > prevCommentCount.current) {
+      commentEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    prevCommentCount.current = count;
   }, [ticket?.comments.length]);
 
   const sendComment = async () => {
