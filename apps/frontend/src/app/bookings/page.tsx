@@ -266,14 +266,6 @@ export default function BookingsPage() {
           </div>
           <div className="ml-auto flex items-center gap-2">
             <LiveClock className="text-[11px] text-slate-400 hidden sm:flex" showDate={false} />
-            <Link href="/advisors"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all hover:scale-105"
-              style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#071527' }}>
-              <Phone size={12} /> Find Advisors
-            </Link>
-            <Link href="/contact" className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition-all">
-              <MessageSquare size={12} /> Support
-            </Link>
             <button
               onClick={() => { fetchBookings(); fetchContactCredits(); fetchContactedAdvisors(); fetchQuotes(); fetchTickets(); }}
               className="text-slate-400 hover:text-indigo-500 transition-colors p-1.5 rounded-lg hover:bg-indigo-50" title="Refresh all">
@@ -551,21 +543,6 @@ export default function BookingsPage() {
         </div>
 
         {/* ── Quick action links ── */}
-        <div className="flex flex-wrap gap-2 pb-4">
-          <Link href="/advisors"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border border-indigo-200 text-indigo-600 hover:bg-indigo-50 transition-all">
-            <Phone size={13} /> Browse Advisors
-          </Link>
-          <Link href="/buy-pack"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border"
-            style={{ borderColor: 'rgba(212,175,55,0.4)', background: 'rgba(212,175,55,0.06)', color: '#B48C22' }}>
-            <CreditCard size={13} /> Buy Contact Pack
-          </Link>
-          <Link href="/contact"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border border-slate-200 text-slate-500 hover:bg-white transition-all">
-            <MessageSquare size={13} /> Support
-          </Link>
-        </div>
 
       </div>
     </div>
