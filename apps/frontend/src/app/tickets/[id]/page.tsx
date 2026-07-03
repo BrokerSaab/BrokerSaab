@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Loader2, CheckCircle2, Clock, AlertCircle, ShieldCheck,
   MessageSquare, Plus, ChevronRight, Star,
-  Send, AlertTriangle, RefreshCw, Edit3
+  Send, AlertTriangle, RefreshCw, Edit3, Download, Wallet,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCategoryName } from '@/data/categoryMap';
@@ -89,6 +89,8 @@ export default function TicketDetailPage() {
   const [showDispute,    setShowDispute]    = useState(false);
   const [disputeReason,  setDisputeReason]  = useState('');
   const [disputing,      setDisputing]      = useState(false);
+
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   const fetchTicket = async () => {
     try {
@@ -211,6 +213,170 @@ export default function TicketDetailPage() {
     finally { setDisputing(false); }
   };
 
+  const downloadInvoicePdf = async () => {
+    if (!ticket) return;
+    setInvoiceLoading(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const W = 210;
+      const total   = Number(ticket.totalAmount);
+      const comm    = Number(ticket.commission);
+      const net     = Number(ticket.netAmount);
+      const commPct = total > 0 ? Math.round((comm / total) * 100) : 15;
+      const rawDate = ticket.payoutReleasedAt || ticket.closedAt || ticket.createdAt;
+      const fmtDate = new Date(rawDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+      const category = ticket.quote.categorySlug ? getCategoryName(ticket.quote.categorySlug) : 'Advisory Service';
+
+      // ── Navy header ──────────────────────────────────────────────
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, W, 48, 'F');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(22);
+      doc.setTextColor(212, 175, 55);
+      doc.text('BrokerSaab', 18, 22);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(203, 213, 225);
+      doc.text('Verified Financial Advisory Platform', 18, 30);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(212, 175, 55);
+      doc.text('EARNINGS STATEMENT', W - 18, 20, { align: 'right' });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(203, 213, 225);
+      doc.text(`Ref: ${ticket.ticketNumber}`, W - 18, 28, { align: 'right' });
+      doc.text(fmtDate, W - 18, 35, { align: 'right' });
+
+      // ── Parties ──────────────────────────────────────────────────
+      let y = 64;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text('ADVISOR', 18, y);
+      doc.text('CLIENT', W / 2 + 8, y);
+
+      y += 6;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text(ticket.advisor.fullName, 18, y);
+      doc.text(ticket.client.fullName, W / 2 + 8, y);
+
+      // ── Divider ──────────────────────────────────────────────────
+      y += 9;
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.line(18, y, W - 18, y);
+
+      // ── Service / ticket ─────────────────────────────────────────
+      y += 9;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text('SERVICE', 18, y);
+      doc.text('TICKET #', W / 2 + 8, y);
+
+      y += 6;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text(category, 18, y);
+      doc.text(ticket.ticketNumber, W / 2 + 8, y);
+
+      // ── Quote line items ─────────────────────────────────────────
+      if (ticket.quote.lineItems.length > 0) {
+        y += 13;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text('SCOPE OF WORK', 18, y);
+
+        y += 6;
+        for (const item of ticket.quote.lineItems) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          doc.setTextColor(51, 65, 85);
+          doc.text(`•  ${item.description}`, 22, y);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`₹${Number(item.amount).toLocaleString('en-IN')}`, W - 18, y, { align: 'right' });
+          doc.setFont('helvetica', 'normal');
+          y += 6;
+        }
+      }
+
+      // ── Payment breakdown table ───────────────────────────────────
+      y += 6;
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.line(18, y, W - 18, y);
+
+      y += 10;
+      doc.setFillColor(248, 250, 252);
+      doc.rect(18, y - 5, W - 36, 10, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text('PAYMENT BREAKDOWN', 23, y);
+      doc.text('AMOUNT', W - 23, y, { align: 'right' });
+
+      y += 11;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(51, 65, 85);
+      doc.text('Client Paid (Escrow)', 23, y);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(`₹${total.toLocaleString('en-IN')}`, W - 23, y, { align: 'right' });
+
+      y += 8;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Platform Commission (${commPct}%)`, 23, y);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(220, 38, 38);
+      doc.text(`− ₹${comm.toLocaleString('en-IN')}`, W - 23, y, { align: 'right' });
+
+      y += 4;
+      doc.setDrawColor(212, 175, 55);
+      doc.setLineWidth(0.4);
+      doc.line(18, y + 2, W - 18, y + 2);
+      y += 9;
+
+      doc.setFillColor(236, 253, 245);
+      doc.rect(18, y - 5, W - 36, 13, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(4, 120, 87);
+      doc.text('You Received', 23, y + 2);
+      doc.setFontSize(13);
+      doc.text(`₹${net.toLocaleString('en-IN')}`, W - 23, y + 2, { align: 'right' });
+
+      // ── Footer ───────────────────────────────────────────────────
+      y += 22;
+      doc.setDrawColor(212, 175, 55);
+      doc.setLineWidth(0.4);
+      doc.line(18, y, W - 18, y);
+      y += 7;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text('This is a system-generated earnings statement from BrokerSaab.', W / 2, y, { align: 'center' });
+      y += 5;
+      doc.text('For queries, contact support@brokersaab.com', W / 2, y, { align: 'center' });
+
+      doc.save(`BrokerSaab-Statement-${ticket.ticketNumber}.pdf`);
+    } catch (err) {
+      console.error('Invoice PDF failed:', err);
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <Loader2 size={32} className="animate-spin text-indigo-500" />
@@ -269,7 +435,9 @@ export default function TicketDetailPage() {
                 ₹{Number(ticket.totalAmount).toLocaleString('en-IN')}
               </p>
               <p className="text-[10px] text-gray-400">
-                {isClosed ? 'Released to advisor' : 'Held securely by BrokerSaab'}
+                {isClosed
+                  ? (isAdvisor ? 'Released to your wallet' : 'Payment complete')
+                  : 'Held securely by BrokerSaab'}
               </p>
             </div>
           </div>
@@ -285,34 +453,67 @@ export default function TicketDetailPage() {
           )}
         </div>
 
-        {/* Commission breakdown */}
-        <div className="rounded-2xl overflow-hidden bg-white border border-slate-100 shadow-sm">
-          <div className="px-4 py-3 border-b border-slate-50 bg-slate-50">
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Payment Breakdown</p>
-          </div>
-          <div className="px-4 py-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-500">Client Paid (Escrow)</span>
-              <span className="text-sm font-bold text-slate-800">₹{Number(ticket.totalAmount).toLocaleString('en-IN')}</span>
+        {/* Payment section — role-gated */}
+        {isClient && (
+          <div className="rounded-2xl overflow-hidden bg-white border border-slate-100 shadow-sm">
+            <div className="px-4 py-3 border-b border-slate-50 bg-slate-50">
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Your Payment</p>
             </div>
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">Amount Paid</span>
+                <span className="text-sm font-bold text-slate-800">₹{Number(ticket.totalAmount).toLocaleString('en-IN')}</span>
+              </div>
+              {isClosed && (
+                <div className="mt-1 flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                  <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
+                  <p className="text-[11px] text-emerald-700 font-semibold">Payment successfully released upon work completion</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {isAdvisor && (
+          <div className="rounded-2xl overflow-hidden bg-white border border-slate-100 shadow-sm">
+            <div className="px-4 py-3 border-b border-slate-50 bg-slate-50 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Wallet size={12} className="text-amber-500" />
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Your Earnings</p>
+              </div>
+              <button
+                onClick={downloadInvoicePdf}
+                disabled={invoiceLoading}
+                className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {invoiceLoading
+                  ? <><Loader2 size={10} className="animate-spin" /> Generating…</>
+                  : <><Download size={10} /> Download Statement</>
+                }
+              </button>
+            </div>
+            <div className="px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">Client Paid (Escrow)</span>
+                <span className="text-sm font-bold text-slate-800">₹{Number(ticket.totalAmount).toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-xs text-slate-500">Platform Commission (15%)</span>
+                <span className="text-sm font-semibold text-red-500">− ₹{Number(ticket.commission).toLocaleString('en-IN')}</span>
               </div>
-              <span className="text-sm font-semibold text-red-600">− ₹{Number(ticket.commission).toLocaleString('en-IN')}</span>
-            </div>
-            <div className="border-t border-dashed border-slate-200 pt-2 flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700">Advisor Receives</span>
-              <span className="text-base font-black text-emerald-700">₹{Number(ticket.netAmount).toLocaleString('en-IN')}</span>
-            </div>
-            {isClosed && (
-              <div className="mt-1 flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
-                <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
-                <p className="text-[11px] text-emerald-700 font-semibold">₹{Number(ticket.netAmount).toLocaleString('en-IN')} credited to advisor wallet</p>
+              <div className="border-t border-dashed border-slate-200 pt-2 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700">You Receive</span>
+                <span className="text-base font-black text-emerald-700">₹{Number(ticket.netAmount).toLocaleString('en-IN')}</span>
               </div>
-            )}
+              {isClosed && (
+                <div className="mt-1 flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                  <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
+                  <p className="text-[11px] text-emerald-700 font-semibold">₹{Number(ticket.netAmount).toLocaleString('en-IN')} credited to your wallet</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Closed / Payout info */}
         {isClosed && (
