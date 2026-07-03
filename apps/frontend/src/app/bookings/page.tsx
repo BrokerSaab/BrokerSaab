@@ -266,6 +266,10 @@ export default function BookingsPage() {
           </div>
           <div className="ml-auto flex items-center gap-2">
             <LiveClock className="text-[11px] text-slate-400 hidden sm:flex" showDate={false} />
+            <Link href="/contact" className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-indigo-500 transition-colors px-2 py-1.5 rounded-lg hover:bg-indigo-50" title="Support">
+              <MessageSquare size={13} />
+              <span className="hidden sm:inline font-medium">Support</span>
+            </Link>
             <button
               onClick={() => { fetchBookings(); fetchContactCredits(); fetchContactedAdvisors(); fetchQuotes(); fetchTickets(); }}
               className="text-slate-400 hover:text-indigo-500 transition-colors p-1.5 rounded-lg hover:bg-indigo-50" title="Refresh all">
