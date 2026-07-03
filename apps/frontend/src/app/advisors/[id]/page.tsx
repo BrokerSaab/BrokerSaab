@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Star, ShieldCheck, MapPin, Award, Languages, Calendar, Clock,
   ArrowLeft, User, BadgeCheck, Phone, Mail, Eye, Loader2, Copy,
-  Check, DollarSign, MessageSquare, Briefcase, ChevronRight, FileText, Crown, AlertCircle
+  Check, DollarSign, MessageSquare, Briefcase, ChevronRight, FileText, Crown, AlertCircle, Users
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -27,6 +27,7 @@ interface AdvisorDetail {
   verificationStatus: string; isAuthorizedDealer: boolean; dealerAuthorizedAt?: string;
   state?: string; consultationFee: string; languages: string[]; location: string;
   categories: string[]; specializations: string[]; averageRating: number; ratingsCount: number;
+  clientsServed: number;
   reviews: { id: string; clientName: string; rating: number; comment: string; date: string }[];
   availability: { id: string; dayOfWeek: number; startTime: string; endTime: string }[];
   phoneNumber?: string; email?: string;
@@ -287,9 +288,16 @@ export default function AdvisorProfilePage() {
               <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                 <div className="flex items-center gap-1">
                   <StarRating rating={advisor.averageRating} size={11} />
-                  <span className="font-bold text-amber-600 ml-0.5">{advisor.averageRating > 0 ? advisor.averageRating.toFixed(1) : 'New'}</span>
+                  <span className="font-bold text-amber-600 ml-0.5">
+                    {advisor.ratingsCount > 0 ? advisor.averageRating.toFixed(1) : 'New'}
+                  </span>
                   <span className="text-slate-400">({advisor.ratingsCount})</span>
                 </div>
+                {advisor.clientsServed > 0 && (
+                  <span className="flex items-center gap-1 text-indigo-600 font-semibold">
+                    <Users size={11} className="text-indigo-500" />{advisor.clientsServed} served
+                  </span>
+                )}
                 <span className="flex items-center gap-1"><Award size={11} className="text-amber-500" />{advisor.experienceYears} yrs exp</span>
                 <span className="flex items-center gap-1"><MapPin size={11} className="text-blue-500" />{advisor.location.split(',')[0]}</span>
                 {advisor.state && <span className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">📍 {advisor.state}</span>}
@@ -428,7 +436,7 @@ export default function AdvisorProfilePage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <StarRating rating={advisor.averageRating} />
-                  <span className="text-sm font-black text-gray-800">{advisor.averageRating > 0 ? advisor.averageRating.toFixed(1) : '—'}</span>
+                  <span className="text-sm font-black text-gray-800">{advisor.ratingsCount > 0 ? advisor.averageRating.toFixed(1) : '—'}</span>
                   <span className="text-xs text-gray-400">({advisor.ratingsCount})</span>
                 </div>
               </div>

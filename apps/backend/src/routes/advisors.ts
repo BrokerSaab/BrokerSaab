@@ -416,8 +416,9 @@ router.get('/:id', optionalAuth, async (req: AuthenticatedRequest, res: Response
         date: b.review?.createdAt || b.createdAt
       }));
 
+    const clientsServed = advisor.bookings.length; // all COMPLETED bookings
     const ratingsCount = reviewsList.length;
-    const avgRating = ratingsCount > 0 ? reviewsList.reduce((a, b) => a + b.rating, 0) / ratingsCount : 5.0;
+    const avgRating = ratingsCount > 0 ? reviewsList.reduce((a, b) => a + b.rating, 0) / ratingsCount : 0;
 
     // If authenticated user has unlocked this advisor, include contact info
     let contactInfo: { phoneNumber?: string; email?: string } = {};
@@ -454,6 +455,7 @@ router.get('/:id', optionalAuth, async (req: AuthenticatedRequest, res: Response
         reviews: reviewsList,
         ratingsCount,
         averageRating: parseFloat(avgRating.toFixed(1)),
+        clientsServed,
         ...contactInfo,
       }
     });
