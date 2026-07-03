@@ -73,7 +73,7 @@ export default function AdvisorProfilePage() {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [isBooked, setIsBooked]         = useState(false);
   const [paymentGateway, setPaymentGateway] = useState<'RAZORPAY' | 'STRIPE' | 'WALLET'>('RAZORPAY');
-  const [consultMode, setConsultMode]       = useState<'PHONE' | 'VIDEO' | 'CHAT' | 'PHYSICAL'>('VIDEO');
+  const [consultMode, setConsultMode]       = useState<'PHONE' | 'CHAT' | 'PHYSICAL'>('PHONE');
   const [notes, setNotes]                   = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError]     = useState<string | null>(null);
@@ -573,9 +573,8 @@ export default function AdvisorProfilePage() {
                           <label className="text-[10px] text-gray-400 uppercase tracking-widest font-bold flex items-center gap-1.5 mb-2">
                             <MessageSquare size={11} /> Consultation Mode
                           </label>
-                          <div className="grid grid-cols-2 gap-1.5">
+                          <div className="grid grid-cols-3 gap-1.5">
                             {([
-                              { key: 'VIDEO',    label: '📹 Video' },
                               { key: 'PHONE',    label: '📞 Phone' },
                               { key: 'CHAT',     label: '💬 Chat' },
                               { key: 'PHYSICAL', label: '🤝 In-Person' },
