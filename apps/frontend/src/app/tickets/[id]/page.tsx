@@ -82,6 +82,7 @@ export default function TicketDetailPage() {
   const [stageComment,  setStageComment]  = useState('');
   const [stageCommentFor, setStageCommentFor] = useState<string | null>(null);
 
+  const [showStages,     setShowStages]     = useState(true);
   const [showClose,      setShowClose]      = useState(false);
   const [closeComment,   setCloseComment]   = useState('');
   const [closeRating,    setCloseRating]    = useState(0);
@@ -840,9 +841,17 @@ export default function TicketDetailPage() {
         {/* ── STAGES ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-              <ChevronRight size={14} className="text-indigo-500" /> Work Stages
-            </h2>
+            <button
+              onClick={() => setShowStages(v => !v)}
+              className="flex items-center gap-2 group">
+              <ChevronRight size={14} className={`text-indigo-500 transition-transform duration-200 ${showStages ? 'rotate-90' : ''}`} />
+              <h2 className="text-sm font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">
+                Work Stages
+              </h2>
+              <span className="text-[10px] text-gray-400 font-normal">
+                ({ticket.stages.length} · {confirmedStages} confirmed)
+              </span>
+            </button>
             {isAdvisor && !isClosed && (
               <button onClick={() => setShowAddStage(v => !v)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition-all">
@@ -882,14 +891,15 @@ export default function TicketDetailPage() {
             </div>
           )}
 
-          {ticket.stages.length === 0 ? (
+          {showStages && ticket.stages.length === 0 && (
             <div className="rounded-2xl px-5 py-8 text-center border border-gray-100 bg-gray-50">
               <Clock size={28} className="text-gray-300 mx-auto mb-2" />
               <p className="text-gray-400 text-sm">No stages added yet</p>
               {isAdvisor && <p className="text-gray-400 text-xs mt-1">Add stages to track your work progress</p>}
               {isClient  && <p className="text-gray-400 text-xs mt-1">The advisor will add work stages shortly</p>}
             </div>
-          ) : (
+          )}
+          {showStages && ticket.stages.length > 0 && (
             <div className="space-y-3">
               {ticket.stages.map((stage, idx) => {
                 const stageInfo = STAGE_STATUS_MAP[stage.status];
@@ -925,11 +935,21 @@ export default function TicketDetailPage() {
                             <p className="text-xs text-indigo-700">{stage.advisorComment}</p>
                           </div>
                         )}
-                        {stage.confirmedAt && (
-                          <p className="text-[10px] text-emerald-600 mt-1">
-                            Confirmed {new Date(stage.confirmedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        <div className="mt-1.5 space-y-0.5">
+                          <p className="text-[10px] text-gray-400">
+                            Added {new Date(stage.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                           </p>
-                        )}
+                          {stage.completedAt && (
+                            <p className="text-[10px] text-purple-500">
+                              Marked done {new Date(stage.completedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          )}
+                          {stage.confirmedAt && (
+                            <p className="text-[10px] text-emerald-600">
+                              Confirmed {new Date(stage.confirmedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          )}
+                        </div>
 
                         {/* Advisor actions */}
                         {isAdvisor && !isClosed && stage.status !== 'CONFIRMED' && (
