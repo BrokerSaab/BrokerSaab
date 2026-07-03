@@ -389,7 +389,7 @@ router.get('/:id', optionalAuth, async (req: AuthenticatedRequest, res: Response
           where: { isBooked: false }
         },
         bookings: {
-          where: { status: 'COMPLETED' },
+          where: { status: { in: ['COMPLETED', 'ACCEPTED'] } },
           include: {
             client: { select: { id: true, fullName: true, avatarUrl: true } },
             review: true,
