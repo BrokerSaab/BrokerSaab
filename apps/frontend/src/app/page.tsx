@@ -9,7 +9,7 @@ import {
   Search, MapPin, Star, Award, ShieldCheck, Languages, ArrowRight, UserCheck,
   Home, Shield, FileCheck, Briefcase, Percent, FileText, Coins, Landmark,
   Scale, Building2, CreditCard, Phone, Mail, CheckCircle2, Users, Clock, ChevronDown,
-  User, Sun, Moon, BadgeCheck, Loader2, Copy, Check, QrCode, Crown, Download,
+  User, Sun, Moon, BadgeCheck, Loader2, Copy, Check, QrCode, Crown, Download, Calculator,
 } from 'lucide-react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require('react-qr-code').default as React.ComponentType<{ value: string; size?: number; bgColor?: string; fgColor?: string; level?: string }>;
@@ -24,6 +24,7 @@ import LiveClock from '@/components/LiveClock';
 import StatePickerPopup from '@/components/StatePickerPopup';
 import ServiceDetailModal from '@/components/ServiceDetailModal';
 import ContactUnlockModal from '@/components/ContactUnlockModal';
+import FeeCalculatorModal from '@/components/FeeCalculatorModal';
 
 /* ═══════════════════════════════════════════════
    DATA — Mock Advisors
@@ -649,6 +650,7 @@ export default function DiscoverPage() {
   const [showOffer, setShowOffer] = useState(false);
   const [showStatePicker, setShowStatePicker] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
   const [siteUrl, setSiteUrl] = useState('');
   const [qrCopied, setQrCopied] = useState(false);
   const [qrDownloading, setQrDownloading] = useState(false);
@@ -727,6 +729,13 @@ export default function DiscoverPage() {
           }}
         />
       )}
+
+      {/* ── Fee Calculator Modal ── */}
+      <FeeCalculatorModal
+        isOpen={showCalculator}
+        onClose={() => setShowCalculator(false)}
+        role="CLIENT"
+      />
 
       {/* ── QR Code Modal ── */}
       {showQR && (
@@ -890,6 +899,13 @@ export default function DiscoverPage() {
             style={{ color: 'rgba(212,175,55,0.8)', border: '1px solid rgba(212,175,55,0.25)' }}
             title="Scan QR to share BrokerSaab">
             <QrCode size={13} /> QR
+          </button>
+          <button
+            onClick={() => setShowCalculator(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all hover:bg-white/10"
+            style={{ color: 'rgba(212,175,55,0.8)', border: '1px solid rgba(212,175,55,0.25)' }}
+            title="Fee breakdown calculator">
+            <Calculator size={13} /> Fees
           </button>
           {selectedState && (
             <span className="text-[11px] text-white/40 hidden sm:inline">

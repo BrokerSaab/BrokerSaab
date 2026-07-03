@@ -8,13 +8,14 @@ import {
   CheckCircle2, XCircle, ShieldCheck, RefreshCw, LayoutDashboard,
   Phone, MessageSquare, BadgeCheck, Camera, Layers, FileText, Bell,
   Eye, Edit3, Send, Users, Ticket, QrCode, Copy, Check, X, Download,
-  CreditCard, Crown, Zap, TrendingUp, Award, Star
+  CreditCard, Crown, Zap, TrendingUp, Award, Star, Calculator,
 } from 'lucide-react';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require('react-qr-code').default as React.ComponentType<{ value: string; size?: number; bgColor?: string; fgColor?: string; level?: string }>;
 import { useAuth } from '@/contexts/AuthContext';
 import LiveClock from '@/components/LiveClock';
 import AdvisorFillQuotePanel, { QuoteRequest } from '@/components/AdvisorFillQuotePanel';
+import FeeCalculatorModal from '@/components/FeeCalculatorModal';
 import { getCategoryName } from '@/data/categoryMap';
 import { io as ioClient } from 'socket.io-client';
 
@@ -116,6 +117,7 @@ export default function AdvisorDashboard() {
 
   // QR code
   const [showQR,         setShowQR]         = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
   const [advisorPublicId, setAdvisorPublicId] = useState<string | null>(null);
   const [qrCopied,       setQrCopied]       = useState(false);
   const [pdfLoading,     setPdfLoading]     = useState(false);
@@ -708,6 +710,12 @@ export default function AdvisorDashboard() {
               title="View My QR Code">
               <QrCode size={13} /> QR Code
             </button>
+            <button onClick={() => setShowCalculator(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:scale-105"
+              style={{ background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.35)', color: '#D4AF37' }}
+              title="Fee breakdown calculator">
+              <Calculator size={13} /> Fee Calc
+            </button>
             <Link href="/advisor/services" className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition-all">
               <Layers size={13} /> Services
             </Link>
@@ -1234,6 +1242,13 @@ export default function AdvisorDashboard() {
         setShowQuotePanel(false);
         setIsProactive(false);
       }}
+    />
+
+    {/* Fee Calculator Modal */}
+    <FeeCalculatorModal
+      isOpen={showCalculator}
+      onClose={() => setShowCalculator(false)}
+      role="ADVISOR"
     />
 
     {/* QR Code Modal */}

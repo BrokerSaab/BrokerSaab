@@ -202,6 +202,11 @@ router.post(
       const commission = parseFloat((baseAmount * 0.15).toFixed(2));
       const netAmount  = parseFloat((baseAmount - commission).toFixed(2));
 
+      // Advisor payout deductions (deducted from netAmount at release)
+      const advisorGatewayFee  = parseFloat((netAmount * 0.015).toFixed(2));
+      const advisorPlatformFee = netAmount <= 3000 ? 30 : netAmount <= 5000 ? 50 : parseFloat((netAmount * 0.01).toFixed(2));
+      const advisorPayout      = parseFloat((netAmount - advisorGatewayFee - advisorPlatformFee).toFixed(2));
+
       let paymentRef = '';
 
       if (gateway === 'WALLET') {
@@ -250,6 +255,9 @@ router.post(
             totalAmount,
             commission,
             netAmount,
+            advisorGatewayFee,
+            advisorPlatformFee,
+            advisorPayout,
             paymentRef,
           },
         });

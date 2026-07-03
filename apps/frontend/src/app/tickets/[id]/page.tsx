@@ -29,6 +29,7 @@ interface Ticket {
   id: string; ticketNumber: string; status: string;
   baseAmount?: string; platformFee?: string; gatewayFee?: string;
   totalAmount: string; commission: string; netAmount: string;
+  advisorGatewayFee?: string; advisorPlatformFee?: string; advisorPayout?: string;
   paymentRef?: string; closedAt?: string;
   closingComment?: string; userRating?: number; userReview?: string; payoutReleasedAt?: string;
   createdAt: string; updatedAt: string;
@@ -393,10 +394,14 @@ export default function TicketDetailPage() {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const W = 210;
-      const total   = Number(ticket.totalAmount);
-      const comm    = Number(ticket.commission);
-      const net     = Number(ticket.netAmount);
-      const commPct = total > 0 ? Math.round((comm / total) * 100) : 15;
+      const base          = Number(ticket.baseAmount        ?? ticket.totalAmount);
+      const comm          = Number(ticket.commission);
+      const net           = Number(ticket.netAmount);
+      const advGateway    = Number(ticket.advisorGatewayFee  ?? 0);
+      const advPlatform   = Number(ticket.advisorPlatformFee ?? 0);
+      const advPayout     = Number(ticket.advisorPayout      ?? net);
+      const commPct       = base > 0 ? Math.round((comm / base) * 100) : 15;
+      const hasAdvisorFees = advGateway > 0 || advPlatform > 0;
       const rawDate = ticket.payoutReleasedAt || ticket.closedAt || ticket.createdAt;
       const fmtDate = new Date(rawDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
       const category = ticket.quote.categorySlug ? getCategoryName(ticket.quote.categorySlug) : 'Advisory Service';
@@ -497,37 +502,76 @@ export default function TicketDetailPage() {
       doc.text('PAYMENT BREAKDOWN', 23, y);
       doc.text('AMOUNT', W - 23, y, { align: 'right' });
 
+      const pdfFmt = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const deductRow = (label: string, value: string) => {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text(label, 23, y);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(220, 38, 38);
+        doc.text(value, W - 23, y, { align: 'right' });
+        y += 8;
+      };
+      const normalRow = (label: string, value: string) => {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(51, 65, 85);
+        doc.text(label, 23, y);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text(value, W - 23, y, { align: 'right' });
+        y += 8;
+      };
+
       y += 11;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(51, 65, 85);
-      doc.text('Client Paid (Escrow)', 23, y);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(15, 23, 42);
-      doc.text(`₹${total.toLocaleString('en-IN')}`, W - 23, y, { align: 'right' });
+      normalRow('Advisory Fee (Quote)', `₹${pdfFmt(base)}`);
+      deductRow(`Platform Commission (${commPct}%)`, `− ₹${pdfFmt(comm)}`);
 
-      y += 8;
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Platform Commission (${commPct}%)`, 23, y);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(220, 38, 38);
-      doc.text(`− ₹${comm.toLocaleString('en-IN')}`, W - 23, y, { align: 'right' });
+      // Sub-total divider
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.line(23, y - 3, W - 23, y - 3);
 
-      y += 4;
+      normalRow('Sub-total after commission', `₹${pdfFmt(net)}`);
+
+      if (hasAdvisorFees) {
+        deductRow('Payment Gateway Fee (1.5%)', `− ₹${pdfFmt(advGateway)}`);
+        deductRow(
+          `Platform Fee ${net <= 3000 ? '(flat ₹30)' : net <= 5000 ? '(flat ₹50)' : '(1%)'}`,
+          `− ₹${pdfFmt(advPlatform)}`
+        );
+      }
+
       doc.setDrawColor(212, 175, 55);
       doc.setLineWidth(0.4);
-      doc.line(18, y + 2, W - 18, y + 2);
-      y += 9;
+      doc.line(18, y, W - 18, y);
+      y += 8;
 
       doc.setFillColor(236, 253, 245);
       doc.rect(18, y - 5, W - 36, 13, 'F');
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
       doc.setTextColor(4, 120, 87);
-      doc.text('You Received', 23, y + 2);
+      doc.text('You Receive', 23, y + 2);
       doc.setFontSize(13);
-      doc.text(`₹${net.toLocaleString('en-IN')}`, W - 23, y + 2, { align: 'right' });
+      doc.text(`₹${pdfFmt(hasAdvisorFees ? advPayout : net)}`, W - 23, y + 2, { align: 'right' });
+
+      // Non-refundable notice (advisor fees)
+      if (hasAdvisorFees) {
+        y += 18;
+        doc.setFillColor(255, 247, 237);
+        doc.rect(18, y, W - 36, 16, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(194, 65, 12);
+        doc.text('DEDUCTION NOTICE', 23, y + 6);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(154, 52, 18);
+        doc.text(`Gateway Fee (₹${pdfFmt(advGateway)}) and Platform Fee (₹${pdfFmt(advPlatform)}) are deducted before payout and are non-refundable.`, 23, y + 12);
+        y += 6;
+      }
 
       // ── Footer ───────────────────────────────────────────────────
       y += 22;
@@ -691,46 +735,89 @@ export default function TicketDetailPage() {
           );
         })()}
 
-        {isAdvisor && (
-          <div className="rounded-2xl overflow-hidden bg-white border border-slate-100 shadow-sm">
-            <div className="px-4 py-3 border-b border-slate-50 bg-slate-50 flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Wallet size={12} className="text-amber-500" />
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Your Earnings</p>
-              </div>
-              <button
-                onClick={downloadInvoicePdf}
-                disabled={invoiceLoading}
-                className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {invoiceLoading
-                  ? <><Loader2 size={10} className="animate-spin" /> Generating…</>
-                  : <><Download size={10} /> Download Statement</>
-                }
-              </button>
-            </div>
-            <div className="px-4 py-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500">Client Paid (Escrow)</span>
-                <span className="text-sm font-bold text-slate-800">₹{Number(ticket.totalAmount).toLocaleString('en-IN')}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500">Platform Commission (15%)</span>
-                <span className="text-sm font-semibold text-red-500">− ₹{Number(ticket.commission).toLocaleString('en-IN')}</span>
-              </div>
-              <div className="border-t border-dashed border-slate-200 pt-2 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700">You Receive</span>
-                <span className="text-base font-black text-emerald-700">₹{Number(ticket.netAmount).toLocaleString('en-IN')}</span>
-              </div>
-              {isClosed && (
-                <div className="mt-1 flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
-                  <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
-                  <p className="text-[11px] text-emerald-700 font-semibold">₹{Number(ticket.netAmount).toLocaleString('en-IN')} credited to your wallet</p>
+        {isAdvisor && (() => {
+          const base             = Number(ticket.baseAmount        ?? ticket.totalAmount);
+          const commission       = Number(ticket.commission);
+          const net              = Number(ticket.netAmount);
+          const advGateway       = Number(ticket.advisorGatewayFee  ?? 0);
+          const advPlatform      = Number(ticket.advisorPlatformFee ?? 0);
+          const advPayout        = Number(ticket.advisorPayout      ?? net);
+          const hasAdvisorFees   = advGateway > 0 || advPlatform > 0;
+          const fmtIN = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          return (
+            <div className="rounded-2xl overflow-hidden bg-white border border-slate-100 shadow-sm">
+              <div className="px-4 py-3 border-b border-slate-50 bg-slate-50 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Wallet size={12} className="text-amber-500" />
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Your Earnings</p>
                 </div>
-              )}
+                <button
+                  onClick={downloadInvoicePdf}
+                  disabled={invoiceLoading}
+                  className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {invoiceLoading
+                    ? <><Loader2 size={10} className="animate-spin" /> Generating…</>
+                    : <><Download size={10} /> Download Statement</>}
+                </button>
+              </div>
+              <div className="px-4 py-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500">Advisory Fee (Quote)</span>
+                  <span className="text-sm font-bold text-slate-800">₹{fmtIN(base)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500">Platform Commission (15%)</span>
+                  <span className="text-sm font-semibold text-red-500">− ₹{fmtIN(commission)}</span>
+                </div>
+                <div className="border-t border-dashed border-slate-200 pt-2 flex items-center justify-between">
+                  <span className="text-xs text-slate-600">Sub-total</span>
+                  <span className="text-sm font-bold text-slate-700">₹{fmtIN(net)}</span>
+                </div>
+                {hasAdvisorFees && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">Payment Gateway Fee (1.5%)</span>
+                      <span className="text-sm font-semibold text-red-500">− ₹{fmtIN(advGateway)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-500">
+                        Platform Fee{' '}
+                        <span className="text-slate-400">
+                          {net <= 3000 ? '(flat ₹30)' : net <= 5000 ? '(flat ₹50)' : '(1%)'}
+                        </span>
+                      </span>
+                      <span className="text-sm font-semibold text-red-500">− ₹{fmtIN(advPlatform)}</span>
+                    </div>
+                    <div className="border-t border-dashed border-slate-200 pt-2 flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-700">You Receive</span>
+                      <span className="text-base font-black text-emerald-700">₹{fmtIN(advPayout)}</span>
+                    </div>
+                    <div className="bg-orange-50 border border-orange-100 rounded-xl px-3 py-2">
+                      <p className="text-[10px] text-orange-600 leading-relaxed">
+                        Gateway Fee (₹{fmtIN(advGateway)}) and Platform Fee (₹{fmtIN(advPlatform)}) are deducted before payout. These are non-refundable.
+                      </p>
+                    </div>
+                  </>
+                )}
+                {!hasAdvisorFees && (
+                  <div className="border-t border-dashed border-slate-200 pt-2 flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-700">You Receive</span>
+                    <span className="text-base font-black text-emerald-700">₹{fmtIN(net)}</span>
+                  </div>
+                )}
+                {isClosed && (
+                  <div className="mt-1 flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
+                    <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />
+                    <p className="text-[11px] text-emerald-700 font-semibold">
+                      ₹{fmtIN(hasAdvisorFees ? advPayout : net)} credited to your wallet
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Closed / Payout info */}
         {isClosed && (
