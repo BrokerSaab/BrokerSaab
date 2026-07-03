@@ -225,7 +225,7 @@ export default function AdvisorProfilePage() {
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{advisor.fullName}</h1>
                 <ShieldCheck size={18} className="text-emerald-500 shrink-0" />
                 {advisor.isAuthorizedDealer && (
-                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0"
+                  <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 animate-pulse"
                     style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#1e1b4b' }}>
                     <Crown size={8} fill="currentColor" /> Authorised
                   </span>

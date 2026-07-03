@@ -1556,7 +1556,7 @@ export default function DiscoverPage() {
                           <span className="truncate">{advisor.fullName}</span>
                           <ShieldCheck className="text-emerald-500 shrink-0" size={15} />
                           {advisor.isAuthorizedDealer && (
-                            <span className="inline-flex items-center gap-0.5 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0"
+                            <span className="inline-flex items-center gap-0.5 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 animate-pulse"
                               style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#1e1b4b' }}>
                               <Crown size={7} fill="currentColor" />
                               {language === 'EN' ? 'Authorised' : 'अधिकृत'}

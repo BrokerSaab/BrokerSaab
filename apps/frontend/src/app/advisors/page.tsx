@@ -273,9 +273,15 @@ function AdvisorsListingInner() {
                       <span className="inline-block px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-100 mb-2">
                         {advisor.category}
                       </span>
-                      <h3 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-1.5">
+                      <h3 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-1.5 flex-wrap">
                         <span className="truncate">{advisor.fullName}</span>
                         <ShieldCheck className="text-emerald-500 shrink-0" size={15} />
+                        {advisor.isAuthorizedDealer && (
+                          <span className="inline-flex items-center gap-0.5 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 animate-pulse"
+                            style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#1e1b4b' }}>
+                            <Crown size={7} fill="currentColor" /> Authorised
+                          </span>
+                        )}
                       </h3>
                       {advisor.businessName && (
                         <p className="text-xs text-gray-400 mt-0.5 truncate">{advisor.businessName}</p>
