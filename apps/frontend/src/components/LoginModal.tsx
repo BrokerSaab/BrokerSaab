@@ -382,11 +382,11 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
               )}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-3">{t('auth.otp.label')}</label>
-                <div className="flex gap-2 justify-between">
+                <div className="flex gap-1.5 sm:gap-2 justify-between">
                   {otp.map((digit, i) => (
-                    <input key={i} id={`modal-otp-${i}`} type="tel" maxLength={1} value={digit}
+                    <input key={i} id={`modal-otp-${i}`} type="tel" inputMode="numeric" maxLength={1} value={digit}
                       onChange={e => handleOtpChange(i, e.target.value)} onKeyDown={e => handleOtpKeyDown(i, e)}
-                      className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-navy-800" />
+                      className="flex-1 min-w-0 h-12 text-center text-lg font-bold border-2 border-gray-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-navy-800" />
                   ))}
                 </div>
               </div>

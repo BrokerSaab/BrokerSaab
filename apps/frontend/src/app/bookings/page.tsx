@@ -646,13 +646,13 @@ export default function BookingsPage() {
                     const hLeft = hoursLeft(booking);
                     return (
                       <div key={booking.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <p className="text-[10px] text-slate-400 font-mono">{booking.bookingNumber}</p>
-                            <h3 className="font-bold text-sm text-slate-800 mt-0.5">{booking.advisor?.fullName ?? 'Advisor'}</h3>
-                            {booking.advisor?.businessName && <p className="text-xs text-slate-500">{booking.advisor.businessName}</p>}
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[10px] text-slate-400 font-mono truncate">{booking.bookingNumber}</p>
+                            <h3 className="font-bold text-sm text-slate-800 mt-0.5 truncate">{booking.advisor?.fullName ?? 'Advisor'}</h3>
+                            {booking.advisor?.businessName && <p className="text-xs text-slate-500 truncate">{booking.advisor.businessName}</p>}
                           </div>
-                          <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${s.bg} ${s.text}`}>
+                          <span className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap ${s.bg} ${s.text}`}>
                             {s.icon} {s.label}
                           </span>
                         </div>

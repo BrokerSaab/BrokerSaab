@@ -220,14 +220,14 @@ export default function ChatbotWidget() {
   ];
 
   return (
-    <div className="fixed bottom-6 right-6 z-[99990] flex flex-col items-end gap-3">
+    <div className="fixed bottom-6 right-4 sm:right-6 z-[99990] flex flex-col items-end gap-3">
 
       {/* Chat window */}
       {isOpen && (
         <div
-          className="w-[360px] sm:w-[400px] rounded-3xl overflow-hidden flex flex-col shadow-2xl animate-popIn"
+          className="w-[calc(100vw-2rem)] sm:w-[400px] rounded-3xl overflow-hidden flex flex-col shadow-2xl animate-popIn"
           style={{
-            height: '520px',
+            height: 'min(520px, calc(100dvh - 6rem))',
             background: 'linear-gradient(160deg, #071527 0%, #050e1b 100%)',
             border: '1px solid rgba(212,175,55,0.25)',
           }}

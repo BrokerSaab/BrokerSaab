@@ -1149,20 +1149,20 @@ export default function AdvisorDashboard() {
               const isUpdating = (status: string) => updating === booking.id + status;
               return (
                 <div key={booking.id} className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <p className="text-xs text-slate-400 font-mono">{booking.bookingNumber}</p>
-                      <h3 className="font-bold text-slate-800 mt-0.5 flex items-center gap-2">
-                        <User size={13} className="text-indigo-400" />
+                  <div className="flex items-start justify-between gap-2 mb-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-slate-400 font-mono truncate">{booking.bookingNumber}</p>
+                      <h3 className="font-bold text-slate-800 mt-0.5 flex items-center gap-2 truncate">
+                        <User size={13} className="text-indigo-400 shrink-0" />
                         {booking.client?.fullName ?? 'Client'}
                       </h3>
                       {booking.client?.phoneNumber && (
                         <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                          <Phone size={10} /> {booking.client.phoneNumber}
+                          <Phone size={10} className="shrink-0" /> {booking.client.phoneNumber}
                         </p>
                       )}
                     </div>
-                    <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${s.bg} ${s.text}`}>
+                    <span className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap ${s.bg} ${s.text}`}>
                       {s.label}
                     </span>
                   </div>

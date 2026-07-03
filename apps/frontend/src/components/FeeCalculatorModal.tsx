@@ -125,6 +125,7 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
                 style={{ color: '#D4AF37' }}>₹</span>
               <input
                 type="number"
+                inputMode="decimal"
                 min="0"
                 value={raw}
                 onChange={e => setRaw(e.target.value)}

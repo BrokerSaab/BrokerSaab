@@ -1204,9 +1204,9 @@ export default function AdminSuitePage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-800 flex items-center gap-2 flex-wrap">
             Admin Operations Suite
-            <span className={`text-xs border font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider ${isSuperAdmin ? 'border-indigo-200 text-indigo-700 bg-indigo-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
+            <span className={`text-xs border font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider whitespace-nowrap ${isSuperAdmin ? 'border-indigo-200 text-indigo-700 bg-indigo-50' : 'border-blue-200 text-blue-700 bg-blue-50'}`}>
               {isSuperAdmin ? 'Super Admin' : 'Sub-Admin'}
             </span>
           </h1>
@@ -1216,13 +1216,16 @@ export default function AdminSuitePage() {
       </div>
 
       {/* Tab bar */}
-      <div className="bg-white rounded-2xl p-1.5 shadow-sm border border-slate-100 flex gap-1 overflow-x-auto">
-        {TABS.map(({ key, label, icon: Icon }) => (
-          <button key={key} onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold whitespace-nowrap rounded-xl transition-all ${activeTab === key ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}>
-            <Icon size={14} /> {label}
-          </button>
-        ))}
+      <div className="relative">
+        <div className="bg-white rounded-2xl p-1.5 shadow-sm border border-slate-100 flex gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
+          {TABS.map(({ key, label, icon: Icon }) => (
+            <button key={key} onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold whitespace-nowrap rounded-xl transition-all ${activeTab === key ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}>
+              <Icon size={14} /> {label}
+            </button>
+          ))}
+        </div>
+        <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-white to-transparent rounded-r-2xl pointer-events-none" />
       </div>
 
       {/* ── OVERVIEW ── */}
@@ -1241,12 +1244,12 @@ export default function AdminSuitePage() {
             ].map((w, i) => (
               <button key={i} onClick={w.onClick}
                 className={`bg-white rounded-xl p-4 border-l-4 ${w.color} shadow-sm border border-slate-100 space-y-1 text-left w-full hover:shadow-md hover:-translate-y-0.5 transition-all group`}>
-                <div className="flex justify-between items-center text-slate-500">
-                  <span className="text-[10px] uppercase font-semibold group-hover:text-indigo-600 transition-colors">{w.label}</span>
+                <div className="flex justify-between items-center text-slate-500 gap-1">
+                  <span className="text-[10px] uppercase font-semibold group-hover:text-indigo-600 transition-colors truncate">{w.label}</span>
                   <w.icon size={14} className={`text-indigo-400 ${(w as any).pulse ? 'animate-pulse' : ''}`} />
                 </div>
                 <p className="text-xl font-black text-slate-800">{w.value}</p>
-                <span className="text-[10px] text-slate-400">{w.sub} <span className="text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">→ view</span></span>
+                <span className="text-[10px] text-slate-400 truncate block">{w.sub} <span className="text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">→ view</span></span>
               </button>
             ))}
           </div>

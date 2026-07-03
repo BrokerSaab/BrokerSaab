@@ -464,13 +464,13 @@ export default function DiscoverPage() {
 
   // Close suggestions on outside click
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    const handler = (e: PointerEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
   }, []);
 
   // Filter modules based on search query
@@ -873,7 +873,7 @@ export default function DiscoverPage() {
             {selectedState && (
               <MapPin size={13} style={{ color: '#D4AF37' }} className="shrink-0" />
             )}
-            <span className="text-xs font-bold"
+            <span className="text-xs font-bold whitespace-nowrap truncate max-w-[120px] sm:max-w-none"
               style={{ color: selectedState ? '#D4AF37' : '#e8c84a' }}>
               {selectedDistrict
                 ? `${selectedDistrict}, ${selectedState}`
@@ -961,24 +961,24 @@ export default function DiscoverPage() {
           }`}>
             <button
               onClick={() => setViewMode('user')}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
                 viewMode === 'user'
                   ? 'bg-[#0C4EAA] text-white shadow-md scale-[1.02]'
                   : (theme === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
               }`}
             >
-              <User size={13} />
+              <User size={13} className="shrink-0" />
               <span>I Need Help</span>
             </button>
             <button
               onClick={() => setViewMode('advisor')}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
                 viewMode === 'advisor'
                   ? 'bg-[#0C4EAA] text-white shadow-md scale-[1.02]'
                   : (theme === 'light' ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white')
               }`}
             >
-              <Phone size={13} />
+              <Phone size={13} className="shrink-0" />
               <span>I'm an Advisor</span>
             </button>
           </div>
@@ -986,7 +986,7 @@ export default function DiscoverPage() {
           {/* Theme switcher */}
           <button
             onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
               theme === 'light'
                 ? 'bg-slate-200/50 border-slate-300 text-slate-700 hover:bg-slate-300/50'
                 : 'bg-white/5 border-white/10 text-amber-400 hover:bg-white/10'
@@ -994,13 +994,13 @@ export default function DiscoverPage() {
           >
             {theme === 'light' ? (
               <>
-                <Moon size={13} className="text-slate-600" />
-                <span>Dark</span>
+                <Moon size={13} className="text-slate-600 shrink-0" />
+                <span className="hidden sm:inline">Dark</span>
               </>
             ) : (
               <>
-                <Sun size={13} className="text-amber-400 fill-amber-400/20" />
-                <span>Light</span>
+                <Sun size={13} className="text-amber-400 fill-amber-400/20 shrink-0" />
+                <span className="hidden sm:inline">Light</span>
               </>
             )}
           </button>

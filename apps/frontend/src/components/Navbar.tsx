@@ -123,8 +123,8 @@ export default function Navbar() {
         setLangDropdownOpen(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
   }, []);
 
   const handleModuleClick = useCallback((moduleId: string, e: React.MouseEvent) => {
