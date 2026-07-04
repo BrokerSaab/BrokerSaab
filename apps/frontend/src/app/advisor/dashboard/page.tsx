@@ -1258,7 +1258,7 @@ export default function AdvisorDashboard() {
 
     {/* QR Code Modal */}
     {showQR && (
-      <div className="fixed inset-0 z-50 overflow-y-auto"
+      <div className="fixed inset-0 z-[99999] overflow-y-auto"
         style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(8px)' }}
         onClick={() => setShowQR(false)}>
         {/* min-h-full centering wrapper — prevents top clipping on small screens */}
@@ -1445,7 +1445,7 @@ export default function AdvisorDashboard() {
 
     {/* ── Upgrade Plan Modal ─────────────────────────────────────────────── */}
     {showUpgradeModal && (
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overflow-y-auto sm:p-4"
+      <div className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center overflow-y-auto sm:p-4"
         style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
         <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg overflow-hidden flex flex-col my-auto"
           style={{ maxHeight: 'min(92vh, 820px)' }}>
@@ -1573,7 +1573,7 @@ export default function AdvisorDashboard() {
     )}
     {/* ── Withdraw Funds Modal ── */}
     {showWithdrawModal && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}>
+      <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}>
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
           <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between"
             style={{ background: 'linear-gradient(135deg,#ecfdf5,#f0fdf4)' }}>
