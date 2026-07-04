@@ -79,9 +79,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Serve uploaded KYC files — CORP: cross-origin allows Vercel frontend to load images/files
+// Serve uploaded KYC files — CORP: cross-origin allows Vercel frontend to load images/files.
+// Access-Control-Allow-Origin is required too: <img crossOrigin="anonymous"> (used to draw
+// avatars onto a <canvas> for the QR/PDF card) fails to load without it.
 app.use('/uploads', (_req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   next();
 }, express.static(path.join(__dirname, '..', 'uploads')));
 

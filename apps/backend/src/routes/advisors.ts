@@ -333,6 +333,9 @@ router.get('/me', authenticateJWT, requireRole([Role.ADVISOR]), async (req: Auth
         location: true,
         state: true,
         verificationStatus: true,
+        avatarUrl: true,
+        experienceYears: true,
+        licenseNumber: true,
         categories: {
           select: { category: { select: { slug: true, name: true } } },
         },
@@ -359,6 +362,9 @@ router.get('/me', authenticateJWT, requireRole([Role.ADVISOR]), async (req: Auth
         businessName: advisor.businessName,
         location: advisor.location ?? advisor.state ?? '',
         verificationStatus: advisor.verificationStatus,
+        avatarUrl: advisor.avatarUrl,
+        experienceYears: advisor.experienceYears,
+        licenseNumber: advisor.licenseNumber,
         categorySlugs: advisor.categories.map(c => c.category.slug),
         specializations: advisor.specializations.map(s => ({
           slug: normalizeSlug(s.specialization.slug),

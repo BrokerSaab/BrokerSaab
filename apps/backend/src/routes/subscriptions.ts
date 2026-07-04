@@ -120,7 +120,13 @@ router.post('/create-order', authenticateJWT, requireRole(['ADVISOR']), async (r
     });
   } catch (err: any) {
     console.error('[create-order]', err);
-    return res.status(500).json({ success: false, message: 'Failed to create payment order' });
+    const rzpDescription = err?.error?.description;
+    const message = err?.statusCode === 401 || /key_id|key_secret|authentication/i.test(rzpDescription || '')
+      ? 'Payment gateway is temporarily unavailable. Please try again later or contact support.'
+      : rzpDescription
+        ? `Could not start payment: ${rzpDescription}`
+        : 'Could not start payment right now. Please try again in a moment or contact support if this continues.';
+    return res.status(500).json({ success: false, message });
   }
 });
 
