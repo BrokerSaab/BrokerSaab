@@ -858,7 +858,7 @@ export default function AdvisorDashboard() {
                       <div className="text-right">
                         <p className="text-sm font-black text-emerald-700">+₹{Number(p.netAmount).toLocaleString('en-IN')}</p>
                         {Number(p.commission) > 0 && (
-                          <p className="text-[10px] text-slate-400">15% commission ₹{Number(p.commission).toLocaleString('en-IN')} deducted</p>
+                          <p className="text-[10px] text-slate-400">Fees ₹{Number(p.commission).toLocaleString('en-IN')} deducted</p>
                         )}
                       </div>
                     </div>
@@ -1648,7 +1648,7 @@ export default function AdvisorDashboard() {
                 )}
 
                 <p className="text-[10px] text-slate-400">
-                  15% platform commission has already been deducted from earnings. Withdrawals are processed within 2-3 business days.
+                  Gateway (1.5%) and platform fees (1% above ₹5,000) are deducted from earnings. Withdrawals are processed within 2-3 business days.
                 </p>
 
                 <button

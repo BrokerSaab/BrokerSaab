@@ -9,29 +9,21 @@ interface Props {
   role: 'CLIENT' | 'ADVISOR';
 }
 
-/* ── shared fee formulas (must mirror backend exactly) ── */
-function calcClientFees(base: number) {
+/* ── Fee structure:
+   - Gateway Fee: 1.5% of quote amount (always)
+   - Platform Fee: 1% of quote amount ONLY if amount > ₹5,000
+   - No flat fees. No commission.
+─────────────────────────────────────────── */
+function calcFees(base: number) {
   const gatewayFee  = parseFloat((base * 0.015).toFixed(2));
-  const platformFee = base <= 3000 ? 30 : base <= 5000 ? 50 : parseFloat((base * 0.01).toFixed(2));
+  const platformFee = base > 5000 ? parseFloat((base * 0.01).toFixed(2)) : 0;
   const clientTotal = parseFloat((base + gatewayFee + platformFee).toFixed(2));
-  return { gatewayFee, platformFee, clientTotal };
-}
-
-function calcAdvisorFees(base: number) {
-  const commission     = parseFloat((base * 0.15).toFixed(2));
-  const net            = parseFloat((base - commission).toFixed(2));
-  const advGatewayFee  = parseFloat((net * 0.015).toFixed(2));
-  const advPlatformFee = net <= 3000 ? 30 : net <= 5000 ? 50 : parseFloat((net * 0.01).toFixed(2));
-  const advisorPayout  = parseFloat((net - advGatewayFee - advPlatformFee).toFixed(2));
-  return { commission, net, advGatewayFee, advPlatformFee, advisorPayout };
+  const advisorPayout = parseFloat((base - gatewayFee - platformFee).toFixed(2));
+  return { gatewayFee, platformFee, clientTotal, advisorPayout };
 }
 
 function fmt(n: number) {
   return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function platformFeeLabel(amount: number) {
-  return amount <= 3000 ? 'flat ₹30' : amount <= 5000 ? 'flat ₹50' : '1%';
 }
 
 /* ── component ────────────────────────────────────────── */
@@ -44,9 +36,8 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
   const amount    = parseFloat(raw) || 0;
   const hasAmount = amount > 0;
   const isAdvisor = role === 'ADVISOR';
-
-  const clientFees  = hasAmount ? calcClientFees(amount)  : null;
-  const advisorFees = hasAmount ? calcAdvisorFees(amount) : null;
+  const fees      = hasAmount ? calcFees(amount) : null;
+  const hasPlatformFee = amount > 5000;
 
   /* ── row helper ── */
   const Row = ({ label, value, sub, red, bold, green, divider }: {
@@ -54,8 +45,8 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
     red?: boolean; bold?: boolean; green?: boolean; divider?: boolean;
   }) => (
     <>
-      {divider && <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '3px 0' }} />}
-      <div className={`flex items-center justify-between ${divider ? 'pt-2' : 'py-1'}`}>
+      {divider && <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '2px 0' }} />}
+      <div className={`flex items-center justify-between ${divider ? 'pt-1.5' : 'py-0.5'}`}>
         <div className="flex items-center gap-1 min-w-0">
           <span className={`text-xs truncate ${bold ? 'font-bold text-white' : 'text-white/60'}`}>{label}</span>
           {sub && <span className="text-[10px] shrink-0" style={{ color: 'rgba(255,255,255,0.3)' }}>{sub}</span>}
@@ -72,13 +63,13 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Modal — capped at 80vh so it fits 13" screens */}
+      {/* Modal */}
       <div
-        className="relative w-full sm:max-w-[420px] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col"
+        className="relative w-full sm:max-w-[400px] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col"
         style={{
           background: 'linear-gradient(160deg, #0B1F3A 0%, #111827 50%, #1a1040 100%)',
           border: '1px solid rgba(212,175,55,0.3)',
-          maxHeight: 'min(80vh, 580px)',
+          maxHeight: 'min(92dvh, 560px)',
         }}
       >
         {/* Gold–indigo accent bar */}
@@ -112,7 +103,7 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
         <div className="shrink-0 mx-4" style={{ height: 1, background: 'rgba(255,255,255,0.07)' }} />
 
         {/* Scrollable body */}
-        <div className="px-4 py-3 overflow-y-auto flex-1 space-y-3">
+        <div className="px-4 py-3 overflow-y-auto flex-1 space-y-2.5">
 
           {/* Amount input */}
           <div>
@@ -130,7 +121,7 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
                 value={raw}
                 onChange={e => setRaw(e.target.value)}
                 placeholder="e.g. 5000"
-                className="w-full pl-8 pr-3 py-2.5 rounded-xl text-base font-black tabular-nums focus:outline-none"
+                className="w-full pl-8 pr-3 py-2 rounded-xl text-base font-black tabular-nums focus:outline-none"
                 style={{
                   background: 'rgba(11, 31, 58, 0.95)',
                   border: '1px solid rgba(79, 70, 229, 0.45)',
@@ -151,25 +142,27 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
           </div>
 
           {/* ── CLIENT VIEW ── */}
-          {!isAdvisor && clientFees && hasAmount && (
+          {!isAdvisor && fees && hasAmount && (
             <div className="rounded-xl overflow-hidden"
               style={{ border: '1px solid rgba(212,175,55,0.2)', background: 'rgba(212,175,55,0.04)' }}>
-              <div className="px-3 py-2 border-b"
+              <div className="px-3 py-1.5 border-b"
                 style={{ borderColor: 'rgba(212,175,55,0.15)', background: 'rgba(212,175,55,0.09)' }}>
                 <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#D4AF37' }}>You pay</p>
               </div>
               <div className="px-3 py-2">
-                <Row label="Advisory Service Fee"       value={`₹${fmt(amount)}`} />
-                <Row label="Platform Fee" sub={`(${platformFeeLabel(amount)})`}   value={`₹${fmt(clientFees.platformFee)}`} />
-                <Row label="Gateway Fee"  sub="(1.5%)"                            value={`₹${fmt(clientFees.gatewayFee)}`} />
-                <Row label="Total Payable"              value={`₹${fmt(clientFees.clientTotal)}`} bold divider />
+                <Row label="Advisory Service Fee"  value={`₹${fmt(amount)}`} />
+                <Row label="Gateway Fee"  sub="(1.5%)"  value={`₹${fmt(fees.gatewayFee)}`} />
+                {hasPlatformFee && (
+                  <Row label="Platform Fee" sub="(1%)" value={`₹${fmt(fees.platformFee)}`} />
+                )}
+                <Row label="Total Payable" value={`₹${fmt(fees.clientTotal)}`} bold divider />
               </div>
-              <div className="px-3 pb-2.5">
-                <div className="rounded-lg px-2.5 py-2 flex items-start gap-1.5"
+              <div className="px-3 pb-2">
+                <div className="rounded-lg px-2.5 py-1.5 flex items-start gap-1.5"
                   style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
                   <Info size={11} className="shrink-0 mt-0.5" style={{ color: '#F59E0B' }} />
                   <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(253,230,138,0.75)' }}>
-                    Advisory fee (₹{fmt(amount)}) held in escrow. Platform & gateway fees are{' '}
+                    Advisory fee held in escrow. Gateway & platform fees are{' '}
                     <span className="text-red-400 font-semibold">non-refundable</span>.
                   </p>
                 </div>
@@ -178,45 +171,48 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
           )}
 
           {/* ── ADVISOR VIEW ── */}
-          {isAdvisor && advisorFees && clientFees && hasAmount && (
+          {isAdvisor && fees && hasAmount && (
             <>
               {/* Client total — for advisor awareness */}
               <div className="rounded-xl overflow-hidden"
                 style={{ border: '1px solid rgba(79,70,229,0.25)', background: 'rgba(79,70,229,0.05)' }}>
-                <div className="px-3 py-2 border-b"
+                <div className="px-3 py-1.5 border-b"
                   style={{ borderColor: 'rgba(79,70,229,0.2)', background: 'rgba(79,70,229,0.12)' }}>
                   <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#818CF8' }}>Client will pay</p>
                 </div>
                 <div className="px-3 py-2">
-                  <Row label="Advisory Fee (your quote)"      value={`₹${fmt(amount)}`} />
-                  <Row label="Platform Fee" sub={`(${platformFeeLabel(amount)})`}        value={`₹${fmt(clientFees.platformFee)}`} />
-                  <Row label="Gateway Fee"  sub="(1.5%)"                                 value={`₹${fmt(clientFees.gatewayFee)}`} />
-                  <Row label="Client's Total"                 value={`₹${fmt(clientFees.clientTotal)}`} bold divider />
+                  <Row label="Advisory Fee (your quote)" value={`₹${fmt(amount)}`} />
+                  <Row label="Gateway Fee" sub="(1.5%)"  value={`₹${fmt(fees.gatewayFee)}`} />
+                  {hasPlatformFee && (
+                    <Row label="Platform Fee" sub="(1%)" value={`₹${fmt(fees.platformFee)}`} />
+                  )}
+                  <Row label="Client's Total" value={`₹${fmt(fees.clientTotal)}`} bold divider />
                 </div>
               </div>
 
               {/* Advisor earnings */}
               <div className="rounded-xl overflow-hidden"
                 style={{ border: '1px solid rgba(212,175,55,0.3)', background: 'rgba(212,175,55,0.04)' }}>
-                <div className="px-3 py-2 border-b"
+                <div className="px-3 py-1.5 border-b"
                   style={{ borderColor: 'rgba(212,175,55,0.2)', background: 'rgba(212,175,55,0.1)' }}>
                   <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#D4AF37' }}>Your earnings</p>
                 </div>
                 <div className="px-3 py-2">
-                  <Row label="Quote Amount"                                                            value={`₹${fmt(amount)}`} />
-                  <Row label="Platform Commission"  sub="(15%)"   red                                  value={`− ₹${fmt(advisorFees.commission)}`} />
-                  <Row label="Sub-total"                                                               value={`₹${fmt(advisorFees.net)}`} divider />
-                  <Row label="Gateway Fee"          sub="(1.5%)"  red                                  value={`− ₹${fmt(advisorFees.advGatewayFee)}`} />
-                  <Row label="Platform Fee"         sub={`(${platformFeeLabel(advisorFees.net)})`} red  value={`− ₹${fmt(advisorFees.advPlatformFee)}`} />
-                  <Row label="You Receive"                        green bold divider                    value={`₹${fmt(advisorFees.advisorPayout)}`} />
+                  <Row label="Quote Amount"                                              value={`₹${fmt(amount)}`} />
+                  <Row label="Gateway Fee"  sub="(1.5%)"  red                           value={`− ₹${fmt(fees.gatewayFee)}`} />
+                  {hasPlatformFee && (
+                    <Row label="Platform Fee" sub="(1%)" red                            value={`− ₹${fmt(fees.platformFee)}`} />
+                  )}
+                  <Row label="You Receive"              green bold divider               value={`₹${fmt(fees.advisorPayout)}`} />
                 </div>
-                <div className="px-3 pb-2.5">
-                  <div className="rounded-lg px-2.5 py-2 flex items-start gap-1.5"
+                <div className="px-3 pb-2">
+                  <div className="rounded-lg px-2.5 py-1.5 flex items-start gap-1.5"
                     style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>
                     <Info size={11} className="shrink-0 mt-0.5" style={{ color: '#FB923C' }} />
                     <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(254,215,170,0.75)' }}>
-                      Deductions (₹{fmt(advisorFees.advGatewayFee + advisorFees.advPlatformFee)}) are{' '}
-                      <span className="text-red-400 font-semibold">non-refundable</span>.
+                      {hasPlatformFee
+                        ? `Gateway (1.5%) + Platform (1%) deducted — non-refundable.`
+                        : `Gateway fee (1.5%) deducted — non-refundable. No platform fee for amounts ≤ ₹5,000.`}
                     </p>
                   </div>
                 </div>
@@ -226,7 +222,7 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
 
           {/* Empty state */}
           {!hasAmount && (
-            <div className="text-center py-5 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
+            <div className="text-center py-4 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
               Enter an amount above to see the breakdown
             </div>
           )}
@@ -239,7 +235,7 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
           >
-            <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>Platform Fee Tiers</span>
+            <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>Fee Schedule</span>
             <ChevronDown size={13} className={`transition-transform ${showTiers ? 'rotate-180' : ''}`}
               style={{ color: 'rgba(255,255,255,0.35)' }} />
           </button>
@@ -248,27 +244,26 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
             <div className="rounded-xl overflow-hidden text-xs" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
               <div className="grid grid-cols-3 px-3 py-1.5"
                 style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                {['Amount', 'Client Fee', 'Advisor Fee'].map(h => (
+                {['Amount', 'Gateway', 'Platform'].map(h => (
                   <span key={h} className={`font-bold text-[10px] uppercase tracking-wider ${h !== 'Amount' ? 'text-center' : ''}`}
                     style={{ color: 'rgba(255,255,255,0.35)' }}>{h}</span>
                 ))}
               </div>
               {[
-                { range: 'Up to ₹3k',  client: '₹30',  advisor: '₹30' },
-                { range: '₹3k – ₹5k', client: '₹50',  advisor: '₹50 of net' },
-                { range: 'Above ₹5k',  client: '1%',   advisor: '1% of net' },
+                { range: '₹0 – ₹5,000', gateway: '1.5%', platform: 'None' },
+                { range: 'Above ₹5,000', gateway: '1.5%', platform: '1%' },
               ].map((row, i) => (
                 <div key={i} className="grid grid-cols-3 px-3 py-2"
-                  style={{ borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
+                  style={{ borderBottom: i < 1 ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
                   <span style={{ color: 'rgba(255,255,255,0.55)' }}>{row.range}</span>
-                  <span className="text-center" style={{ color: '#D4AF37' }}>{row.client}</span>
-                  <span className="text-center" style={{ color: '#818CF8' }}>{row.advisor}</span>
+                  <span className="text-center" style={{ color: '#D4AF37' }}>{row.gateway}</span>
+                  <span className="text-center" style={{ color: '#818CF8' }}>{row.platform}</span>
                 </div>
               ))}
               <div className="px-3 py-2"
                 style={{ background: 'rgba(255,255,255,0.03)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                 <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                  +1.5% payment gateway fee charged separately to both parties.
+                  Platform fee of 1% applies only when quote exceeds ₹5,000.
                 </p>
               </div>
             </div>
