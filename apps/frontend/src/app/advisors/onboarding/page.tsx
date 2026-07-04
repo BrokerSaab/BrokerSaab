@@ -3036,88 +3036,101 @@ ${availLines ? `<div class="section">
 
         {/* ── Step: Success ── */}
         {step === 'success' && (
-          <div className="p-4 sm:p-8 text-center">
-            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-5" style={{ background: 'rgba(212,175,55,0.1)', border: '2px solid rgba(212,175,55,0.35)' }}>
-              <ShieldCheck size={36} className="text-[#D4AF37]" />
-            </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">{t('onboard.success.title')}</h2>
-            <p className="text-gray-500 text-sm mb-5 sm:mb-8">{t('onboard.success.sub')}</p>
+          <div className="p-4 sm:p-6 flex flex-col gap-4">
 
-            <div className="text-left space-y-3 sm:space-y-4 mb-5 sm:mb-8">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('onboard.success.whatsNext')}</h3>
+            {/* Brand header */}
+            <div className="flex items-center justify-center gap-2 pt-1">
+              <div className="w-8 h-8 bg-[#0B1F3A] rounded-xl overflow-hidden p-1 shrink-0 shadow-sm">
+                <img src="/logo-icon.png" alt="BrokerSaab" className="w-full h-full object-contain" />
+              </div>
+              <span className="text-base font-black tracking-tight text-[#0B1F3A]">
+                Broker<span style={{ color: '#D4AF37' }}>Saab</span>
+              </span>
+            </div>
+
+            {/* Icon + heading */}
+            <div className="text-center">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(212,175,55,0.1)', border: '2px solid rgba(212,175,55,0.35)' }}>
+                <ShieldCheck size={28} className="text-[#D4AF37]" />
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">{t('onboard.success.title')}</h2>
+              <p className="text-xs sm:text-sm text-gray-500 max-w-sm mx-auto leading-relaxed">{t('onboard.success.sub')}</p>
+            </div>
+
+            {/* What's Next — compact list */}
+            <div className="bg-gray-50 rounded-2xl p-3 sm:p-4 space-y-2">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{t('onboard.success.whatsNext')}</p>
               {[
-                { icon: Search, title: t('onboard.success.step1Title'), desc: t('onboard.success.step1Desc') },
-                { icon: ShieldCheck, title: t('onboard.success.step2Title'), desc: t('onboard.success.step2Desc') },
-                { icon: CheckCircle2, title: t('onboard.success.step3Title'), desc: t('onboard.success.step3Desc') },
+                { icon: Search,       num: '1', title: t('onboard.success.step1Title'), desc: t('onboard.success.step1Desc') },
+                { icon: ShieldCheck,  num: '2', title: t('onboard.success.step2Title'), desc: t('onboard.success.step2Desc') },
+                { icon: CheckCircle2, num: '3', title: t('onboard.success.step3Title'), desc: t('onboard.success.step3Desc') },
               ].map((item, i) => {
                 const Icon = item.icon;
                 return (
-                  <div key={i} className="flex gap-3 items-start bg-gray-50 rounded-2xl p-4">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', border: '1px solid rgba(212,175,55,0.3)' }}>
-                      <Icon size={14} className="text-white" />
+                  <div key={i} className="flex items-start gap-3 bg-white rounded-xl px-3 py-2.5 border border-gray-100">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
+                      <Icon size={13} className="text-white" />
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800">{item.title}</p>
-                      <p className="text-xs text-gray-500">{item.desc}</p>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-gray-800">{item.title}</p>
+                      <p className="text-[11px] text-gray-500 leading-relaxed">{item.desc}</p>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* ── Print / Download Application ── */}
-            <div className="rounded-2xl border-2 border-dashed border-gray-200 p-4 bg-gray-50">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 text-center">{t('onboard.success.saveApp')}</p>
-              <div className="flex gap-3">
-                <button
-                  onClick={printApplication}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all hover:bg-indigo-50"
-                  style={{ borderColor: '#4F46E5', color: '#4F46E5' }}>
-                  <Printer size={15} /> {t('onboard.success.printApp')}
-                </button>
-                <button
-                  onClick={printApplication}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                  style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: 'white' }}>
-                  <Download size={15} /> {t('onboard.success.downloadPdf')}
-                </button>
-              </div>
-              <p className="text-[10px] text-gray-400 text-center mt-2">{t('onboard.success.printHint')}</p>
-            </div>
-
-            {/* Payment confirmed banner — shown for both AUTHORIZED and REGULAR paid advisors */}
+            {/* Payment banner — compact */}
             {invoiceData && isAuthorized && (
-              <div className="rounded-2xl border-2 border-indigo-300 p-4" style={{ background: 'linear-gradient(135deg,#eef2ff,#f0f4ff)' }}>
-                <div className="flex items-center gap-2 mb-3">
-                  <Award size={16} className="text-indigo-600 shrink-0" />
-                  <span className="font-black text-gray-800 text-sm">Payment Confirmed · Authorized Badge Pending Approval</span>
+              <div className="rounded-xl border border-indigo-200 px-3 py-2.5 flex items-center justify-between gap-3" style={{ background: 'linear-gradient(135deg,#eef2ff,#f0f4ff)' }}>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <Award size={13} className="text-indigo-600 shrink-0" />
+                    <span className="text-xs font-black text-indigo-900">Payment Confirmed</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 truncate">Invoice: <strong>{invoiceData.invoiceNo}</strong></p>
                 </div>
-                <p className="text-xs text-gray-600 mb-3">Invoice No: <strong>{invoiceData.invoiceNo}</strong> · Payment ID: <span className="font-mono text-[10px]">{invoiceData.paymentId}</span></p>
-                <button
-                  onClick={downloadInvoice}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all"
-                  style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: 'white' }}>
-                  <Download size={15} /> Download GST Invoice (PDF)
+                <button onClick={downloadInvoice}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-white transition-all"
+                  style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)' }}>
+                  <Download size={12} /> Invoice
                 </button>
               </div>
             )}
             {invoiceData && !isAuthorized && (
-              <div className="rounded-2xl border-2 border-amber-300 p-4" style={{ background: 'linear-gradient(135deg,#fffbf0,#fef9e7)' }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle2 size={16} className="text-amber-600 shrink-0" />
-                  <span className="font-black text-gray-800 text-sm">Regular Plan Activated — 1.5 Years Validity!</span>
+              <div className="rounded-xl border border-amber-200 px-3 py-2.5 flex items-center gap-3" style={{ background: 'linear-gradient(135deg,#fffbf0,#fef9e7)' }}>
+                <CheckCircle2 size={16} className="text-amber-600 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-gray-800">Regular Plan Active — 1.5 Years</p>
+                  <p className="text-[10px] text-gray-500">Upgrade to Authorized anytime from your dashboard.</p>
                 </div>
-                <p className="text-xs text-gray-600">Payment ID: <span className="font-mono text-[10px]">{invoiceData.paymentId}</span></p>
-                <p className="text-[11px] text-gray-500 mt-1">You can upgrade to Authorized anytime from your dashboard.</p>
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/" className="btn-gold flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold">
-                <Home size={15} /> {t('onboard.success.exploreServices')}
+            {/* Save application — compact */}
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-2.5">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider text-center mb-2">{t('onboard.success.saveApp')}</p>
+              <div className="flex gap-2">
+                <button onClick={printApplication}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border text-xs font-semibold transition-all hover:bg-indigo-50"
+                  style={{ borderColor: '#4F46E5', color: '#4F46E5' }}>
+                  <Printer size={13} /> Print
+                </button>
+                <button onClick={printApplication}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all"
+                  style={{ background: 'linear-gradient(135deg,#4F46E5,#3730A3)', color: 'white' }}>
+                  <Download size={13} /> Download PDF
+                </button>
+              </div>
+            </div>
+
+            {/* CTA buttons */}
+            <div className="flex gap-2.5">
+              <Link href="/" className="btn-gold flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold">
+                <Home size={14} /> Explore
               </Link>
-              <Link href="/auth/admin" className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-700 hover:border-gray-300 transition-all">
-                <User size={15} /> {t('onboard.success.advisorLogin')}
+              <Link href="/auth/admin" className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-700 hover:border-gray-300 transition-all">
+                <User size={14} /> {t('onboard.success.advisorLogin')}
               </Link>
             </div>
           </div>
