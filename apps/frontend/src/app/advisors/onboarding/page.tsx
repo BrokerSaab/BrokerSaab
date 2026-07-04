@@ -616,9 +616,8 @@ export default function AdvisorOnboarding() {
       }
 
       const accessToken: string = signupData.tokens.accessToken;
-      sessionStorage.setItem('accessToken', accessToken);
-      sessionStorage.setItem('refreshToken', signupData.tokens.refreshToken);
-      sessionStorage.setItem('user', JSON.stringify(signupData.user));
+      // Token stored only in component state — advisors must log in after admin approval.
+      // Storing in sessionStorage would auto-login the advisor before approval.
       setUploadedAdvisorId(signupData.user.advisorId || '');
       setUploadedToken(accessToken);
 
