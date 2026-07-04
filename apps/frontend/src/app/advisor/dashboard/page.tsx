@@ -264,9 +264,7 @@ export default function AdvisorDashboard() {
       const BACKEND_BASE = API.replace(/\/api\/v1\/?$/, '');
       const profileUrl  = `${window.location.origin}/advisors/${advisorPublicId}`;
       const advisorName = user?.fullName || 'Advisor';
-      const advisorType = advisorProfile?.advisorType || 'Financial Advisor';
       const location    = advisorProfile?.location || '';
-      const expYears    = advisorProfile?.experienceYears;
       const initials    = advisorName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
       // ── 1. QR SVG → image ─────────────────────────────────────────────
@@ -416,21 +414,14 @@ export default function AdvisorDashboard() {
       ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(W/2-nw/2, nameY+6); ctx.lineTo(W/2+nw/2, nameY+6); ctx.stroke();
 
-      // Advisor type
-      ctx.font = '13px Arial'; ctx.fillStyle = INDIGO_LT; ctx.textAlign = 'center';
-      ctx.fillText(advisorType, W/2, nameY + 26);
-
-      // Location + experience row
-      const detailParts: string[] = [];
-      if (location) detailParts.push(`📍 ${location}`);
-      if (expYears)  detailParts.push(`${expYears} yrs experience`);
-      if (detailParts.length) {
-        ctx.font = '11px Arial'; ctx.fillStyle = '#64748b';
-        ctx.fillText(detailParts.join('   •   '), W/2, nameY + 46);
+      // Location
+      if (location) {
+        ctx.font = '13px Arial'; ctx.fillStyle = '#64748b'; ctx.textAlign = 'center';
+        ctx.fillText(`📍 ${location}`, W/2, nameY + 26);
       }
 
       // Divider
-      const divY = nameY + 66;
+      const divY = nameY + (location ? 46 : 26);
       ctx.strokeStyle = makeGold(60, divY, W-60, divY);
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(60, divY); ctx.lineTo(W-60, divY); ctx.stroke();
@@ -668,7 +659,11 @@ export default function AdvisorDashboard() {
             <LiveClock className="text-[11px] text-slate-400 hidden sm:flex" />
             {/* Tickets badge */}
             <button onClick={() => { setShowTickets(v => !v); if (!showTickets) fetchTickets(); }}
-              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-600 border border-emerald-200 hover:bg-emerald-50 transition-all">
+              className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                showTickets
+                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                  : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
+              }`}>
               <Ticket size={13} /> Tickets
               {tickets.filter(t => t.status === 'OPEN' || t.status === 'AWAITING_CONFIRM').length > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black text-white bg-emerald-500">
@@ -679,10 +674,16 @@ export default function AdvisorDashboard() {
 
             {/* Connected clients */}
             <button onClick={() => { setShowConnectedClients(v => !v); if (!showConnectedClients) fetchConnectedClients(); }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all">
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                showConnectedClients
+                  ? 'bg-slate-700 border-slate-700 text-white shadow-sm'
+                  : 'text-slate-600 border-slate-200 hover:bg-slate-50'
+              }`}>
               <Users size={13} /> Clients
               {connectedClients.length > 0 && (
-                <span className="ml-1 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                <span className={`ml-1 text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                  showConnectedClients ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
                   {connectedClients.length}
                 </span>
               )}
@@ -690,7 +691,11 @@ export default function AdvisorDashboard() {
 
             {/* Quote requests badge */}
             <button onClick={() => { setShowQuoteList(v => !v); fetchQuoteRequests(); fetchUnreadCount(); }}
-              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition-all">
+              className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                showQuoteList
+                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                  : 'text-indigo-600 border-indigo-200 hover:bg-indigo-50'
+              }`}>
               <FileText size={13} /> Quotes
               {unreadQuoteCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black text-white animate-pulse"
@@ -1263,6 +1268,7 @@ export default function AdvisorDashboard() {
           style={{
             background: 'linear-gradient(160deg,#0B1F3A 0%,#0F2B4A 50%,#0a1428 100%)',
             border: '1px solid rgba(212,175,55,0.3)',
+            maxHeight: 'min(90vh, 760px)',
           }}
           onClick={e => e.stopPropagation()}>
 
@@ -1290,7 +1296,7 @@ export default function AdvisorDashboard() {
           </div>
 
           {/* Body */}
-          <div className="overflow-y-auto flex-1">
+          <div className="overflow-y-auto flex-1 min-h-0">
 
             {/* ── Mini card preview ─────────────────────────────────────── */}
             <div className="mx-5 mt-4 rounded-2xl overflow-hidden shadow-xl"
@@ -1313,7 +1319,7 @@ export default function AdvisorDashboard() {
                     Broker<span style={{ color: '#F5D77A' }}>Saab</span>
                   </span>
                 </div>
-                <p className="text-[8px] tracking-widest z-10" style={{ color: 'rgba(212,175,55,0.7)' }}>
+                <p className="text-[9px] tracking-widest z-10 text-center" style={{ color: 'rgba(212,175,55,0.7)' }}>
                   TRUSTED ADVISORY PLATFORM
                 </p>
               </div>
@@ -1345,24 +1351,16 @@ export default function AdvisorDashboard() {
                 </div>
 
                 {/* Advisor info */}
-                <div className="mt-10 text-center space-y-0.5 px-4 w-full">
+                <div className="mt-10 text-center space-y-1 px-4 w-full">
                   <p className="text-sm font-black text-slate-900 leading-tight truncate">{user?.fullName}</p>
-                  <div className="flex items-center justify-center gap-1">
-                    <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold"
-                      style={{ background: 'rgba(67,56,202,0.1)', color: '#4338ca' }}>
-                      {advisorProfile?.advisorType || 'Financial Advisor'}
-                    </span>
-                  </div>
-                  {(advisorProfile?.location || advisorProfile?.experienceYears) && (
-                    <p className="text-[9px] text-slate-400 flex items-center justify-center gap-1.5 flex-wrap">
-                      {advisorProfile?.location && <span>📍 {advisorProfile.location}</span>}
-                      {advisorProfile?.location && advisorProfile?.experienceYears && <span className="opacity-40">·</span>}
-                      {advisorProfile?.experienceYears && <span>{advisorProfile.experienceYears} yrs exp</span>}
+                  {advisorProfile?.location && (
+                    <p className="text-[10px] text-slate-400 flex items-center justify-center gap-1">
+                      📍 {advisorProfile.location}
                     </p>
                   )}
                   {/* Verified pill */}
                   <div className="flex justify-center pt-1">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[8px] font-bold"
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold"
                       style={{ background: 'linear-gradient(90deg,#D4AF37,#B48C22)', color: '#1e1b4b' }}>
                       ✓ VERIFIED BY BROKERSAAB
                     </span>
@@ -1388,7 +1386,7 @@ export default function AdvisorDashboard() {
                     </div>
                   )}
                 </div>
-                <p className="text-[8px] text-slate-400 tracking-widest mt-1.5">SCAN QR TO VIEW MY PROFILE</p>
+                <p className="text-[9px] text-slate-400 tracking-widest mt-1.5 pb-0.5 text-center px-2">SCAN QR TO VIEW MY PROFILE</p>
               </div>
 
               {/* Card footer stripe */}
@@ -1447,10 +1445,12 @@ export default function AdvisorDashboard() {
 
     {/* ── Upgrade Plan Modal ─────────────────────────────────────────────── */}
     {showUpgradeModal && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center overflow-y-auto sm:p-4"
+        style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+        <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg overflow-hidden flex flex-col my-auto"
+          style={{ maxHeight: 'min(92vh, 820px)' }}>
           {/* Header */}
-          <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100">
+          <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100 shrink-0">
             <div className="flex items-center gap-2">
               <TrendingUp size={16} className="text-indigo-600" />
               <p className="text-sm font-black text-slate-800">Upgrade Your Plan</p>
@@ -1460,7 +1460,7 @@ export default function AdvisorDashboard() {
             </button>
           </div>
 
-          <div className="p-5 space-y-4">
+          <div className="p-5 space-y-4 overflow-y-auto min-h-0">
             {upgradeSuccess ? (
               /* Success state */
               <div className="text-center space-y-3 py-4">
@@ -1550,9 +1550,15 @@ export default function AdvisorDashboard() {
                 </div>
 
                 {upgradeError && (
-                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
-                    <AlertCircle size={13} className="text-red-500 shrink-0" />
-                    <p className="text-xs text-red-700">{upgradeError}</p>
+                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+                    <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-red-700">Payment couldn&apos;t be started</p>
+                      <p className="text-xs text-red-600 mt-0.5">{upgradeError}</p>
+                    </div>
+                    <button onClick={() => setUpgradeError('')} className="text-red-400 hover:text-red-600 shrink-0 p-0.5">
+                      <X size={13} />
+                    </button>
                   </div>
                 )}
 
