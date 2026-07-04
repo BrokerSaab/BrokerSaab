@@ -1990,20 +1990,20 @@ ${availLines ? `<div class="section">
                   style={{ borderColor: `${colorSet.accent}40` }}>
 
                   {/* Header */}
-                  <div className="px-5 py-4 flex items-center justify-between"
+                  <div className="px-4 py-3 flex items-center justify-between gap-2 flex-wrap"
                     style={{ background: `linear-gradient(135deg, ${colorSet.accent}15, ${colorSet.accent}05)` }}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl ${colorSet.iconBg} flex items-center justify-center shadow-lg`}>
-                        <Icon size={18} className="text-white" />
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl ${colorSet.iconBg} flex items-center justify-center shadow-lg shrink-0`}>
+                        <Icon size={16} className="text-white" />
                       </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-gray-900">{cat.name}</h3>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-bold text-gray-900 truncate">{cat.name}</h3>
                         <p className="text-[11px] text-gray-500">
-                          {isOpenModule ? 'Describe your specific expertise below' : `${selectedSubIds.length} of ${allSubIds.length} specialisations selected`}
+                          {isOpenModule ? 'Describe your expertise below' : `${selectedSubIds.length} of ${allSubIds.length} selected`}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       {!isOpenModule && (
                         <button type="button"
                           onClick={() => {
@@ -2319,15 +2319,15 @@ ${availLines ? `<div class="section">
                     </div>
                     <div className="space-y-2">
                       {daySlots.map(slot => (
-                        <div key={slot.id} className="flex items-center gap-2">
+                        <div key={slot.id} className="flex items-center gap-1.5 sm:gap-2">
                           <input type="time" value={slot.startTime}
                             onChange={e => updateSlot(slot.id, 'startTime', e.target.value)}
-                            className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-indigo-500 w-32" />
-                          <span className="text-gray-400 font-medium">→</span>
+                            className="border-2 border-gray-200 rounded-xl px-2 sm:px-3 py-2 text-sm text-gray-800 outline-none focus:border-indigo-500 flex-1 min-w-0" />
+                          <span className="text-gray-400 font-medium shrink-0">→</span>
                           <input type="time" value={slot.endTime}
                             onChange={e => updateSlot(slot.id, 'endTime', e.target.value)}
-                            className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-800 outline-none focus:border-indigo-500 w-32" />
-                          <button type="button" onClick={() => removeSlot(slot.id)} className="text-gray-400 hover:text-red-500 transition-colors ml-1">
+                            className="border-2 border-gray-200 rounded-xl px-2 sm:px-3 py-2 text-sm text-gray-800 outline-none focus:border-indigo-500 flex-1 min-w-0" />
+                          <button type="button" onClick={() => removeSlot(slot.id)} className="text-gray-400 hover:text-red-500 transition-colors ml-0.5 sm:ml-1 shrink-0">
                             <Trash2 size={15} />
                           </button>
                         </div>
@@ -2819,7 +2819,7 @@ ${availLines ? `<div class="section">
             {/* Invoice Preview */}
             <div className="rounded-2xl border-2 border-gray-200 overflow-hidden">
               {/* Invoice header */}
-              <div className="flex items-center justify-between px-5 py-4" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
+              <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4" style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)' }}>
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
                     <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center overflow-hidden p-0.5">
@@ -2848,7 +2848,8 @@ ${availLines ? `<div class="section">
 
               {/* Line item */}
               <div className="px-5 py-4">
-                <table className="w-full text-xs">
+                <div className="overflow-x-auto">
+                <table className="w-full text-xs min-w-[260px]">
                   <thead>
                     <tr className="border-b-2 border-gray-200 pb-2">
                       <th className="text-left py-2 text-[10px] font-black uppercase tracking-wider text-gray-500">Description</th>
@@ -2865,6 +2866,7 @@ ${availLines ? `<div class="section">
                     </tr>
                   </tbody>
                 </table>
+                </div>
 
                 {/* Calculation breakdown */}
                 <div className="mt-4 space-y-1.5 border-t-2 border-gray-200 pt-4">
@@ -3015,14 +3017,14 @@ ${availLines ? `<div class="section">
 
         {/* ── Step: Success ── */}
         {step === 'success' && (
-          <div className="p-6 sm:p-10 text-center">
-            <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: 'rgba(212,175,55,0.1)', border: '2px solid rgba(212,175,55,0.35)' }}>
-              <ShieldCheck size={48} className="text-[#D4AF37]" />
+          <div className="p-4 sm:p-8 text-center">
+            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-5" style={{ background: 'rgba(212,175,55,0.1)', border: '2px solid rgba(212,175,55,0.35)' }}>
+              <ShieldCheck size={36} className="text-[#D4AF37]" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('onboard.success.title')}</h2>
-            <p className="text-gray-500 text-sm mb-8">{t('onboard.success.sub')}</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">{t('onboard.success.title')}</h2>
+            <p className="text-gray-500 text-sm mb-5 sm:mb-8">{t('onboard.success.sub')}</p>
 
-            <div className="text-left space-y-4 mb-8">
+            <div className="text-left space-y-3 sm:space-y-4 mb-5 sm:mb-8">
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('onboard.success.whatsNext')}</h3>
               {[
                 { icon: Search, title: t('onboard.success.step1Title'), desc: t('onboard.success.step1Desc') },
