@@ -366,7 +366,7 @@ export default function AdvisorDashboard() {
 
       // Tagline
       const tag = 'TRUSTED ADVISORY PLATFORM';
-      ctx.font = 'bold 9px Arial'; ctx.fillStyle = 'rgba(212,175,55,0.75)';
+      ctx.font = 'bold 9px Arial'; ctx.fillStyle = GOLD_LT;
       ctx.textAlign = 'center'; ctx.fillText(tag, W/2, rowCY + logoSz/2 + 18);
 
       // Gold divider at hero bottom
@@ -1319,7 +1319,7 @@ export default function AdvisorDashboard() {
                     Broker<span style={{ color: '#F5D77A' }}>Saab</span>
                   </span>
                 </div>
-                <p className="text-[9px] tracking-widest z-10 text-center" style={{ color: 'rgba(212,175,55,0.7)' }}>
+                <p className="text-[9px] font-bold tracking-widest z-10 text-center" style={{ color: '#F5D77A' }}>
                   TRUSTED ADVISORY PLATFORM
                 </p>
               </div>
