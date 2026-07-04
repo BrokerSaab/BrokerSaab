@@ -1309,7 +1309,7 @@ export default function AdvisorDashboard() {
                 <div className="absolute inset-0 opacity-[0.06]"
                   style={{ backgroundImage: 'radial-gradient(circle,#fff 1px,transparent 1px)', backgroundSize: '18px 18px' }} />
                 {/* logo + brand text */}
-                <div className="flex items-center gap-1.5 z-10 mb-1">
+                <div className="flex items-center gap-1.5 z-10 mb-1.5">
                   <div className="w-5 h-5 rounded-md overflow-hidden shrink-0 bg-white/10 flex items-center justify-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/logo-icon.png" alt="logo" className="w-full h-full object-cover"
@@ -1319,7 +1319,7 @@ export default function AdvisorDashboard() {
                     Broker<span style={{ color: '#F5D77A' }}>Saab</span>
                   </span>
                 </div>
-                <p className="text-[9px] font-bold tracking-widest z-10 text-center" style={{ color: '#F5D77A' }}>
+                <p className="text-[9px] font-bold tracking-widest z-10 text-center leading-relaxed" style={{ color: '#F5D77A' }}>
                   TRUSTED ADVISORY PLATFORM
                 </p>
               </div>
