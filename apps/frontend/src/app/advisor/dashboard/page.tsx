@@ -705,7 +705,7 @@ export default function AdvisorDashboard() {
               style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)', color: '#0B1F3A' }}>
               <Camera size={13} /> Edit Profile
             </Link>
-            <button onClick={() => setShowQR(true)}
+            <button onClick={() => { setShowQR(true); if (!advisorPublicId) fetchAdvisorPublicId(); }}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition-all"
               title="View My QR Code">
               <QrCode size={13} /> QR Code
@@ -1253,16 +1253,15 @@ export default function AdvisorDashboard() {
 
     {/* QR Code Modal */}
     {showQR && (
-      <div className="fixed inset-0 z-50 overflow-y-auto"
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
         style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(8px)' }}
         onClick={() => setShowQR(false)}>
-        {/* min-h-full centering wrapper — prevents top clipping on small screens */}
-        <div className="flex min-h-full items-center justify-center p-4">
         <div
-          className="relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col my-auto"
+          className="relative w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col"
           style={{
             background: 'linear-gradient(160deg,#0B1F3A 0%,#0F2B4A 50%,#0a1428 100%)',
             border: '1px solid rgba(212,175,55,0.3)',
+            maxHeight: '92dvh',
           }}
           onClick={e => e.stopPropagation()}>
 
@@ -1277,7 +1276,7 @@ export default function AdvisorDashboard() {
             style={{ background: 'linear-gradient(90deg,#D4AF37,#F0CC60,#D4AF37)' }} />
 
           {/* Header — logo + name + tagline on one compact row */}
-          <div className="px-5 pt-4 pb-3 flex items-center gap-3 shrink-0"
+          <div className="px-4 pt-3 pb-2.5 flex items-center gap-3 shrink-0"
             style={{ borderBottom: '1px solid rgba(212,175,55,0.1)' }}>
             <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center"
               style={{ background: 'linear-gradient(135deg,#D4AF37,#B48C22)' }}>
@@ -1293,36 +1292,36 @@ export default function AdvisorDashboard() {
           <div className="overflow-y-auto flex-1">
 
             {/* ── Mini card preview ─────────────────────────────────────── */}
-            <div className="mx-5 mt-4 rounded-2xl overflow-hidden shadow-xl"
+            <div className="mx-4 mt-3 rounded-xl overflow-hidden shadow-xl"
               style={{ border: '1px solid rgba(212,175,55,0.35)' }}>
 
               {/* Card hero (indigo) */}
-              <div className="relative flex flex-col items-center pt-4 pb-7"
+              <div className="relative flex flex-col items-center pt-3 pb-6"
                 style={{ background: 'linear-gradient(135deg,#4338ca,#312e81)' }}>
                 {/* dot grid */}
                 <div className="absolute inset-0 opacity-[0.06]"
                   style={{ backgroundImage: 'radial-gradient(circle,#fff 1px,transparent 1px)', backgroundSize: '18px 18px' }} />
                 {/* logo + brand text */}
-                <div className="flex items-center gap-1.5 z-10 mb-1">
-                  <div className="w-5 h-5 rounded-md overflow-hidden shrink-0 bg-white/10 flex items-center justify-center">
+                <div className="flex items-center gap-1.5 z-10 mb-0.5">
+                  <div className="w-4 h-4 rounded-md overflow-hidden shrink-0 bg-white/10 flex items-center justify-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/logo-icon.png" alt="logo" className="w-full h-full object-cover"
                       onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
                   </div>
-                  <span className="text-xs font-black text-white leading-none">
+                  <span className="text-[11px] font-black text-white leading-none">
                     Broker<span style={{ color: '#F5D77A' }}>Saab</span>
                   </span>
                 </div>
-                <p className="text-[8px] tracking-widest z-10" style={{ color: 'rgba(212,175,55,0.7)' }}>
+                <p className="text-[7px] tracking-widest z-10" style={{ color: 'rgba(212,175,55,0.7)' }}>
                   TRUSTED ADVISORY PLATFORM
                 </p>
               </div>
 
               {/* Avatar overlapping hero/body */}
-              <div className="relative bg-white flex flex-col items-center pb-4 pt-0"
+              <div className="relative bg-white flex flex-col items-center pb-3 pt-0"
                 style={{ borderTop: '1px solid rgba(212,175,55,0.2)' }}>
-                <div className="absolute -top-8 flex items-center justify-center">
-                  <div className="w-16 h-16 rounded-full ring-4 ring-white shadow-lg overflow-hidden"
+                <div className="absolute -top-6 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full ring-[3px] ring-white shadow-lg overflow-hidden"
                     style={{ background: 'linear-gradient(135deg,#4338ca,#312e81)' }}>
                     {advisorProfile?.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -1336,7 +1335,7 @@ export default function AdvisorDashboard() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-lg font-black" style={{ color: '#D4AF37' }}>
+                        <span className="text-sm font-black" style={{ color: '#D4AF37' }}>
                           {(user?.fullName || 'A').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
                         </span>
                       </div>
@@ -1345,24 +1344,24 @@ export default function AdvisorDashboard() {
                 </div>
 
                 {/* Advisor info */}
-                <div className="mt-10 text-center space-y-0.5 px-4 w-full">
-                  <p className="text-sm font-black text-slate-900 leading-tight truncate">{user?.fullName}</p>
-                  <div className="flex items-center justify-center gap-1">
-                    <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold"
+                <div className="mt-8 text-center px-3 w-full">
+                  <p className="text-[13px] font-black text-slate-900 leading-tight truncate">{user?.fullName}</p>
+                  <div className="flex items-center justify-center gap-1 mt-0.5">
+                    <span className="inline-block px-2 py-0.5 rounded-full text-[8px] font-bold"
                       style={{ background: 'rgba(67,56,202,0.1)', color: '#4338ca' }}>
                       {advisorProfile?.advisorType || 'Financial Advisor'}
                     </span>
                   </div>
                   {(advisorProfile?.location || advisorProfile?.experienceYears) && (
-                    <p className="text-[9px] text-slate-400 flex items-center justify-center gap-1.5 flex-wrap">
+                    <p className="text-[8px] text-slate-400 flex items-center justify-center gap-1 flex-wrap mt-0.5">
                       {advisorProfile?.location && <span>📍 {advisorProfile.location}</span>}
                       {advisorProfile?.location && advisorProfile?.experienceYears && <span className="opacity-40">·</span>}
                       {advisorProfile?.experienceYears && <span>{advisorProfile.experienceYears} yrs exp</span>}
                     </p>
                   )}
                   {/* Verified pill */}
-                  <div className="flex justify-center pt-1">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[8px] font-bold"
+                  <div className="flex justify-center mt-1">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[7px] font-bold"
                       style={{ background: 'linear-gradient(90deg,#D4AF37,#B48C22)', color: '#1e1b4b' }}>
                       ✓ VERIFIED BY BROKERSAAB
                     </span>
@@ -1370,25 +1369,25 @@ export default function AdvisorDashboard() {
                 </div>
 
                 {/* QR code */}
-                <div className="mt-3 flex justify-center">
+                <div className="mt-2 flex justify-center">
                   {advisorPublicId ? (
-                    <div ref={qrSvgRef} className="p-2 bg-white rounded-xl shadow-md inline-block"
+                    <div ref={qrSvgRef} className="p-1.5 bg-white rounded-lg shadow-md inline-block"
                       style={{ border: '1.5px solid rgba(212,175,55,0.4)' }}>
                       <QRCode
                         value={`${typeof window !== 'undefined' ? window.location.origin : 'https://brokersaab.com'}/advisors/${advisorPublicId}`}
-                        size={132}
+                        size={110}
                         bgColor="#ffffff"
                         fgColor="#312e81"
                         level="M"
                       />
                     </div>
                   ) : (
-                    <div className="w-[148px] h-[148px] rounded-xl flex items-center justify-center bg-slate-50">
-                      <Loader2 size={22} className="animate-spin text-slate-300" />
+                    <div className="w-[120px] h-[120px] rounded-lg flex items-center justify-center bg-slate-50">
+                      <Loader2 size={20} className="animate-spin text-slate-300" />
                     </div>
                   )}
                 </div>
-                <p className="text-[8px] text-slate-400 tracking-widest mt-1.5">SCAN QR TO VIEW MY PROFILE</p>
+                <p className="text-[7px] text-slate-400 tracking-widest mt-1 pb-0.5">SCAN QR TO VIEW MY PROFILE</p>
               </div>
 
               {/* Card footer stripe */}
@@ -1398,7 +1397,7 @@ export default function AdvisorDashboard() {
 
             {/* ── URL + copy + download ──────────────────────────────── */}
             {advisorPublicId && (
-              <div className="px-5 pt-3 pb-5 space-y-2">
+              <div className="px-4 pt-2.5 pb-4 space-y-2">
                 {/* URL row */}
                 <div className="flex items-center gap-2 rounded-xl px-3 py-2"
                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -1441,7 +1440,6 @@ export default function AdvisorDashboard() {
           <div className="h-1 w-full shrink-0"
             style={{ background: 'linear-gradient(90deg,#D4AF37,#F0CC60,#D4AF37)' }} />
         </div>
-        </div>{/* end centering wrapper */}
       </div>
     )}
 
