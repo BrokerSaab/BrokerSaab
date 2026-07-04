@@ -180,8 +180,16 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
     setLoading(false);
   };
 
+  const pwdRules = {
+    length:    newPassword.length >= 8,
+    uppercase: /[A-Z]/.test(newPassword),
+    lowercase: /[a-z]/.test(newPassword),
+    number:    /\d/.test(newPassword),
+  };
+  const pwdValid = Object.values(pwdRules).every(Boolean);
+
   const handleSetPassword = async () => {
-    if (newPassword.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    if (!pwdValid) { setError('Password does not meet the requirements below.'); return; }
     if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
     setLoading(true); setError('');
     try {
@@ -192,7 +200,12 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
         body: JSON.stringify({ newPassword }),
       });
       const data = await res.json();
-      if (!data.success) { setError(data.message || 'Failed to set password.'); setLoading(false); return; }
+      if (!data.success) {
+        const specific = data.errors?.[0]?.message;
+        setError(specific || data.message || 'Failed to set password.');
+        setLoading(false);
+        return;
+      }
     } catch { }
     if (pendingUser) onLoginSuccess(pendingUser);
     setStep('success');
@@ -451,6 +464,24 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                     {showNewPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
+                {newPassword && (
+                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+                    {([
+                      { ok: pwdRules.length,    label: 'Min. 8 characters' },
+                      { ok: pwdRules.uppercase, label: 'One uppercase letter' },
+                      { ok: pwdRules.lowercase, label: 'One lowercase letter' },
+                      { ok: pwdRules.number,    label: 'One number' },
+                    ] as const).map(({ ok, label }) => (
+                      <span key={label} className={`flex items-center gap-1 text-[11px] font-medium ${ok ? 'text-emerald-600' : 'text-red-400'}`}>
+                        {ok
+                          ? <CheckCircle2 size={11} className="shrink-0" />
+                          : <span className="w-[11px] h-[11px] rounded-full border border-red-400 shrink-0 inline-block" />
+                        }
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('auth.password.confirmLabel')}</label>
@@ -471,7 +502,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                 )}
               </div>
               <button onClick={handleSetPassword}
-                disabled={loading || (!!confirmPassword && newPassword !== confirmPassword)}
+                disabled={loading || !pwdValid || (!!confirmPassword && newPassword !== confirmPassword)}
                 className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60 text-white"
                 style={{ background: 'linear-gradient(135deg, #4f46e5, #3730a3)', boxShadow: '0 4px 14px rgba(79,70,229,0.35)' }}>
                 {loading ? <><Loader2 size={16} className="animate-spin" /> {t('auth.password.setting')}</> : <>{t('auth.password.setBtn')} <ArrowRight size={15} /></>}
