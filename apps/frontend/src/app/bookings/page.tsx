@@ -7,7 +7,7 @@ import {
   Calendar, Clock, MapPin, ShieldCheck, AlertCircle, Loader2,
   ArrowLeft, XCircle, CheckCircle2, RefreshCw, BookOpen, Phone, Eye,
   UserCheck, MessageSquare, FileText, Bell, Ticket,
-  X, ChevronRight, LayoutDashboard, CreditCard,
+  X, ChevronRight, LayoutDashboard, CreditCard, AlertTriangle, ArrowRight,
 } from 'lucide-react';
 import LiveClock from '@/components/LiveClock';
 import { useAuth } from '@/contexts/AuthContext';
@@ -116,6 +116,9 @@ export default function BookingsPage() {
   const [quotes,         setQuotes]         = useState<FeeQuote[]>([]);
   const [quotesLoading,  setQuotesLoading]  = useState(false);
   const [selectedQuote,  setSelectedQuote]  = useState<FeeQuote | null>(null);
+  const [showPayModal,    setShowPayModal]    = useState(false);
+  const [decliningInline, setDecliningInline] = useState(false);
+  const [declineError,    setDeclineError]    = useState('');
 
 
   const [tickets,        setTickets]        = useState<any[]>([]);
@@ -238,6 +241,40 @@ export default function BookingsPage() {
       setCancelling(null);
     }
   };
+
+  const handleInlineDecline = async () => {
+    if (!selectedQuote) return;
+    if (!confirm('Decline this quote? The advisor will be notified.')) return;
+    setDecliningInline(true);
+    setDeclineError('');
+    try {
+      const token = sessionStorage.getItem('accessToken') || '';
+      const res = await fetch(`${API}/quotes/${selectedQuote.id}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setQuotes(prev => prev.map(q => q.id === selectedQuote.id ? { ...q, status: 'CANCELLED' } : q));
+        setSelectedQuote(null);
+      } else {
+        setDeclineError(data.message || 'Failed to decline quote');
+      }
+    } catch {
+      setDeclineError('Network error. Please try again.');
+    } finally {
+      setDecliningInline(false);
+    }
+  };
+
+  // Derived values used by quote detail inline view
+  const qBase       = parseFloat(selectedQuote?.totalAmount ?? '0');
+  const isExpiredQ  = !!selectedQuote && (selectedQuote.status === 'EXPIRED' || (selectedQuote.validUntil ? new Date(selectedQuote.validUntil) < new Date() : false));
+  const canActQ     = !!selectedQuote && !isExpiredQ && ['QUOTED', 'VIEWED'].includes(selectedQuote.status);
+  const qMsLeft     = selectedQuote?.validUntil ? new Date(selectedQuote.validUntil).getTime() - Date.now() : 0;
+  const qValidLabel = qMsLeft > 0 ? (Math.floor(qMsLeft / 86400000) >= 1
+    ? `${Math.floor(qMsLeft / 86400000)}d ${Math.floor((qMsLeft % 86400000) / 3600000)}h left`
+    : `${Math.floor(qMsLeft / 3600000)}h left`) : null;
 
   // Derived values used by tiles
   const pendingBookings      = bookings.filter(b => b.status === 'PENDING');
@@ -698,50 +735,142 @@ export default function BookingsPage() {
             {/* Quotes list / inline detail */}
             {activeSection === 'quotes' && (
               selectedQuote ? (
-                /* ── Inline quote detail ── */
-                <div className="rounded-2xl overflow-hidden"
-                  style={{ background: 'linear-gradient(135deg,#0B1F3A,#1a1040)', border: '1px solid rgba(212,175,55,0.2)' }}>
-                  {/* validity badge row */}
-                  <div className="px-4 pt-3 pb-0 flex items-center justify-between">
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedQuote.categorySlug && (
-                        <span className="text-[10px] font-semibold text-indigo-300 bg-indigo-500/15 border border-indigo-500/30 px-2 py-0.5 rounded-full">
-                          {getCategoryName(selectedQuote.categorySlug)}
-                        </span>
-                      )}
-                      {selectedQuote.status === 'ACCEPTED' && (
-                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-0.5">
-                          <CheckCircle2 size={9} /> Accepted
-                        </span>
-                      )}
-                      {selectedQuote.status === 'CANCELLED' && (
-                        <span className="text-[10px] font-bold text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded-full">
-                          Declined
-                        </span>
-                      )}
-                      {selectedQuote.status === 'EXPIRED' && (
-                        <span className="text-[10px] font-bold text-slate-400 bg-slate-500/10 border border-slate-500/30 px-2 py-0.5 rounded-full">
-                          Expired
+                /* ── Inline quote detail (light theme) ── */
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+
+                  {/* Status banner */}
+                  {(selectedQuote.status === 'CANCELLED') && (
+                    <div className="bg-red-50 border-b border-red-100 px-5 py-3 flex items-center gap-2">
+                      <XCircle size={14} className="text-red-500 shrink-0" />
+                      <div>
+                        <p className="text-sm font-bold text-red-700">Quote Declined</p>
+                        <p className="text-[11px] text-red-400">Contact the advisor to request a new one</p>
+                      </div>
+                    </div>
+                  )}
+                  {isExpiredQ && selectedQuote.status !== 'CANCELLED' && (
+                    <div className="bg-amber-50 border-b border-amber-100 px-5 py-3 flex items-center gap-2">
+                      <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                      <div>
+                        <p className="text-sm font-bold text-amber-700">Quote Expired</p>
+                        <p className="text-[11px] text-amber-500">Ask the advisor for a fresh quote</p>
+                      </div>
+                    </div>
+                  )}
+                  {selectedQuote.status === 'ACCEPTED' && (
+                    <div className="bg-emerald-50 border-b border-emerald-100 px-5 py-3 flex items-center gap-2">
+                      <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
+                      <p className="text-sm font-bold text-emerald-700">Quote Accepted — Work in progress</p>
+                    </div>
+                  )}
+
+                  {/* Amount row */}
+                  <div className="px-5 py-4 border-b border-slate-50">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-0.5">Advisory Fee Quoted</p>
+                    <div className="flex items-end justify-between gap-3">
+                      <p className="text-2xl font-black text-slate-800">₹{qBase.toLocaleString('en-IN')}</p>
+                      {qValidLabel && !isExpiredQ && (
+                        <span className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full whitespace-nowrap">
+                          {qValidLabel}
                         </span>
                       )}
                     </div>
                   </div>
-                  <FeeQuoteViewModal
-                    inline
-                    quote={selectedQuote}
-                    isOpen={true}
-                    onClose={() => setSelectedQuote(null)}
-                    onDeclined={(id) => {
-                      setQuotes(prev => prev.map(q => q.id === id ? { ...q, status: 'CANCELLED' } : q));
-                      setSelectedQuote(null);
-                    }}
-                    onAccepted={(quoteId, ticketId) => {
-                      setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: 'ACCEPTED' } : q));
-                      fetchQuotes();
-                      fetchTickets();
-                      if (ticketId) router.push(`/tickets/${ticketId}`);
-                    }}
-                  />
+
+                  {/* Client message */}
+                  {selectedQuote.clientMessage && (
+                    <div className="px-5 py-3.5 border-b border-slate-50 bg-slate-50/60">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Your Request</p>
+                      <p className="text-sm text-slate-600 leading-relaxed">{selectedQuote.clientMessage}</p>
+                    </div>
+                  )}
+
+                  {/* Fee breakdown */}
+                  {selectedQuote.lineItems.length > 0 && (
+                    <div className="px-5 py-3.5 border-b border-slate-50">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2.5">Fee Breakdown</p>
+                      <div className="rounded-xl overflow-hidden border border-slate-100">
+                        <div className="grid grid-cols-[1fr_auto] px-3 py-2 bg-slate-50 border-b border-slate-100">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Description</span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Amount</span>
+                        </div>
+                        {[...selectedQuote.lineItems].sort((a, b) => a.sortOrder - b.sortOrder).map((item, idx) => (
+                          <div key={item.id} className={`grid grid-cols-[1fr_auto] px-3 py-2.5 ${idx < selectedQuote.lineItems.length - 1 ? 'border-b border-slate-50' : ''}`}>
+                            <span className="text-sm text-slate-700">{item.description}</span>
+                            <span className="text-sm text-slate-700 font-semibold text-right tabular-nums">
+                              ₹{parseFloat(item.amount).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="grid grid-cols-[1fr_auto] px-3 py-2.5 bg-slate-50 border-t border-slate-100">
+                          <span className="text-sm font-black text-slate-800">Total</span>
+                          <span className="text-base font-black tabular-nums text-indigo-600">
+                            ₹{qBase.toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Advisor note */}
+                  {selectedQuote.advisorNote && (
+                    <div className="px-5 py-3.5 border-b border-slate-50 bg-blue-50/40">
+                      <p className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider mb-1">Note from Advisor</p>
+                      <p className="text-sm text-blue-700 leading-relaxed">{selectedQuote.advisorNote}</p>
+                    </div>
+                  )}
+
+                  {/* Work ticket link */}
+                  {selectedQuote.serviceTicket && (
+                    <div className="px-5 py-3.5 border-b border-slate-50 bg-emerald-50/60 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-emerald-700">Work Ticket Active</p>
+                          <p className="text-[10px] text-emerald-500">{selectedQuote.serviceTicket.ticketNumber}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => router.push(`/tickets/${selectedQuote.serviceTicket!.id}`)}
+                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 underline underline-offset-2">
+                        Track Ticket
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Decline error */}
+                  {declineError && (
+                    <div className="px-5 py-2.5 bg-red-50 border-b border-red-100 flex items-center gap-2">
+                      <AlertCircle size={13} className="text-red-500 shrink-0" />
+                      <p className="text-xs text-red-600">{declineError}</p>
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  {canActQ && !selectedQuote.serviceTicket && (
+                    <div className="px-5 py-4 flex gap-3">
+                      <button
+                        onClick={handleInlineDecline}
+                        disabled={decliningInline}
+                        className="flex-1 py-3 rounded-xl font-semibold text-sm text-red-600 border border-red-200 hover:bg-red-50 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50">
+                        {decliningInline ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
+                        Decline
+                      </button>
+                      <button
+                        onClick={() => setShowPayModal(true)}
+                        className="flex-[2] py-3 rounded-xl font-black text-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+                        Accept &amp; Pay <ArrowRight size={14} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Date footer */}
+                  <p className="px-5 py-3 text-[10px] text-slate-400 border-t border-slate-50">
+                    Received {new Date(selectedQuote.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {selectedQuote.validUntil && !isExpiredQ && (
+                      <span> · Valid until {new Date(selectedQuote.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                    )}
+                  </p>
                 </div>
               ) : quotesLoading ? (
                 <div className="flex items-center justify-center py-20 text-slate-400"><Loader2 size={20} className="animate-spin mr-2" /> Loading…</div>
@@ -929,6 +1058,27 @@ export default function BookingsPage() {
           </div>
         </div>
       </>
+    )}
+
+    {/* Quote payment modal */}
+    {showPayModal && selectedQuote && (
+      <FeeQuoteViewModal
+        quote={selectedQuote}
+        isOpen={showPayModal}
+        onClose={() => setShowPayModal(false)}
+        onDeclined={(id) => {
+          setQuotes(prev => prev.map(q => q.id === id ? { ...q, status: 'CANCELLED' } : q));
+          setSelectedQuote(null);
+          setShowPayModal(false);
+        }}
+        onAccepted={(quoteId, ticketId) => {
+          setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: 'ACCEPTED' } : q));
+          fetchQuotes();
+          fetchTickets();
+          setShowPayModal(false);
+          if (ticketId) router.push(`/tickets/${ticketId}`);
+        }}
+      />
     )}
 
     </>
