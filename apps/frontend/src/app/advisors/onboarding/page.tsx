@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import Link from 'next/link';
@@ -1430,17 +1430,17 @@ ${availLines ? `<div class="section">
 
         {/* ── Step: Account ── */}
         {step === 'account' && (
-          <div className="p-4 sm:p-5 space-y-3">
+          <div className="p-3 sm:p-5 space-y-2.5 sm:space-y-3">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">{t('onboard.account.title')}</h2>
-              <p className="text-sm text-gray-500">{t('onboard.account.sub')}</p>
+              <h2 className="text-base sm:text-lg font-bold text-gray-900">{t('onboard.account.title')}</h2>
+              <p className="text-xs sm:text-sm text-gray-500">{t('onboard.account.sub')}</p>
             </div>
 
             {/* Phone */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.otp.phoneLabel')}</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">{t('onboard.otp.phoneLabel')}</label>
               <div className={inputWrap}>
-                <span className="px-3 py-3 bg-gray-50 border-r border-gray-200 text-sm text-gray-600 font-medium">+91</span>
+                <span className="px-3 py-2.5 sm:py-3 bg-gray-50 border-r border-gray-200 text-sm text-gray-600 font-medium">+91</span>
                 <input type="tel" maxLength={10} placeholder="10-digit number" value={formData.phoneNumber}
                   disabled
                   onChange={e => update('phoneNumber', e.target.value.replace(/\D/g, ''))}
@@ -1462,7 +1462,7 @@ ${availLines ? `<div class="section">
               </div>
               <FieldErr field="email" />
               {!fieldErrors.email && (
-                <p className="text-[10px] text-gray-400 mt-1">Accepted: .com � .in � .co.in � .org � .net � .net.in � .edu � .gov.in � .info � .biz</p>
+                <p className="text-[11px] text-gray-400 mt-1.5">Most formats accepted — <span className="font-medium text-gray-500">.com, .in, .co.in, .org, .net, .edu, .gov.in</span></p>
               )}
             </div>
 
@@ -1471,7 +1471,7 @@ ${availLines ? `<div class="section">
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('onboard.account.pwdLabel')}</label>
               <div className={fw('password')}>
                 <Lock size={16} className={inputIcon} />
-                <input type={showPassword ? 'text' : 'password'} placeholder="Min. 8 characters � letters + numbers"
+                <input type={showPassword ? 'text' : 'password'} placeholder="At least 8 characters"
                   value={formData.password}
                   onChange={e => update('password', e.target.value)}
                   onBlur={e => blurField('password', e.target.value)}
@@ -1481,13 +1481,32 @@ ${availLines ? `<div class="section">
                 </button>
               </div>
               <FieldErr field="password" />
-              {!fieldErrors.password && formData.password.length > 0 && (
-                <div className="flex gap-2 mt-1">
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${formData.password.length >= 8 ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'}`}>8+ chars</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${/[A-Za-z]/.test(formData.password) ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'}`}>letters</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${/[0-9]/.test(formData.password) ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-500'}`}>numbers</span>
-                </div>
-              )}
+              {formData.password.length > 0 && (() => {
+                const r = {
+                  len:   formData.password.length >= 8,
+                  upper: /[A-Z]/.test(formData.password),
+                  lower: /[a-z]/.test(formData.password),
+                  num:   /[0-9]/.test(formData.password),
+                };
+                return (
+                  <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+                    {([
+                      [r.len,   'Min. 8 characters'],
+                      [r.upper, 'One uppercase letter'],
+                      [r.lower, 'One lowercase letter'],
+                      [r.num,   'One number (0–9)'],
+                    ] as [boolean, string][]).map(([ok, label]) => (
+                      <span key={label} className={`flex items-center gap-1 text-[11px] font-medium ${ok ? 'text-emerald-600' : 'text-slate-400'}`}>
+                        {ok
+                          ? <CheckCircle2 size={11} className="shrink-0" />
+                          : <span className="w-[11px] h-[11px] rounded-full border border-slate-300 shrink-0 inline-block" />
+                        }
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Confirm Password */}
@@ -1694,7 +1713,7 @@ ${availLines ? `<div class="section">
               <div className="flex justify-between mt-1">
                 {fieldErrors.bio
                   ? <p className="text-[11px] text-red-500 flex items-center gap-1"><AlertCircle size={11}/>{fieldErrors.bio}</p>
-                  : <p className="text-xs text-gray-400">Min 50 � Max 500 characters</p>
+                  : <p className="text-xs text-gray-400">Min 50 — Max 500 characters</p>
                 }
                 <p className={`text-xs font-medium ${formData.bio.trim().length < 50 ? 'text-red-400' : formData.bio.trim().length > 450 ? 'text-amber-500' : 'text-emerald-600'}`}>
                   {formData.bio.trim().length} / 500
