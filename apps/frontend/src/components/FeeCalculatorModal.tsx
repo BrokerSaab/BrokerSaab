@@ -178,21 +178,6 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
           {/* ── ADVISOR VIEW ── */}
           {isAdvisor && advisorFees && clientFees && hasAmount && (
             <>
-              {/* Client total — for advisor awareness */}
-              <div className="rounded-xl overflow-hidden"
-                style={{ border: '1px solid rgba(79,70,229,0.25)', background: 'rgba(79,70,229,0.05)' }}>
-                <div className="px-3 py-2 border-b"
-                  style={{ borderColor: 'rgba(79,70,229,0.2)', background: 'rgba(79,70,229,0.12)' }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#818CF8' }}>Client will pay</p>
-                </div>
-                <div className="px-3 py-2">
-                  <Row label="Advisory Fee (your quote)"      value={`₹${fmt(amount)}`} />
-                  <Row label="Platform Fee" sub={`(${platformFeeLabel(amount)})`}        value={`₹${fmt(clientFees.platformFee)}`} />
-                  <Row label="Gateway Fee"  sub="(1.5%)"                                 value={`₹${fmt(clientFees.gatewayFee)}`} />
-                  <Row label="Client's Total"                 value={`₹${fmt(clientFees.clientTotal)}`} bold divider />
-                </div>
-              </div>
-
               {/* Advisor earnings */}
               <div className="rounded-xl overflow-hidden"
                 style={{ border: '1px solid rgba(212,175,55,0.3)', background: 'rgba(212,175,55,0.04)' }}>
