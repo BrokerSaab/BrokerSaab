@@ -27,6 +27,7 @@ RUN apk add --no-cache openssl
 # at container start — without it, `npx prisma` silently fetches the latest
 # registry version instead of the pinned one, which has broken schema.prisma
 # compatibility across major versions before.
+COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
 # Prisma client + schema (generate already baked into node_modules from builder)
