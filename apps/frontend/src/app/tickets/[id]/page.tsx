@@ -439,12 +439,10 @@ export default function TicketDetailPage() {
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const W = 210;
       const base          = Number(ticket.baseAmount        ?? ticket.totalAmount);
-      const comm          = Number(ticket.commission);
       const net           = Number(ticket.netAmount);
       const advGateway    = Number(ticket.advisorGatewayFee  ?? 0);
       const advPlatform   = Number(ticket.advisorPlatformFee ?? 0);
       const advPayout     = Number(ticket.advisorPayout      ?? net);
-      const commPct       = base > 0 ? Math.round((comm / base) * 100) : 0;
       const hasAdvisorFees = advGateway > 0 || advPlatform > 0;
       const rawDate = ticket.payoutReleasedAt || ticket.closedAt || ticket.createdAt;
       const fmtDate = new Date(rawDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -570,17 +568,6 @@ export default function TicketDetailPage() {
 
       y += 11;
       normalRow('Advisory Fee (Quote)', `₹${pdfFmt(base)}`);
-
-      if (comm > 0) {
-        deductRow(`Platform Commission (${commPct}%)`, `− ₹${pdfFmt(comm)}`);
-
-        // Sub-total divider
-        doc.setDrawColor(226, 232, 240);
-        doc.setLineWidth(0.3);
-        doc.line(23, y - 3, W - 23, y - 3);
-
-        normalRow('Sub-total after commission', `₹${pdfFmt(net)}`);
-      }
 
       if (hasAdvisorFees) {
         deductRow('Payment Gateway Fee (1.5%)', `− ₹${pdfFmt(advGateway)}`);
@@ -843,7 +830,6 @@ export default function TicketDetailPage() {
 
         {isAdvisor && (() => {
           const base             = Number(ticket.baseAmount        ?? ticket.totalAmount);
-          const commission       = Number(ticket.commission);
           const net              = Number(ticket.netAmount);
           const advGateway       = Number(ticket.advisorGatewayFee  ?? 0);
           const advPlatform      = Number(ticket.advisorPlatformFee ?? 0);
@@ -872,20 +858,6 @@ export default function TicketDetailPage() {
                   <span className="text-xs text-slate-500">Advisory Fee (Quote)</span>
                   <span className="text-sm font-bold text-slate-800">₹{fmtIN(base)}</span>
                 </div>
-                {commission > 0 && (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500">
-                        Platform Commission ({base > 0 ? Math.round((commission / base) * 100) : 0}%)
-                      </span>
-                      <span className="text-sm font-semibold text-red-500">− ₹{fmtIN(commission)}</span>
-                    </div>
-                    <div className="border-t border-dashed border-slate-200 pt-2 flex items-center justify-between">
-                      <span className="text-xs text-slate-600">Sub-total</span>
-                      <span className="text-sm font-bold text-slate-700">₹{fmtIN(net)}</span>
-                    </div>
-                  </>
-                )}
                 {hasAdvisorFees && (
                   <>
                     <div className="flex items-center justify-between">
