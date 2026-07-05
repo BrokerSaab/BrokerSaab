@@ -420,6 +420,24 @@ export default function AdminSuitePage() {
   const [payoutRejectReason, setPayoutRejectReason] = useState('');
   const [payoutActioning,    setPayoutActioning]    = useState(false);
   const [payoutFilter,       setPayoutFilter]       = useState<'ALL' | 'PENDING' | 'SUCCESS' | 'FAILED'>('ALL');
+  const [payoutView,         setPayoutView]         = useState<'ADVISORS' | 'CLIENTS'>('ADVISORS');
+
+  // Client withdrawals (parallel population to advisor Payouts, same tab)
+  interface ClientWithdrawalRecord {
+    id: string; amount: string; commission: string; netAmount: string;
+    status: string; bankAccount: string; referenceId: string | null;
+    rejectionReason: string | null; createdAt: string;
+    user: { id: string; fullName: string; email: string; phoneNumber: string };
+  }
+  const [withdrawals, setWithdrawals]             = useState<ClientWithdrawalRecord[]>([]);
+  const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
+  const [withdrawalSummary, setWithdrawalSummary] = useState<{
+    totalPending: number; totalSuccess: number; totalAmountPaid: number;
+  } | null>(null);
+  const [withdrawalActionId, setWithdrawalActionId]       = useState<string | null>(null);
+  const [withdrawalRejectReason, setWithdrawalRejectReason] = useState('');
+  const [withdrawalActioning,    setWithdrawalActioning]    = useState(false);
+  const [withdrawalFilter,       setWithdrawalFilter]       = useState<'ALL' | 'PENDING' | 'SUCCESS' | 'FAILED'>('ALL');
 
   const token = () => (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('accessToken') || '' : '');
 
@@ -457,8 +475,37 @@ export default function AdminSuitePage() {
       });
       const d = await r.json();
       if (d.success) { setPayoutActionId(null); setPayoutRefId(''); setPayoutRejectReason(''); fetchPayouts(); fetchPayoutSummary(); }
-    } catch { /* ignore */ }
+      else alert(d.message || 'Failed to process payout');
+    } catch { alert('Network error'); }
     finally { setPayoutActioning(false); }
+  };
+
+  const fetchWithdrawals = useCallback(async () => {
+    setWithdrawalsLoading(true);
+    try {
+      const r = await fetch(`${API}/admin/client-withdrawals`, { headers: { Authorization: `Bearer ${token()}` } });
+      const d = await r.json();
+      if (d.success) { setWithdrawals(d.data); setWithdrawalSummary(d.summary); }
+    } catch { /* ignore */ }
+    finally { setWithdrawalsLoading(false); }
+  }, []);
+
+  const handleWithdrawalAction = async (id: string, action: 'release' | 'reject') => {
+    setWithdrawalActioning(true);
+    try {
+      const r = await fetch(`${API}/admin/client-withdrawals/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({
+          action,
+          rejectionReason: action === 'reject' ? withdrawalRejectReason || 'Rejected by admin' : undefined,
+        }),
+      });
+      const d = await r.json();
+      if (d.success) { setWithdrawalActionId(null); setWithdrawalRejectReason(''); fetchWithdrawals(); }
+      else alert(d.message || 'Failed to process withdrawal');
+    } catch { alert('Network error'); }
+    finally { setWithdrawalActioning(false); }
   };
 
   const fetchPayoutSummary = useCallback(async () => {
@@ -819,7 +866,7 @@ export default function AdminSuitePage() {
   useEffect(() => { if (activeTab === 'bookings') fetchBookings(); }, [activeTab, fetchBookings]);
   useEffect(() => { if (activeTab === 'support') { fetchTickets(); fetchTicketSubAdmins(); } }, [activeTab, fetchTickets, fetchTicketSubAdmins]);
   useEffect(() => { if (activeTab === 'sub-admins') fetchSubAdmins(); }, [activeTab, fetchSubAdmins]);
-  useEffect(() => { if (activeTab === 'payouts') { fetchPayouts(); fetchPayoutSummary(); } }, [activeTab, fetchPayouts, fetchPayoutSummary]);
+  useEffect(() => { if (activeTab === 'payouts') { fetchPayouts(); fetchPayoutSummary(); fetchWithdrawals(); } }, [activeTab, fetchPayouts, fetchPayoutSummary, fetchWithdrawals]);
   useEffect(() => { fetchPayoutSummary(); }, [fetchPayoutSummary]);
   useEffect(() => {
     fetch(`${API}/admin/tickets?status=OPEN&limit=0`, { headers: { Authorization: `Bearer ${token()}` } })
@@ -1309,16 +1356,17 @@ export default function AdminSuitePage() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: 'Pending Release', value: payoutSummary.totalPending, color: 'border-l-amber-500 bg-amber-50', text: 'text-amber-700', desc: payoutSummary.totalPending > 0 ? 'Action required' : 'All clear' },
-                  { label: 'Released Payouts', value: payoutSummary.totalSuccess, color: 'border-l-emerald-500 bg-emerald-50', text: 'text-emerald-700', desc: 'Processed to advisors' },
-                  { label: 'Total Paid to Advisors', value: `₹${payoutSummary.totalAmountPaid.toLocaleString('en-IN')}`, color: 'border-l-slate-400 bg-slate-50', text: 'text-slate-800', desc: 'Net transfers' },
-                  { label: 'Commission Earned', value: `₹${payoutSummary.totalCommission.toLocaleString('en-IN')}`, color: 'border-l-indigo-500 bg-indigo-50', text: 'text-indigo-700', desc: '15% platform cut' },
+                  { label: 'Pending Release', value: payoutSummary.totalPending, color: 'border-l-amber-500 bg-amber-50', text: 'text-amber-700', desc: payoutSummary.totalPending > 0 ? 'Action required' : 'All clear', onClick: () => { setPayoutFilter('PENDING'); setPayoutView('ADVISORS'); setActiveTab('payouts'); } },
+                  { label: 'Released Payouts', value: payoutSummary.totalSuccess, color: 'border-l-emerald-500 bg-emerald-50', text: 'text-emerald-700', desc: 'Processed to advisors', onClick: () => { setPayoutFilter('SUCCESS'); setPayoutView('ADVISORS'); setActiveTab('payouts'); } },
+                  { label: 'Total Paid to Advisors', value: `₹${payoutSummary.totalAmountPaid.toLocaleString('en-IN')}`, color: 'border-l-slate-400 bg-slate-50', text: 'text-slate-800', desc: 'Net transfers', onClick: () => { setPayoutFilter('SUCCESS'); setPayoutView('ADVISORS'); setActiveTab('payouts'); } },
+                  { label: 'Commission Earned', value: `₹${payoutSummary.totalCommission.toLocaleString('en-IN')}`, color: 'border-l-indigo-500 bg-indigo-50', text: 'text-indigo-700', desc: 'Platform fee (tiered) + gateway costs', onClick: () => { setPayoutFilter('SUCCESS'); setPayoutView('ADVISORS'); setActiveTab('payouts'); } },
                 ].map((s, i) => (
-                  <div key={i} className={`${s.color.split(' ')[1]} rounded-xl p-4 border-l-4 ${s.color.split(' ')[0]}`}>
+                  <button key={i} onClick={s.onClick}
+                    className={`${s.color.split(' ')[1]} rounded-xl p-4 border-l-4 ${s.color.split(' ')[0]} text-left w-full hover:shadow-md hover:-translate-y-0.5 transition-all`}>
                     <p className={`text-[10px] font-bold uppercase tracking-wider ${s.text} mb-1`}>{s.label}</p>
                     <p className={`text-lg font-black ${s.text}`}>{s.value}</p>
                     <p className="text-[10px] text-slate-500 mt-0.5">{s.desc}</p>
-                  </div>
+                  </button>
                 ))}
               </div>
               {payoutSummary.totalPending > 0 && (
@@ -2714,134 +2762,267 @@ export default function AdminSuitePage() {
         <div className="space-y-5">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h2 className="text-sm font-bold text-slate-700 uppercase tracking-widest flex items-center gap-2">
-              <CreditCard size={15} className="text-emerald-500" /> Advisor Payouts
+              <CreditCard size={15} className="text-emerald-500" /> Payouts &amp; Withdrawals
             </h2>
-            <button onClick={fetchPayouts} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-emerald-600"><RefreshCw size={13} /> Refresh</button>
+            <button onClick={() => { fetchPayouts(); fetchWithdrawals(); }} className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-emerald-600"><RefreshCw size={13} /> Refresh</button>
           </div>
 
-          {/* Summary cards */}
-          {payoutSummary && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: 'Pending Withdrawals', value: payoutSummary.totalPending, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200' },
-                { label: 'Processed Payouts', value: payoutSummary.totalSuccess, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
-                { label: 'Total Paid Out', value: `₹${payoutSummary.totalAmountPaid.toLocaleString('en-IN')}`, color: 'text-slate-800', bg: 'bg-white border-slate-200' },
-                { label: 'Commission Earned', value: `₹${payoutSummary.totalCommission.toLocaleString('en-IN')}`, color: 'text-indigo-700', bg: 'bg-indigo-50 border-indigo-200' },
-              ].map(c => (
-                <div key={c.label} className={`rounded-xl border px-4 py-3 ${c.bg}`}>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">{c.label}</p>
-                  <p className={`text-lg font-black ${c.color}`}>{c.value}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Filter */}
+          {/* Advisors / Clients sub-tab toggle */}
           <div className="flex gap-2 flex-wrap">
-            {(['ALL', 'PENDING', 'SUCCESS', 'FAILED'] as const).map(f => (
-              <button key={f} onClick={() => setPayoutFilter(f)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${payoutFilter === f ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
-                {f === 'ALL' ? 'All' : f === 'PENDING' ? 'Pending Withdrawal' : f === 'SUCCESS' ? 'Processed' : 'Rejected'}
+            {(['ADVISORS', 'CLIENTS'] as const).map(v => (
+              <button key={v} onClick={() => { setPayoutView(v); setPayoutFilter('ALL'); setWithdrawalFilter('ALL'); }}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${payoutView === v ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
+                {v === 'ADVISORS' ? 'Advisors' : 'Clients & Users'}
               </button>
             ))}
           </div>
 
-          {/* Payout list */}
-          {payoutsLoading ? (
-            <div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-slate-400" /></div>
-          ) : (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-              {payouts.filter(p => payoutFilter === 'ALL' || p.status === payoutFilter).length === 0 ? (
-                <div className="py-12 text-center">
-                  <CreditCard size={32} className="text-slate-300 mx-auto mb-2" />
-                  <p className="text-slate-400 text-sm">No payout records</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-50">
-                  {payouts.filter(p => payoutFilter === 'ALL' || p.status === payoutFilter).map(p => (
-                    <div key={p.id} className="px-5 py-4">
-                      <div className="flex items-start gap-4 flex-wrap">
-                        <div className="flex-1 min-w-0 space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
-                              p.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' :
-                              p.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
-                            }`}>{p.status}</span>
-                            {p.bankAccount === 'WALLET_CREDIT' ? (
-                              <span className="text-[10px] text-slate-400">Auto-credit · {p.ticket?.ticketNumber ?? 'N/A'}</span>
-                            ) : (
-                              <span className="text-[10px] text-slate-600 font-semibold">Withdrawal Request</span>
-                            )}
-                          </div>
-                          <p className="text-sm font-bold text-slate-800">{p.advisor.fullName}</p>
-                          <p className="text-xs text-slate-400">{p.advisor.email} · {p.advisor.phoneNumber}</p>
-                          {p.bankAccount !== 'WALLET_CREDIT' && (
-                            <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 font-mono">{p.bankAccount}</p>
-                          )}
-                          {p.rejectionReason && (
-                            <p className="text-xs text-red-600">Rejected: {p.rejectionReason}</p>
-                          )}
-                          <p className="text-[10px] text-slate-400">{new Date(p.createdAt).toLocaleString('en-IN')}</p>
-                        </div>
-
-                        <div className="text-right space-y-1">
-                          <p className="text-lg font-black text-emerald-700">₹{Number(p.netAmount).toLocaleString('en-IN')}</p>
-                          {Number(p.commission) > 0 && (
-                            <p className="text-[10px] text-slate-400">Commission: ₹{Number(p.commission).toLocaleString('en-IN')}</p>
-                          )}
-                          {p.referenceId && p.referenceId !== `auto_${p.id}` && (
-                            <p className="text-[10px] font-mono text-slate-500">Ref: {p.referenceId}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Action buttons for all PENDING payouts */}
-                      {p.status === 'PENDING' && (
-                        <div className="mt-3">
-                          {payoutActionId === p.id ? (
-                            <div className="space-y-2 bg-slate-50 rounded-xl p-3">
-                              <p className="text-[10px] text-slate-500">Razorpay payout will be initiated automatically. Fill rejection reason only if rejecting.</p>
-                              <input
-                                type="text"
-                                placeholder="Rejection reason (required only if rejecting)"
-                                value={payoutRejectReason}
-                                onChange={e => setPayoutRejectReason(e.target.value)}
-                                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-400"
-                              />
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => handlePayoutAction(p.id, 'release')}
-                                  disabled={payoutActioning}
-                                  className="flex-1 px-3 py-2 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all">
-                                  {payoutActioning ? 'Processing…' : 'Release via Razorpay'}
-                                </button>
-                                <button
-                                  onClick={() => handlePayoutAction(p.id, 'reject')}
-                                  disabled={payoutActioning}
-                                  className="flex-1 px-3 py-2 rounded-xl text-xs font-black text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-all">
-                                  {payoutActioning ? 'Processing…' : 'Reject & Refund'}
-                                </button>
-                                <button
-                                  onClick={() => setPayoutActionId(null)}
-                                  className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50">
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => { setPayoutActionId(p.id); setPayoutRefId(''); setPayoutRejectReason(''); }}
-                              className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all">
-                              Process Withdrawal
-                            </button>
-                          )}
-                        </div>
-                      )}
+          {payoutView === 'ADVISORS' && (
+            <>
+              {/* Summary cards */}
+              {payoutSummary && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Pending Withdrawals', value: payoutSummary.totalPending, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200' },
+                    { label: 'Processed Payouts', value: payoutSummary.totalSuccess, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
+                    { label: 'Total Paid Out', value: `₹${payoutSummary.totalAmountPaid.toLocaleString('en-IN')}`, color: 'text-slate-800', bg: 'bg-white border-slate-200' },
+                    { label: 'Commission Earned', value: `₹${payoutSummary.totalCommission.toLocaleString('en-IN')}`, color: 'text-indigo-700', bg: 'bg-indigo-50 border-indigo-200' },
+                  ].map(c => (
+                    <div key={c.label} className={`rounded-xl border px-4 py-3 ${c.bg}`}>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">{c.label}</p>
+                      <p className={`text-lg font-black ${c.color}`}>{c.value}</p>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
+
+              {/* Filter */}
+              <div className="flex gap-2 flex-wrap">
+                {(['ALL', 'PENDING', 'SUCCESS', 'FAILED'] as const).map(f => (
+                  <button key={f} onClick={() => setPayoutFilter(f)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${payoutFilter === f ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
+                    {f === 'ALL' ? 'All' : f === 'PENDING' ? 'Pending Withdrawal' : f === 'SUCCESS' ? 'Processed' : 'Rejected'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Payout list */}
+              {payoutsLoading ? (
+                <div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-slate-400" /></div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  {payouts.filter(p => payoutFilter === 'ALL' || p.status === payoutFilter).length === 0 ? (
+                    <div className="py-12 text-center">
+                      <CreditCard size={32} className="text-slate-300 mx-auto mb-2" />
+                      <p className="text-slate-400 text-sm">No payout records</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-50">
+                      {payouts.filter(p => payoutFilter === 'ALL' || p.status === payoutFilter).map(p => (
+                        <div key={p.id} className="px-5 py-4">
+                          <div className="flex items-start gap-4 flex-wrap">
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
+                                  p.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' :
+                                  p.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                                }`}>{p.status}</span>
+                                {p.bankAccount === 'WALLET_CREDIT' ? (
+                                  <span className="text-[10px] text-slate-400">Auto-credit · {p.ticket?.ticketNumber ?? 'N/A'}</span>
+                                ) : (
+                                  <span className="text-[10px] text-slate-600 font-semibold">Withdrawal Request</span>
+                                )}
+                              </div>
+                              <p className="text-sm font-bold text-slate-800">{p.advisor.fullName}</p>
+                              <p className="text-xs text-slate-400">{p.advisor.email} · {p.advisor.phoneNumber}</p>
+                              {p.bankAccount !== 'WALLET_CREDIT' && (
+                                <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 font-mono">{p.bankAccount}</p>
+                              )}
+                              {p.rejectionReason && (
+                                <p className="text-xs text-red-600">Rejected: {p.rejectionReason}</p>
+                              )}
+                              <p className="text-[10px] text-slate-400">{new Date(p.createdAt).toLocaleString('en-IN')}</p>
+                            </div>
+
+                            <div className="text-right space-y-1">
+                              <p className="text-lg font-black text-emerald-700">₹{Number(p.netAmount).toLocaleString('en-IN')}</p>
+                              {Number(p.commission) > 0 && (
+                                <p className="text-[10px] text-slate-400">Commission: ₹{Number(p.commission).toLocaleString('en-IN')}</p>
+                              )}
+                              {p.referenceId && p.referenceId !== `auto_${p.id}` && (
+                                <p className="text-[10px] font-mono text-slate-500">Ref: {p.referenceId}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Action buttons for all PENDING payouts */}
+                          {p.status === 'PENDING' && (
+                            <div className="mt-3">
+                              {payoutActionId === p.id ? (
+                                <div className="space-y-2 bg-slate-50 rounded-xl p-3">
+                                  <p className="text-[10px] text-slate-500">Razorpay payout will be initiated automatically. Fill rejection reason only if rejecting.</p>
+                                  <input
+                                    type="text"
+                                    placeholder="Rejection reason (required only if rejecting)"
+                                    value={payoutRejectReason}
+                                    onChange={e => setPayoutRejectReason(e.target.value)}
+                                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-400"
+                                  />
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handlePayoutAction(p.id, 'release')}
+                                      disabled={payoutActioning}
+                                      className="flex-1 px-3 py-2 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all">
+                                      {payoutActioning ? 'Processing…' : 'Release via Razorpay'}
+                                    </button>
+                                    <button
+                                      onClick={() => handlePayoutAction(p.id, 'reject')}
+                                      disabled={payoutActioning}
+                                      className="flex-1 px-3 py-2 rounded-xl text-xs font-black text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-all">
+                                      {payoutActioning ? 'Processing…' : 'Reject & Refund'}
+                                    </button>
+                                    <button
+                                      onClick={() => setPayoutActionId(null)}
+                                      className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50">
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setPayoutActionId(p.id); setPayoutRefId(''); setPayoutRejectReason(''); }}
+                                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all">
+                                  Process Withdrawal
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {payoutView === 'CLIENTS' && (
+            <>
+              {/* Summary cards */}
+              {withdrawalSummary && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { label: 'Pending Withdrawals', value: withdrawalSummary.totalPending, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200' },
+                    { label: 'Processed', value: withdrawalSummary.totalSuccess, color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
+                    { label: 'Total Paid Out', value: `₹${withdrawalSummary.totalAmountPaid.toLocaleString('en-IN')}`, color: 'text-slate-800', bg: 'bg-white border-slate-200' },
+                  ].map(c => (
+                    <div key={c.label} className={`rounded-xl border px-4 py-3 ${c.bg}`}>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">{c.label}</p>
+                      <p className={`text-lg font-black ${c.color}`}>{c.value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Filter */}
+              <div className="flex gap-2 flex-wrap">
+                {(['ALL', 'PENDING', 'SUCCESS', 'FAILED'] as const).map(f => (
+                  <button key={f} onClick={() => setWithdrawalFilter(f)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${withdrawalFilter === f ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
+                    {f === 'ALL' ? 'All' : f === 'PENDING' ? 'Pending Withdrawal' : f === 'SUCCESS' ? 'Processed' : 'Rejected'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Withdrawal list */}
+              {withdrawalsLoading ? (
+                <div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-slate-400" /></div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  {withdrawals.filter(w => withdrawalFilter === 'ALL' || w.status === withdrawalFilter).length === 0 ? (
+                    <div className="py-12 text-center">
+                      <UserCheck size={32} className="text-slate-300 mx-auto mb-2" />
+                      <p className="text-slate-400 text-sm">No client withdrawal requests</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-50">
+                      {withdrawals.filter(w => withdrawalFilter === 'ALL' || w.status === withdrawalFilter).map(w => (
+                        <div key={w.id} className="px-5 py-4">
+                          <div className="flex items-start gap-4 flex-wrap">
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
+                                  w.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' :
+                                  w.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                                }`}>{w.status}</span>
+                                <span className="text-[10px] text-slate-600 font-semibold">Withdrawal Request</span>
+                              </div>
+                              <p className="text-sm font-bold text-slate-800">{w.user.fullName}</p>
+                              <p className="text-xs text-slate-400">{w.user.email} · {w.user.phoneNumber}</p>
+                              <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 font-mono">{w.bankAccount}</p>
+                              {w.rejectionReason && (
+                                <p className="text-xs text-red-600">Rejected: {w.rejectionReason}</p>
+                              )}
+                              <p className="text-[10px] text-slate-400">{new Date(w.createdAt).toLocaleString('en-IN')}</p>
+                            </div>
+
+                            <div className="text-right space-y-1">
+                              <p className="text-lg font-black text-emerald-700">₹{Number(w.netAmount).toLocaleString('en-IN')}</p>
+                              {w.referenceId && (
+                                <p className="text-[10px] font-mono text-slate-500">Ref: {w.referenceId}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Action buttons for all PENDING withdrawals */}
+                          {w.status === 'PENDING' && (
+                            <div className="mt-3">
+                              {withdrawalActionId === w.id ? (
+                                <div className="space-y-2 bg-slate-50 rounded-xl p-3">
+                                  <p className="text-[10px] text-slate-500">RazorpayX payout will be initiated automatically. Fill rejection reason only if rejecting.</p>
+                                  <input
+                                    type="text"
+                                    placeholder="Rejection reason (required only if rejecting)"
+                                    value={withdrawalRejectReason}
+                                    onChange={e => setWithdrawalRejectReason(e.target.value)}
+                                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-400"
+                                  />
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleWithdrawalAction(w.id, 'release')}
+                                      disabled={withdrawalActioning}
+                                      className="flex-1 px-3 py-2 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-all">
+                                      {withdrawalActioning ? 'Processing…' : 'Release via RazorpayX'}
+                                    </button>
+                                    <button
+                                      onClick={() => handleWithdrawalAction(w.id, 'reject')}
+                                      disabled={withdrawalActioning}
+                                      className="flex-1 px-3 py-2 rounded-xl text-xs font-black text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-all">
+                                      {withdrawalActioning ? 'Processing…' : 'Reject & Refund to Wallet'}
+                                    </button>
+                                    <button
+                                      onClick={() => setWithdrawalActionId(null)}
+                                      className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50">
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setWithdrawalActionId(w.id); setWithdrawalRejectReason(''); }}
+                                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all">
+                                  Process Withdrawal
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
