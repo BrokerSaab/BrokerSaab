@@ -14,7 +14,7 @@ dotenv.config();
 import authRoutes from './routes/auth';
 import advisorRoutes from './routes/advisors';
 import bookingRoutes from './routes/bookings';
-import paymentRoutes from './routes/payments';
+import paymentRoutes, { paymentsWebhookHandler } from './routes/payments';
 import adminRoutes from './routes/admin';
 import subscriptionRoutes, { webhookHandler } from './routes/subscriptions';
 import contactRoutes, { contactWebhookHandler } from './routes/contacts';
@@ -66,6 +66,7 @@ app.use(cors({
 // Razorpay webhooks need raw body BEFORE express.json()
 app.post('/api/v1/subscriptions/webhook', express.raw({ type: '*/*' }), webhookHandler);
 app.post('/api/v1/contacts/webhook', express.raw({ type: '*/*' }), contactWebhookHandler);
+app.post('/api/v1/payments/webhook', express.raw({ type: '*/*' }), paymentsWebhookHandler);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

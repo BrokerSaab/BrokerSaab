@@ -286,6 +286,59 @@ router.post(
 );
 
 /**
+ * 1d. POST /payments/webhook (raw body, mounted in app.ts before express.json)
+ * Server-side backstop for booking payments: if the client's browser closes/loses
+ * connection after Razorpay captures payment but before it calls verify-checkout,
+ * this reconciles the Transaction/Booking from Razorpay's own event instead of
+ * leaving them stuck PENDING forever. Mirrors subscriptions.ts's webhookHandler
+ * and contacts.ts's contactWebhookHandler.
+ */
+export async function paymentsWebhookHandler(req: Request, res: Response) {
+  try {
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || '';
+    const signature = req.headers['x-razorpay-signature'] as string;
+    if (!signature) return res.status(400).send('Missing signature');
+
+    const expectedSig = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(req.body)
+      .digest('hex');
+
+    if (!crypto.timingSafeEqual(Buffer.from(expectedSig), Buffer.from(signature))) {
+      return res.status(400).send('Invalid signature');
+    }
+
+    const event = JSON.parse(req.body.toString());
+    if (event.event === 'payment.captured') {
+      const payment = event.payload.payment.entity;
+      const orderId = payment.order_id;
+
+      // Bookings key the Razorpay order id off Transaction.referenceId (no
+      // dedicated order-id column, unlike AdvisorSubscription.razorpayOrderId).
+      const transaction = await prisma.transaction.findUnique({ where: { referenceId: orderId } });
+      if (transaction && transaction.bookingId && transaction.status !== TransactionStatus.SUCCESS) {
+        await prisma.$transaction([
+          prisma.transaction.update({
+            where: { id: transaction.id },
+            data: { status: TransactionStatus.SUCCESS, gatewayMessage: 'Confirmed via Razorpay webhook (client did not complete verify-checkout).' },
+          }),
+          prisma.booking.update({
+            where: { id: transaction.bookingId },
+            data: { status: BookingStatus.ACCEPTED },
+          }),
+        ]);
+      }
+      // Unknown order id, no linked booking, or already SUCCESS: idempotent no-op, still ack 200.
+    }
+
+    return res.status(200).send('OK');
+  } catch (err) {
+    console.error('[payments/webhook]', err);
+    return res.status(500).send('Webhook error');
+  }
+}
+
+/**
  * 2. POST /payments/quote-checkout
  * Pay for an accepted fee quote → creates a ServiceTicket with escrow hold.
  */
