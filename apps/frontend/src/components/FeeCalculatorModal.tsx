@@ -11,12 +11,12 @@ interface Props {
 
 /* ── Fee structure:
    - Gateway Fee: 1.5% of quote amount (always)
-   - Platform Fee: 1% of quote amount ONLY if amount > ₹5,000
-   - No flat fees. No commission.
+   - Platform Fee: flat ₹30 (≤₹3,000), flat ₹50 (₹3,001–5,000), 1% (>₹5,000)
+   - No commission.
 ─────────────────────────────────────────── */
 function calcFees(base: number) {
   const gatewayFee  = parseFloat((base * 0.015).toFixed(2));
-  const platformFee = base > 5000 ? parseFloat((base * 0.01).toFixed(2)) : 0;
+  const platformFee = base <= 3000 ? 30 : base <= 5000 ? 50 : parseFloat((base * 0.01).toFixed(2));
   const clientTotal = parseFloat((base + gatewayFee + platformFee).toFixed(2));
   const advisorPayout = parseFloat((base - gatewayFee - platformFee).toFixed(2));
   return { gatewayFee, platformFee, clientTotal, advisorPayout };
@@ -24,6 +24,10 @@ function calcFees(base: number) {
 
 function fmt(n: number) {
   return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function platformFeeLabel(amount: number) {
+  return amount <= 3000 ? 'flat ₹30' : amount <= 5000 ? 'flat ₹50' : '1%';
 }
 
 /* ── component ────────────────────────────────────────── */
@@ -37,7 +41,6 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
   const hasAmount = amount > 0;
   const isAdvisor = role === 'ADVISOR';
   const fees      = hasAmount ? calcFees(amount) : null;
-  const hasPlatformFee = amount > 5000;
 
   /* ── row helper ── */
   const Row = ({ label, value, sub, red, bold, green, divider }: {
@@ -152,9 +155,7 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
               <div className="px-3 py-2">
                 <Row label="Advisory Service Fee"  value={`₹${fmt(amount)}`} />
                 <Row label="Gateway Fee"  sub="(1.5%)"  value={`₹${fmt(fees.gatewayFee)}`} />
-                {hasPlatformFee && (
-                  <Row label="Platform Fee" sub="(1%)" value={`₹${fmt(fees.platformFee)}`} />
-                )}
+                <Row label="Platform Fee" sub={`(${platformFeeLabel(amount)})`} value={`₹${fmt(fees.platformFee)}`} />
                 <Row label="Total Payable" value={`₹${fmt(fees.clientTotal)}`} bold divider />
               </div>
               <div className="px-3 pb-2">
@@ -183,9 +184,7 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
                 <div className="px-3 py-2">
                   <Row label="Advisory Fee (your quote)" value={`₹${fmt(amount)}`} />
                   <Row label="Gateway Fee" sub="(1.5%)"  value={`₹${fmt(fees.gatewayFee)}`} />
-                  {hasPlatformFee && (
-                    <Row label="Platform Fee" sub="(1%)" value={`₹${fmt(fees.platformFee)}`} />
-                  )}
+                  <Row label="Platform Fee" sub={`(${platformFeeLabel(amount)})`} value={`₹${fmt(fees.platformFee)}`} />
                   <Row label="Client's Total" value={`₹${fmt(fees.clientTotal)}`} bold divider />
                 </div>
               </div>
@@ -200,9 +199,7 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
                 <div className="px-3 py-2">
                   <Row label="Quote Amount"                                              value={`₹${fmt(amount)}`} />
                   <Row label="Gateway Fee"  sub="(1.5%)"  red                           value={`− ₹${fmt(fees.gatewayFee)}`} />
-                  {hasPlatformFee && (
-                    <Row label="Platform Fee" sub="(1%)" red                            value={`− ₹${fmt(fees.platformFee)}`} />
-                  )}
+                  <Row label="Platform Fee" sub={`(${platformFeeLabel(amount)})`} red    value={`− ₹${fmt(fees.platformFee)}`} />
                   <Row label="You Receive"              green bold divider               value={`₹${fmt(fees.advisorPayout)}`} />
                 </div>
                 <div className="px-3 pb-2">
@@ -210,9 +207,7 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
                     style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>
                     <Info size={11} className="shrink-0 mt-0.5" style={{ color: '#FB923C' }} />
                     <p className="text-[10px] leading-relaxed" style={{ color: 'rgba(254,215,170,0.75)' }}>
-                      {hasPlatformFee
-                        ? `Gateway (1.5%) + Platform (1%) deducted — non-refundable.`
-                        : `Gateway fee (1.5%) deducted — non-refundable. No platform fee for amounts ≤ ₹5,000.`}
+                      {`Gateway fee (1.5%) + Platform fee (${platformFeeLabel(amount)}) deducted — non-refundable.`}
                     </p>
                   </div>
                 </div>
@@ -250,11 +245,12 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
                 ))}
               </div>
               {[
-                { range: '₹0 – ₹5,000', gateway: '1.5%', platform: 'None' },
+                { range: '₹0 – ₹3,000', gateway: '1.5%', platform: 'Flat ₹30' },
+                { range: '₹3,001 – ₹5,000', gateway: '1.5%', platform: 'Flat ₹50' },
                 { range: 'Above ₹5,000', gateway: '1.5%', platform: '1%' },
               ].map((row, i) => (
                 <div key={i} className="grid grid-cols-3 px-3 py-2"
-                  style={{ borderBottom: i < 1 ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
+                  style={{ borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
                   <span style={{ color: 'rgba(255,255,255,0.55)' }}>{row.range}</span>
                   <span className="text-center" style={{ color: '#D4AF37' }}>{row.gateway}</span>
                   <span className="text-center" style={{ color: '#818CF8' }}>{row.platform}</span>
@@ -263,7 +259,7 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
               <div className="px-3 py-2"
                 style={{ background: 'rgba(255,255,255,0.03)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                 <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                  Platform fee of 1% applies only when quote exceeds ₹5,000.
+                  Platform fee is a flat ₹30/₹50 for smaller quotes, or 1% once the quote exceeds ₹5,000.
                 </p>
               </div>
             </div>
