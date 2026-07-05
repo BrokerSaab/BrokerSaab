@@ -469,11 +469,11 @@ router.post(
         return;
       }
 
-      const netAmount   = Number(ticket.netAmount);
-      const commission  = Number(ticket.commission);
-      const totalAmount = Number(ticket.totalAmount);
-      const amountPaise = Math.round(netAmount * 100);   // Razorpay amounts are in paise
-      const now         = new Date();
+      const advisorPayout = Number(ticket.advisorPayout);
+      const commission    = Number(ticket.commission);
+      const totalAmount   = Number(ticket.totalAmount);
+      const amountPaise   = Math.round(advisorPayout * 100);   // Razorpay amounts are in paise
+      const now           = new Date();
 
       const hasBankDetails = !!(ticket.advisor.bankAccountNumber && ticket.advisor.bankIfsc);
       const bankLabel      = hasBankDetails
@@ -498,7 +498,7 @@ router.post(
             ticketId:    ticket.id,
             amount:      totalAmount,
             commission,
-            netAmount,
+            netAmount:   advisorPayout,
             status:      'PENDING',
             bankAccount: bankLabel,
             referenceId: `ticket_${ticket.id}`,
@@ -544,7 +544,7 @@ router.post(
         if (outcome.success) {
           await prisma.advisor.update({
             where: { id: ticket.advisorId },
-            data:  { walletBalance: { increment: netAmount } },
+            data:  { walletBalance: { increment: advisorPayout } },
           });
         }
 
@@ -552,8 +552,8 @@ router.post(
         if (ticket.advisor.pushToken) {
           const title = outcome.success ? 'Payment Initiated!' : 'Ticket Closed — Payout Pending';
           const body  = outcome.success
-            ? `₹${netAmount.toLocaleString('en-IN')} is being transferred to your bank account (${ticket.advisor.bankAccountHolder ?? 'your account'}).`
-            : `Your ₹${netAmount.toLocaleString('en-IN')} payout will be released by BrokerSaab shortly.`;
+            ? `₹${advisorPayout.toLocaleString('en-IN')} is being transferred to your bank account (${ticket.advisor.bankAccountHolder ?? 'your account'}).`
+            : `Your ₹${advisorPayout.toLocaleString('en-IN')} payout will be released by BrokerSaab shortly.`;
           sendPushNotification(ticket.advisor.pushToken, title, body, { ticketId: ticket.id, screen: 'Wallet' });
         }
       } else {
@@ -562,7 +562,7 @@ router.post(
           sendPushNotification(
             ticket.advisor.pushToken,
             'Ticket Closed — Add Bank Details',
-            `₹${netAmount.toLocaleString('en-IN')} is ready to be released. Add your bank account in the app to receive payment.`,
+            `₹${advisorPayout.toLocaleString('en-IN')} is ready to be released. Add your bank account in the app to receive payment.`,
             { ticketId: ticket.id, screen: 'Wallet' }
           );
         }
@@ -570,7 +570,7 @@ router.post(
 
       io.to(`advisor:${ticket.advisorId}`).emit('ticket_closed', {
         ticketId:  ticket.id,
-        netAmount,
+        netAmount: advisorPayout,
         rating:    userRating,
       });
 

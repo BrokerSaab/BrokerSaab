@@ -49,9 +49,8 @@ router.post(
       }
 
       const totalFee = Number(booking.totalFee);
-      const commissionRate = 0.15; // 15% Platform Commission
-      const commission = parseFloat((totalFee * commissionRate).toFixed(2));
-      const netAmount = parseFloat((totalFee - commission).toFixed(2));
+      const commission = 0; // No platform commission
+      const netAmount = totalFee;
 
       // Gateway Strategy: WALLET Payment
       if (gateway === 'WALLET') {
@@ -198,14 +197,13 @@ router.post(
       const platformFee = baseAmount <= 3000 ? 30 : baseAmount <= 5000 ? 50 : parseFloat((baseAmount * 0.01).toFixed(2));
       const totalAmount = parseFloat((baseAmount + gatewayFee + platformFee).toFixed(2)); // total client pays
 
-      // Advisor-side commission (unchanged)
-      const commission = parseFloat((baseAmount * 0.15).toFixed(2));
-      const netAmount  = parseFloat((baseAmount - commission).toFixed(2));
+      // No platform commission — advisor payout is base amount minus gateway + platform fee only
+      const commission = 0;
+      const netAmount  = baseAmount;
 
-      // Advisor payout deductions (deducted from netAmount at release)
-      const advisorGatewayFee  = parseFloat((netAmount * 0.015).toFixed(2));
-      const advisorPlatformFee = netAmount <= 3000 ? 30 : netAmount <= 5000 ? 50 : parseFloat((netAmount * 0.01).toFixed(2));
-      const advisorPayout      = parseFloat((netAmount - advisorGatewayFee - advisorPlatformFee).toFixed(2));
+      const advisorGatewayFee  = gatewayFee;
+      const advisorPlatformFee = platformFee;
+      const advisorPayout      = parseFloat((baseAmount - advisorGatewayFee - advisorPlatformFee).toFixed(2));
 
       let paymentRef = '';
 

@@ -18,12 +18,10 @@ function calcClientFees(base: number) {
 }
 
 function calcAdvisorFees(base: number) {
-  const commission     = parseFloat((base * 0.15).toFixed(2));
-  const net            = parseFloat((base - commission).toFixed(2));
-  const advGatewayFee  = parseFloat((net * 0.015).toFixed(2));
-  const advPlatformFee = net <= 3000 ? 30 : net <= 5000 ? 50 : parseFloat((net * 0.01).toFixed(2));
-  const advisorPayout  = parseFloat((net - advGatewayFee - advPlatformFee).toFixed(2));
-  return { commission, net, advGatewayFee, advPlatformFee, advisorPayout };
+  const advGatewayFee  = parseFloat((base * 0.015).toFixed(2));
+  const advPlatformFee = base <= 3000 ? 30 : base <= 5000 ? 50 : parseFloat((base * 0.01).toFixed(2));
+  const advisorPayout  = parseFloat((base - advGatewayFee - advPlatformFee).toFixed(2));
+  return { advGatewayFee, advPlatformFee, advisorPayout };
 }
 
 function fmt(n: number) {
@@ -204,10 +202,8 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
                 </div>
                 <div className="px-3 py-2">
                   <Row label="Quote Amount"                                                            value={`₹${fmt(amount)}`} />
-                  <Row label="Platform Commission"  sub="(15%)"   red                                  value={`− ₹${fmt(advisorFees.commission)}`} />
-                  <Row label="Sub-total"                                                               value={`₹${fmt(advisorFees.net)}`} divider />
                   <Row label="Gateway Fee"          sub="(1.5%)"  red                                  value={`− ₹${fmt(advisorFees.advGatewayFee)}`} />
-                  <Row label="Platform Fee"         sub={`(${platformFeeLabel(advisorFees.net)})`} red  value={`− ₹${fmt(advisorFees.advPlatformFee)}`} />
+                  <Row label="Platform Fee"         sub={`(${platformFeeLabel(amount)})`} red           value={`− ₹${fmt(advisorFees.advPlatformFee)}`} />
                   <Row label="You Receive"                        green bold divider                    value={`₹${fmt(advisorFees.advisorPayout)}`} />
                 </div>
                 <div className="px-3 pb-2.5">
@@ -255,8 +251,8 @@ export default function FeeCalculatorModal({ isOpen, onClose, role }: Props) {
               </div>
               {[
                 { range: 'Up to ₹3k',  client: '₹30',  advisor: '₹30' },
-                { range: '₹3k – ₹5k', client: '₹50',  advisor: '₹50 of net' },
-                { range: 'Above ₹5k',  client: '1%',   advisor: '1% of net' },
+                { range: '₹3k – ₹5k', client: '₹50',  advisor: '₹50' },
+                { range: 'Above ₹5k',  client: '1%',   advisor: '1%' },
               ].map((row, i) => (
                 <div key={i} className="grid grid-cols-3 px-3 py-2"
                   style={{ borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
