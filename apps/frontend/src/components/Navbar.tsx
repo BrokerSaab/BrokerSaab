@@ -9,7 +9,7 @@ import {
   Scale, Building2, CreditCard, Languages, ArrowRight,
   FileHeart, UserCheck, Award, Lightbulb, Car, Users, GraduationCap,
   HeartHandshake, TrendingUp, Globe, Zap, Sprout, Laptop,
-  Flag, Plane, School, ClipboardList, Sparkles, MapPin, Stethoscope, Package
+  Flag, Plane, School, ClipboardList, Sparkles, MapPin, Stethoscope, Package, Wallet
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -420,6 +420,12 @@ export default function Navbar() {
                       <BookOpen size={14} className="text-gold-400" /> {t('nav.myConsultations')}
                     </Link>
                   )}
+                  {user?.role === 'CLIENT' && (
+                    <Link href="/wallet" onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/5 transition-colors">
+                      <Wallet size={14} className="text-gold-400" /> My Wallet
+                    </Link>
+                  )}
                   {user?.role === 'ADVISOR' && (
                     <Link href="/advisor/dashboard" onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/5 transition-colors">
@@ -576,6 +582,12 @@ export default function Navbar() {
                   <Link href="/bookings" onClick={() => setMobileOpen(false)}
                     className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-semibold text-slate-200 border border-white/10 rounded-xl hover:bg-white/5 transition-colors">
                     <BookOpen size={15} className="text-gold-400" /> My Consultations
+                  </Link>
+                )}
+                {user?.role === 'CLIENT' && (
+                  <Link href="/wallet" onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-semibold text-slate-200 border border-white/10 rounded-xl hover:bg-white/5 transition-colors">
+                    <Wallet size={15} className="text-gold-400" /> My Wallet
                   </Link>
                 )}
                 {user?.role === 'ADVISOR' && (

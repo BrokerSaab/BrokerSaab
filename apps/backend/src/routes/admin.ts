@@ -1743,11 +1743,13 @@ router.patch(
         const hasBankDetails = !!(payout.advisor.bankAccountNumber && payout.advisor.bankIfsc);
 
         if (hasBankDetails) {
-          // Use ticket_<ticketId> as idempotency key — same key as auto-trigger
-          const ticketIdForKey = payout.ticketId ?? payout.id;
+          // Idempotency key is derived from this Payout row's own id — unique
+          // per payout event, so a manual admin retry never collides with any
+          // other payout (milestone or final) that may exist for the same ticket.
           const outcome = await initiatePayout(
             {
-              advisorId:             payout.advisor.id,
+              recipientType:         'ADVISOR',
+              recipientId:           payout.advisor.id,
               fullName:              payout.advisor.fullName,
               email:                 payout.advisor.email,
               phoneNumber:           payout.advisor.phoneNumber,
@@ -1758,7 +1760,7 @@ router.patch(
               razorpayFundAccountId: payout.advisor.razorpayFundAccountId,
             },
             amountPaise,
-            ticketIdForKey,
+            `payout_${payout.id}`,
           );
 
           const payoutStatus = mapRzpStatus(outcome.rzpStatus);
@@ -1853,6 +1855,167 @@ router.patch(
     } catch (err: any) {
       console.error('[PATCH /admin/payouts/:id]', err);
       res.status(500).json({ success: false, message: err.message || 'Failed to update payout' });
+    }
+  }
+);
+
+// ── GET /admin/client-withdrawals ─────────────────────────────────────────────
+// List all client wallet-withdrawal requests (parallel to /admin/payouts —
+// deliberately a separate model/route, not merged into Payout, so the
+// existing advisor payout tooling above is untouched by this feature)
+router.get(
+  '/client-withdrawals',
+  ...ADMIN_GUARD,
+  async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const withdrawals = await prisma.clientWithdrawal.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: { select: { id: true, fullName: true, email: true, phoneNumber: true } },
+        },
+      });
+
+      const summary = {
+        totalPending:    withdrawals.filter(w => w.status === 'PENDING').length,
+        totalSuccess:    withdrawals.filter(w => w.status === 'SUCCESS').length,
+        totalAmountPaid: withdrawals.filter(w => w.status === 'SUCCESS').reduce((acc, w) => acc + Number(w.netAmount), 0),
+      };
+
+      res.json({ success: true, data: withdrawals, summary });
+    } catch (err) {
+      console.error('[GET /admin/client-withdrawals]', err);
+      res.status(500).json({ success: false, message: 'Failed to fetch client withdrawals' });
+    }
+  }
+);
+
+// ── PATCH /admin/client-withdrawals/:id ───────────────────────────────────────
+// Admin releases (via RazorpayX) or rejects a client withdrawal request
+router.patch(
+  '/client-withdrawals/:id',
+  ...ADMIN_GUARD,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { action, rejectionReason } = req.body;
+
+    if (!action || !['release', 'reject'].includes(action)) {
+      res.status(400).json({ success: false, message: 'Action must be "release" or "reject"' });
+      return;
+    }
+
+    try {
+      const withdrawal = await prisma.clientWithdrawal.findUnique({
+        where: { id: req.params.id },
+        include: {
+          user: {
+            select: {
+              id: true, fullName: true, email: true, phoneNumber: true, pushToken: true,
+              bankAccountNumber: true, bankIfsc: true, bankAccountHolder: true,
+              razorpayContactId: true, razorpayFundAccountId: true,
+            },
+          },
+        },
+      });
+
+      if (!withdrawal) {
+        res.status(404).json({ success: false, message: 'Withdrawal request not found' });
+        return;
+      }
+      if (withdrawal.status !== 'PENDING') {
+        res.status(400).json({ success: false, message: 'Withdrawal is not in PENDING state' });
+        return;
+      }
+
+      const adminId = req.user?.id ?? 'system';
+
+      if (action === 'release') {
+        const netAmount   = Number(withdrawal.netAmount);
+        const amountPaise = Math.round(netAmount * 100);
+        const now         = new Date();
+
+        const hasBankDetails = !!(withdrawal.user.bankAccountNumber && withdrawal.user.bankIfsc);
+
+        if (hasBankDetails) {
+          const outcome = await initiatePayout(
+            {
+              recipientType:         'CLIENT',
+              recipientId:           withdrawal.user.id,
+              fullName:              withdrawal.user.fullName ?? withdrawal.user.email ?? 'Client',
+              email:                 withdrawal.user.email ?? '',
+              phoneNumber:           withdrawal.user.phoneNumber,
+              bankAccountNumber:     withdrawal.user.bankAccountNumber!,
+              bankIfsc:              withdrawal.user.bankIfsc!,
+              bankAccountHolder:     withdrawal.user.bankAccountHolder ?? withdrawal.user.fullName ?? 'Client',
+              razorpayContactId:     withdrawal.user.razorpayContactId,
+              razorpayFundAccountId: withdrawal.user.razorpayFundAccountId,
+            },
+            amountPaise,
+            `payout_${withdrawal.id}`,
+          );
+
+          const payoutStatus = mapRzpStatus(outcome.rzpStatus);
+
+          await prisma.clientWithdrawal.update({
+            where: { id: withdrawal.id },
+            data: {
+              razorpayPayoutId:  outcome.razorpayPayoutId,
+              payoutMode:        outcome.mode ?? 'IMPS',
+              status:            payoutStatus,
+              releasedByAdminId: adminId,
+              releasedAt:        now,
+              ...(outcome.error ? { rejectionReason: outcome.error } : {}),
+            },
+          });
+
+          if (withdrawal.user.pushToken && outcome.success) {
+            sendPushNotification(
+              withdrawal.user.pushToken,
+              'Withdrawal Initiated!',
+              `₹${netAmount.toLocaleString('en-IN')} is being transferred to your bank account.`,
+              { withdrawalId: withdrawal.id, screen: 'Wallet' }
+            );
+          }
+
+          if (!outcome.success) {
+            res.status(502).json({ success: false, message: `RazorpayX payout failed: ${outcome.error}` });
+            return;
+          }
+
+          res.json({ success: true, message: 'Withdrawal released via RazorpayX', razorpayPayoutId: outcome.razorpayPayoutId, mode: outcome.mode });
+        } else {
+          res.status(400).json({ success: false, message: 'Client has no bank details on file' });
+        }
+      } else {
+        // Reject — refund the wallet balance and notify the client
+        const reason = rejectionReason ?? 'Rejected by admin';
+        await prisma.$transaction([
+          prisma.clientWithdrawal.update({
+            where: { id: withdrawal.id },
+            data: {
+              status:            'FAILED',
+              rejectionReason:   reason,
+              releasedByAdminId: adminId,
+            },
+          }),
+          prisma.wallet.update({
+            where: { userId: withdrawal.userId },
+            data:  { balance: { increment: Number(withdrawal.amount) } },
+          }),
+        ]);
+
+        if (withdrawal.user.pushToken) {
+          sendPushNotification(
+            withdrawal.user.pushToken,
+            'Withdrawal Rejected',
+            `Your withdrawal request of ₹${Number(withdrawal.amount).toLocaleString('en-IN')} was rejected and refunded to your wallet. Reason: ${reason}.`,
+            { withdrawalId: withdrawal.id, screen: 'Wallet' }
+          );
+        }
+
+        res.json({ success: true, message: 'Withdrawal rejected, wallet refunded, and client notified' });
+      }
+    } catch (err: any) {
+      console.error('[PATCH /admin/client-withdrawals/:id]', err);
+      res.status(500).json({ success: false, message: err.message || 'Failed to update withdrawal' });
     }
   }
 );

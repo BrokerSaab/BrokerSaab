@@ -19,10 +19,21 @@ interface Stage {
   status: 'PENDING' | 'IN_PROGRESS' | 'AWAITING_CONFIRM' | 'CONFIRMED';
   advisorComment?: string; sortOrder: number;
   completedAt?: string; confirmedAt?: string; createdAt: string;
+  lineItemId?: string; releaseAmount?: string;
 }
 
 interface Comment {
   id: string; authorRole: string; authorName: string; content: string; createdAt: string;
+}
+
+interface LineItem {
+  id: string; description: string; amount: string; sortOrder: number;
+  status: 'PENDING' | 'RELEASED' | 'CANCELLED';
+  cancelledAt?: string; cancellationReason?: string;
+}
+
+interface PayoutRecord {
+  id: string; amount: string; netAmount: string; status: 'PENDING' | 'SUCCESS' | 'FAILED'; stageId?: string;
 }
 
 interface Ticket {
@@ -37,7 +48,8 @@ interface Ticket {
   advisor: { id: string; fullName: string; avatarUrl?: string };
   stages:   Stage[];
   comments: Comment[];
-  quote: { id: string; categorySlug?: string; lineItems: { description: string; amount: string }[] };
+  quote: { id: string; categorySlug?: string; lineItems: LineItem[] };
+  payouts: PayoutRecord[];
 }
 
 const STAGE_STATUS_MAP = {
@@ -76,11 +88,17 @@ export default function TicketDetailPage() {
   const [showAddStage,   setShowAddStage]   = useState(false);
   const [stageTitle,     setStageTitle]     = useState('');
   const [stageDesc,      setStageDesc]      = useState('');
+  const [stageLineItemId, setStageLineItemId] = useState('');
   const [addingStage,    setAddingStage]    = useState(false);
 
   const [updatingStage, setUpdatingStage] = useState<string | null>(null);
   const [stageComment,  setStageComment]  = useState('');
   const [stageCommentFor, setStageCommentFor] = useState<string | null>(null);
+  const [confirmingStageId, setConfirmingStageId] = useState<string | null>(null);
+
+  const [cancellingItemId, setCancellingItemId] = useState<string | null>(null);
+  const [cancelReason,     setCancelReason]     = useState('');
+  const [cancellingBusy,   setCancellingBusy]   = useState(false);
 
   const [showStages,     setShowStages]     = useState(true);
   const [showClose,      setShowClose]      = useState(false);
@@ -153,12 +171,32 @@ export default function TicketDetailPage() {
       await fetch(`${API}/tickets/${id}/stages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ title: stageTitle.trim(), description: stageDesc.trim() || undefined }),
+        body:    JSON.stringify({
+          title: stageTitle.trim(),
+          description: stageDesc.trim() || undefined,
+          lineItemId: stageLineItemId || undefined,
+        }),
       });
-      setStageTitle(''); setStageDesc(''); setShowAddStage(false);
+      setStageTitle(''); setStageDesc(''); setStageLineItemId(''); setShowAddStage(false);
       fetchTicket();
     } catch { /* ignore */ }
     finally { setAddingStage(false); }
+  };
+
+  const cancelLineItem = async (lineItemId: string) => {
+    if (!cancelReason.trim()) return;
+    setCancellingBusy(true);
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      await fetch(`${API}/tickets/${id}/line-items/${lineItemId}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ reason: cancelReason.trim() }),
+      });
+      setCancellingItemId(null); setCancelReason('');
+      fetchTicket();
+    } catch { /* ignore */ }
+    finally { setCancellingBusy(false); }
   };
 
   const updateStageStatus = async (stageId: string, status: 'IN_PROGRESS' | 'AWAITING_CONFIRM') => {
@@ -619,7 +657,22 @@ export default function TicketDetailPage() {
 
   const statusInfo = TICKET_STATUS_MAP[ticket.status] ?? { label: ticket.status, color: 'text-gray-500 bg-gray-100 border-gray-200' };
   const isClosed   = ticket.status === 'CLOSED' || ticket.status === 'PAYOUT_RELEASED';
+  const lineItems       = ticket.quote.lineItems ?? [];
+  const releasedItems   = lineItems.filter(li => li.status === 'RELEASED');
+  const cancelledItems  = lineItems.filter(li => li.status === 'CANCELLED');
+  const pendingItems    = lineItems.filter(li => li.status === 'PENDING');
+  const releasedTotal   = releasedItems.reduce((s, li) => s + Number(li.amount), 0);
+  const cancelledTotal  = cancelledItems.reduce((s, li) => s + Number(li.amount), 0);
+  const baseTotal       = Number(ticket.baseAmount ?? 0) || lineItems.reduce((s, li) => s + Number(li.amount), 0);
   const confirmedStages = ticket.stages.filter(s => s.status === 'CONFIRMED').length;
+  const pendingBase     = pendingItems.reduce((s, li) => s + Number(li.amount), 0);
+  const feeRate         = baseTotal > 0 ? Number(ticket.platformFee ?? 0) / baseTotal : 0;
+  const remainingAdvisorShare = pendingBase > 0
+    ? Math.round((pendingBase - pendingBase * feeRate - pendingBase * 0.015) * 100) / 100
+    : 0;
+  const totalReleasedNet = (ticket.payouts ?? [])
+    .filter(p => p.status !== 'FAILED')
+    .reduce((s, p) => s + Number(p.netAmount), 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -671,9 +724,21 @@ export default function TicketDetailPage() {
               <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
                 {getCategoryName(ticket.quote.categorySlug)}
               </span>
-              <span className="text-[10px] text-gray-400">
-                {ticket.stages.length > 0 ? `${confirmedStages}/${ticket.stages.length} stages confirmed` : 'No stages yet'}
-              </span>
+            </div>
+          )}
+          {lineItems.length > 0 && baseTotal > 0 && (
+            <div className="px-4 pb-3 space-y-1.5">
+              <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden flex">
+                <div className="h-full bg-emerald-400" style={{ width: `${(releasedTotal / baseTotal) * 100}%` }} />
+                <div className="h-full bg-orange-300" style={{ width: `${(cancelledTotal / baseTotal) * 100}%` }} />
+              </div>
+              <div className="flex items-center gap-3 flex-wrap text-[10px] text-gray-400">
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Released ₹{releasedTotal.toLocaleString('en-IN')}</span>
+                {cancelledTotal > 0 && (
+                  <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-300" /> Refunded ₹{cancelledTotal.toLocaleString('en-IN')}</span>
+                )}
+                <span>Pending {pendingItems.length}/{lineItems.length} items</span>
+              </div>
             </div>
           )}
         </div>
@@ -730,6 +795,26 @@ export default function TicketDetailPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-500">Amount Paid</span>
                     <span className="text-sm font-bold text-slate-800">₹{fmtIN(total)}</span>
+                  </div>
+                )}
+                {cancelledItems.length > 0 && (
+                  <div className="mt-1 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2.5 space-y-1.5">
+                    <p className="text-[11px] font-bold text-orange-700">Refunded Items</p>
+                    {cancelledItems.map(li => (
+                      <div key={li.id} className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[11px] text-orange-700 truncate">{li.description}</p>
+                          {li.cancellationReason && (
+                            <p className="text-[10px] text-orange-500 italic truncate">"{li.cancellationReason}"</p>
+                          )}
+                        </div>
+                        <span className="text-xs font-bold text-orange-700 shrink-0">₹{Number(li.amount).toLocaleString('en-IN')}</span>
+                      </div>
+                    ))}
+                    <div className="border-t border-dashed border-orange-200 pt-1.5 flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-orange-700">Total Refunded to Wallet</span>
+                      <span className="text-sm font-black text-orange-700">₹{cancelledTotal.toLocaleString('en-IN')}</span>
+                    </div>
                   </div>
                 )}
                 {isClosed && (
@@ -885,8 +970,30 @@ export default function TicketDetailPage() {
                 rows={2}
                 className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-indigo-400 transition-all resize-none"
               />
+              {pendingItems.length > 0 && (
+                <div>
+                  <label className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide mb-1 block">
+                    Link a paid work item (optional)
+                  </label>
+                  <select
+                    value={stageLineItemId}
+                    onChange={e => setStageLineItemId(e.target.value)}
+                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-indigo-400 transition-all"
+                  >
+                    <option value="">No amount — progress note only</option>
+                    {pendingItems.map(li => (
+                      <option key={li.id} value={li.id}>
+                        {li.description} — ₹{Number(li.amount).toLocaleString('en-IN')}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-indigo-400 mt-1">
+                    Linking an item requests its payment release once the client confirms this stage.
+                  </p>
+                </div>
+              )}
               <div className="flex gap-2">
-                <button onClick={() => { setShowAddStage(false); setStageTitle(''); setStageDesc(''); }}
+                <button onClick={() => { setShowAddStage(false); setStageTitle(''); setStageDesc(''); setStageLineItemId(''); }}
                   className="flex-1 py-2 rounded-xl text-xs font-semibold text-gray-500 border border-gray-200 hover:bg-gray-50 transition-all">
                   Cancel
                 </button>
@@ -897,6 +1004,48 @@ export default function TicketDetailPage() {
                   Add Stage
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Cancel a line item (advisor only, active ticket only) */}
+          {isAdvisor && !isClosed && pendingItems.length > 0 && (
+            <div className="mb-3 rounded-2xl border border-orange-100 bg-orange-50/50 p-3 space-y-2">
+              <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wide">Not doing an item? Cancel it to refund the client</p>
+              {pendingItems.map(li => (
+                <div key={li.id} className="rounded-xl bg-white border border-orange-100 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-gray-600 truncate">{li.description} — ₹{Number(li.amount).toLocaleString('en-IN')}</span>
+                    {cancellingItemId !== li.id && (
+                      <button onClick={() => { setCancellingItemId(li.id); setCancelReason(''); }}
+                        className="text-[10px] font-bold text-orange-600 border border-orange-200 rounded-lg px-2 py-1 hover:bg-orange-50 shrink-0">
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                  {cancellingItemId === li.id && (
+                    <div className="mt-2 space-y-2">
+                      <textarea
+                        value={cancelReason}
+                        onChange={e => setCancelReason(e.target.value)}
+                        placeholder="Reason for cancelling (required) — the client will see this"
+                        rows={2}
+                        className="w-full bg-orange-50 border border-orange-200 rounded-lg px-2.5 py-2 text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none resize-none"
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={() => { setCancellingItemId(null); setCancelReason(''); }}
+                          className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-gray-500 border border-gray-200 hover:bg-gray-50">
+                          Back
+                        </button>
+                        <button onClick={() => cancelLineItem(li.id)} disabled={cancellingBusy || !cancelReason.trim()}
+                          className="flex-[2] py-1.5 rounded-lg text-[11px] font-black text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center gap-1">
+                          {cancellingBusy ? <Loader2 size={11} className="animate-spin" /> : null}
+                          Confirm Cancel — Refund ₹{Number(li.amount).toLocaleString('en-IN')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
 
@@ -934,6 +1083,11 @@ export default function TicketDetailPage() {
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${stageInfo.bg} ${stageInfo.color}`}>
                             {stageInfo.label}
                           </span>
+                          {stage.releaseAmount && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                              ₹{Number(stage.releaseAmount).toLocaleString('en-IN')}
+                            </span>
+                          )}
                         </div>
                         {stage.description && (
                           <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{stage.description}</p>
@@ -1009,15 +1163,38 @@ export default function TicketDetailPage() {
                                 ⚠️ The advisor marked this stage as done. Please review and confirm.
                               </p>
                               <p className="text-[10px] text-purple-500 mt-0.5">
-                                Once confirmed, the advisor can proceed to the next stage.
+                                {stage.releaseAmount
+                                  ? `Confirming releases ₹${Number(stage.releaseAmount).toLocaleString('en-IN')} to the advisor immediately — this can't be undone.`
+                                  : 'Once confirmed, the advisor can proceed to the next stage.'}
                               </p>
                             </div>
-                            <button onClick={() => confirmStage(stage.id)} disabled={!!updatingStage}
-                              className="w-full py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1.5 disabled:opacity-50 transition-all hover:brightness-110"
-                              style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
-                              {updatingStage === stage.id + 'CONFIRM' ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
-                              Confirm Stage Completion
-                            </button>
+                            {stage.releaseAmount && confirmingStageId !== stage.id ? (
+                              <button onClick={() => setConfirmingStageId(stage.id)}
+                                className="w-full py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1.5 transition-all hover:brightness-110"
+                                style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
+                                <CheckCircle2 size={13} /> Confirm & Release ₹{Number(stage.releaseAmount).toLocaleString('en-IN')}
+                              </button>
+                            ) : stage.releaseAmount && confirmingStageId === stage.id ? (
+                              <div className="flex gap-2">
+                                <button onClick={() => setConfirmingStageId(null)}
+                                  className="flex-1 py-2 rounded-xl text-xs font-semibold text-gray-500 border border-gray-200 hover:bg-gray-50 transition-all">
+                                  Back
+                                </button>
+                                <button onClick={() => { setConfirmingStageId(null); confirmStage(stage.id); }} disabled={!!updatingStage}
+                                  className="flex-[2] py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1.5 disabled:opacity-50 transition-all hover:brightness-110"
+                                  style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
+                                  {updatingStage === stage.id + 'CONFIRM' ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                                  Yes, Release ₹{Number(stage.releaseAmount).toLocaleString('en-IN')}
+                                </button>
+                              </div>
+                            ) : (
+                              <button onClick={() => confirmStage(stage.id)} disabled={!!updatingStage}
+                                className="w-full py-2 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1.5 disabled:opacity-50 transition-all hover:brightness-110"
+                                style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
+                                {updatingStage === stage.id + 'CONFIRM' ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                                Confirm Stage Completion
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1104,10 +1281,13 @@ export default function TicketDetailPage() {
             {/* Close form */}
             {showClose && (
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
-                <p className="text-sm font-bold text-emerald-700">Close Ticket & Release Payment</p>
+                <p className="text-sm font-bold text-emerald-700">
+                  {remainingAdvisorShare > 0 ? 'Close Ticket & Release Payment' : 'Close Ticket'}
+                </p>
                 <p className="text-xs text-emerald-600/80 leading-relaxed">
-                  By closing this ticket, you confirm the work is done and ₹{Number(ticket.netAmount).toLocaleString('en-IN')} will be released to the advisor.
-                  This cannot be undone.
+                  {remainingAdvisorShare > 0
+                    ? `By closing this ticket, you confirm the remaining work is done and ₹${remainingAdvisorShare.toLocaleString('en-IN')} will be released to the advisor. This cannot be undone.`
+                    : 'All payments for this ticket have already been released via milestones or refunded. Closing just finalizes the ticket with your rating and review.'}
                 </p>
                 <div>
                   <p className="text-xs font-semibold text-gray-600 mb-1.5">Your Rating</p>
@@ -1147,7 +1327,9 @@ export default function TicketDetailPage() {
                     className="flex-[2] py-2.5 rounded-xl text-xs font-black text-white flex items-center justify-center gap-1.5 disabled:opacity-50 transition-all hover:brightness-110"
                     style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
                     {closing ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
-                    Confirm & Release ₹{Number(ticket.netAmount).toLocaleString('en-IN')}
+                    {remainingAdvisorShare > 0
+                      ? `Confirm & Release ₹${remainingAdvisorShare.toLocaleString('en-IN')}`
+                      : 'Confirm Close'}
                   </button>
                 </div>
               </div>
@@ -1194,7 +1376,7 @@ export default function TicketDetailPage() {
             <CheckCircle2 size={24} className="text-emerald-500 mx-auto mb-1" />
             <p className="text-sm font-bold text-emerald-700">Payment Released!</p>
             <p className="text-xs text-emerald-600 mt-0.5">
-              ₹{Number(ticket.netAmount).toLocaleString('en-IN')} has been credited to your wallet.
+              ₹{totalReleasedNet.toLocaleString('en-IN')} has been credited to your wallet{ticket.payouts && ticket.payouts.length > 1 ? ' across milestone releases' : ''}.
             </p>
           </div>
         )}

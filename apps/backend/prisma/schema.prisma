@@ -80,6 +80,12 @@ enum StageStatus {
   CONFIRMED            // user confirmed completion
 }
 
+enum LineItemStatus {
+  PENDING     // not yet paid out or cancelled
+  RELEASED    // paid to advisor via a confirmed milestone stage
+  CANCELLED   // advisor cancelled — refunded to client wallet
+}
+
 enum DocumentType {
   AADHAAR_CARD
   PASSPORT_PHOTO
@@ -106,9 +112,15 @@ model User {
   avatarUrl         String?
   state             String?            // Selected Indian state for location-based matching
   pushToken         String?            @db.Text
+  razorpayContactId     String?
+  razorpayFundAccountId String?
+  bankAccountNumber     String?
+  bankIfsc              String?
+  bankAccountHolder     String?
+  bankAccountType       String?        @default("savings")
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
-  
+
   // Relations
   wallet                 Wallet?
   bookings               Booking[]                @relation("ClientBookings")
@@ -125,6 +137,7 @@ model User {
   notifications          Notification[]
   serviceTickets         ServiceTicket[]          @relation("ClientServiceTickets")
   ticketComments         TicketComment[]
+  withdrawals            ClientWithdrawal[]
 
   @@index([phoneNumber])
 }
@@ -390,6 +403,8 @@ model Payout {
   advisor         Advisor           @relation(fields: [advisorId], references: [id])
   ticketId        String?
   ticket          ServiceTicket?    @relation(fields: [ticketId], references: [id])
+  stageId         String?           @unique
+  stage           TicketStage?      @relation(fields: [stageId], references: [id])
   amount          Decimal           @db.Decimal(10, 2)
   commission      Decimal           @db.Decimal(10, 2) @default(0.00)
   netAmount       Decimal           @db.Decimal(10, 2) @default(0.00)
@@ -403,6 +418,30 @@ model Payout {
   releasedAt        DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
+
+  @@index([ticketId])
+}
+
+model ClientWithdrawal {
+  id                String            @id @default(uuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id])
+  amount            Decimal           @db.Decimal(10, 2)
+  commission        Decimal           @db.Decimal(10, 2) @default(0.00)
+  netAmount         Decimal           @db.Decimal(10, 2) @default(0.00)
+  status            TransactionStatus @default(PENDING)
+  bankAccount       String
+  referenceId       String?           @unique
+  rejectionReason   String?           @db.Text
+  razorpayPayoutId  String?           @unique
+  payoutMode        String?
+  releasedByAdminId String?
+  releasedAt        DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }
 
 model Review {
@@ -497,12 +536,16 @@ model FeeQuote {
 }
 
 model FeeQuoteLineItem {
-  id          String   @id @default(uuid())
-  quoteId     String
-  quote       FeeQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  description String
-  amount      Decimal  @db.Decimal(10, 2)
-  sortOrder   Int      @default(0)
+  id                 String         @id @default(uuid())
+  quoteId            String
+  quote              FeeQuote       @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  description        String
+  amount             Decimal        @db.Decimal(10, 2)
+  sortOrder          Int            @default(0)
+  status             LineItemStatus @default(PENDING)
+  cancelledAt        DateTime?
+  cancellationReason String?        @db.Text
+  stage              TicketStage?
 
   @@index([quoteId])
 }
@@ -654,18 +697,22 @@ model ServiceTicket {
 }
 
 model TicketStage {
-  id             String        @id @default(uuid())
+  id             String            @id @default(uuid())
   ticketId       String
-  ticket         ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticket         ServiceTicket     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   title          String
-  description    String?       @db.Text
-  status         StageStatus   @default(PENDING)
-  advisorComment String?       @db.Text
-  sortOrder      Int           @default(0)
+  description    String?           @db.Text
+  status         StageStatus       @default(PENDING)
+  advisorComment String?           @db.Text
+  sortOrder      Int               @default(0)
   completedAt    DateTime?
   confirmedAt    DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  lineItemId     String?           @unique
+  lineItem       FeeQuoteLineItem? @relation(fields: [lineItemId], references: [id])
+  releaseAmount  Decimal?          @db.Decimal(10, 2)
+  payout         Payout?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   @@index([ticketId])
 }

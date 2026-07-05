@@ -1,12 +1,12 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { Role, ServiceTicketStatus, StageStatus } from '@prisma/client';
+import { Role, ServiceTicketStatus, StageStatus, LineItemStatus } from '@prisma/client';
 import prisma from '../config/db';
 import { authenticateJWT, AuthenticatedRequest } from '../middlewares/auth';
 import { validateRequest } from '../middlewares/validate';
 import { io } from '../app';
 import { sendPushNotification } from '../utils/pushNotification';
-import { initiatePayout, mapRzpStatus } from '../services/razorpayPayout';
+import { computeAdvisorShare, releasePayout } from '../services/payoutHelper';
 
 const router = Router();
 
@@ -16,6 +16,13 @@ const addStageSchema = z.object({
   body: z.object({
     title:       z.string().min(1).max(200),
     description: z.string().max(1000).optional(),
+    lineItemId:  z.string().uuid().optional(),
+  }),
+});
+
+const cancelLineItemSchema = z.object({
+  body: z.object({
+    reason: z.string().min(1).max(1000),
   }),
 });
 
@@ -52,6 +59,7 @@ const TICKET_INCLUDE = {
   advisor: { select: { id: true, fullName: true, avatarUrl: true, pushToken: true } },
   stages:  { orderBy: { sortOrder: 'asc' as const } },
   comments: { orderBy: { createdAt: 'asc' as const } },
+  payouts: { select: { id: true, amount: true, netAmount: true, status: true, stageId: true } },
 };
 
 function generateTicketNumber(): string {
@@ -160,7 +168,7 @@ router.post(
       res.status(403).json({ success: false, message: 'Only advisors can add stages' });
       return;
     }
-    const { title, description } = req.body;
+    const { title, description, lineItemId } = req.body;
     try {
       const advisor = await getAdvisorRecord(req.user!.phoneNumber);
       if (!advisor) { res.status(404).json({ success: false, message: 'Advisor not found' }); return; }
@@ -175,10 +183,35 @@ router.post(
         return;
       }
 
+      let releaseAmount: number | undefined;
+      if (lineItemId) {
+        const lineItem = await prisma.feeQuoteLineItem.findUnique({ where: { id: lineItemId } });
+        if (!lineItem || lineItem.quoteId !== ticket.quoteId) {
+          res.status(404).json({ success: false, message: 'Line item not found' });
+          return;
+        }
+        if (lineItem.status !== LineItemStatus.PENDING) {
+          res.status(409).json({ success: false, message: 'This line item has already been released or cancelled' });
+          return;
+        }
+        releaseAmount = Number(lineItem.amount);
+      }
+
       const count = await prisma.ticketStage.count({ where: { ticketId: ticket.id } });
       const stage = await prisma.ticketStage.create({
-        data: { ticketId: ticket.id, title, description, sortOrder: count },
+        data: {
+          ticketId: ticket.id, title, description, sortOrder: count,
+          lineItemId: lineItemId ?? null,
+          releaseAmount: releaseAmount ?? null,
+        },
+      }).catch((err: any) => {
+        if (err?.code === 'P2002') return null; // race: line item attached to another stage concurrently
+        throw err;
       });
+      if (!stage) {
+        res.status(409).json({ success: false, message: 'This line item has already been attached to a stage' });
+        return;
+      }
 
       // Update ticket to IN_PROGRESS if it's still OPEN
       if (ticket.status === ServiceTicketStatus.OPEN) {
@@ -199,7 +232,9 @@ router.post(
             : ticket.clientId,
           authorRole: 'ADVISOR',
           authorName: advisor.fullName,
-          content:    `Stage added: "${title}"`,
+          content:    releaseAmount
+            ? `Stage added: "${title}" (₹${releaseAmount.toLocaleString('en-IN')} on confirmation)`
+            : `Stage added: "${title}"`,
         },
       }).catch(() => {});
 
@@ -208,7 +243,9 @@ router.post(
         sendPushNotification(
           clientUser.pushToken,
           'New Stage Added',
-          `${advisor.fullName} added a new stage: "${title}"`,
+          releaseAmount
+            ? `${advisor.fullName} added a new stage: "${title}" (₹${releaseAmount.toLocaleString('en-IN')} on confirmation)`
+            : `${advisor.fullName} added a new stage: "${title}"`,
           { ticketId: ticket.id, screen: 'TicketDetail' }
         );
       }
@@ -304,7 +341,15 @@ router.post(
     try {
       const ticket = await prisma.serviceTicket.findUnique({
         where:   { id: req.params.id },
-        include: { advisor: { select: { id: true, fullName: true, pushToken: true } } },
+        include: {
+          advisor: {
+            select: {
+              id: true, fullName: true, email: true, phoneNumber: true, pushToken: true,
+              bankAccountNumber: true, bankIfsc: true, bankAccountHolder: true,
+              razorpayContactId: true, razorpayFundAccountId: true,
+            },
+          },
+        },
       });
       if (!ticket || ticket.clientId !== clientId) {
         res.status(404).json({ success: false, message: 'Ticket not found' });
@@ -326,20 +371,52 @@ router.post(
         data:  { status: StageStatus.CONFIRMED, confirmedAt: new Date() },
       });
 
-      // Check if all stages are confirmed — move ticket back to IN_PROGRESS
-      const pendingStages = await prisma.ticketStage.count({
-        where: { ticketId: ticket.id, status: { notIn: [StageStatus.CONFIRMED] } },
+      // Ticket returns to IN_PROGRESS regardless — a milestone release doesn't
+      // close the ticket; the client still performs an explicit final close.
+      await prisma.serviceTicket.update({
+        where: { id: ticket.id },
+        data:  { status: ServiceTicketStatus.IN_PROGRESS },
       });
-      if (pendingStages === 0) {
-        await prisma.serviceTicket.update({
-          where: { id: ticket.id },
-          data:  { status: ServiceTicketStatus.IN_PROGRESS },
+
+      let payoutTriggered = false;
+      if (stage.lineItemId && stage.releaseAmount != null) {
+        const { platformFee, gatewayFee, advisorNet } = computeAdvisorShare(
+          { baseAmount: Number(ticket.baseAmount), platformFee: Number(ticket.platformFee) },
+          Number(stage.releaseAmount),
+        );
+        const hasBankDetails = !!(ticket.advisor.bankAccountNumber && ticket.advisor.bankIfsc);
+        const bankLabel = hasBankDetails
+          ? `${ticket.advisor.bankAccountHolder ?? ticket.advisor.fullName} | XXXX${ticket.advisor.bankAccountNumber!.slice(-4)} | ${ticket.advisor.bankIfsc}`
+          : ticket.advisor.fullName;
+
+        await releasePayout({
+          advisorId:       ticket.advisorId,
+          ticketId:        ticket.id,
+          stageId:         stage.id,
+          grossAmount:     Number(stage.releaseAmount),
+          netAmount:       advisorNet,
+          bankLabel,
+          hasBankDetails,
+          advisorFullName: ticket.advisor.fullName,
+          advisorEmail:    ticket.advisor.email,
+          advisorPhone:    ticket.advisor.phoneNumber,
+          advisorPushToken: ticket.advisor.pushToken,
+          bankAccountNumber: ticket.advisor.bankAccountNumber,
+          bankIfsc:          ticket.advisor.bankIfsc,
+          bankAccountHolder: ticket.advisor.bankAccountHolder,
+          razorpayContactId:     ticket.advisor.razorpayContactId,
+          razorpayFundAccountId: ticket.advisor.razorpayFundAccountId,
+          notifyTitle:   'Payment Released!',
+          notifySuccess: `₹${advisorNet.toLocaleString('en-IN')} released for "${stage.title}" — transferring to your bank account.`,
+          notifyPending: `₹${advisorNet.toLocaleString('en-IN')} for "${stage.title}" will be released by BrokerSaab shortly.`,
         });
-      } else {
-        await prisma.serviceTicket.update({
-          where: { id: ticket.id },
-          data:  { status: ServiceTicketStatus.IN_PROGRESS },
+
+        await prisma.feeQuoteLineItem.update({
+          where: { id: stage.lineItemId },
+          data:  { status: LineItemStatus.RELEASED },
         });
+        payoutTriggered = true;
+        void platformFee; void gatewayFee; // recorded via releasePayout's Payout row, not needed further here
       }
 
       const advisorUserId = await getAdvisorUserId(ticket.advisorId);
@@ -347,9 +424,10 @@ router.post(
         ticketId: ticket.id,
         event:    'stage_confirmed',
         stage:    confirmed,
+        payoutTriggered,
       });
 
-      if (ticket.advisor.pushToken) {
+      if (ticket.advisor.pushToken && !payoutTriggered) {
         sendPushNotification(
           ticket.advisor.pushToken,
           'Stage Confirmed by Client',
@@ -362,6 +440,90 @@ router.post(
     } catch (err) {
       console.error('[POST /tickets/:id/stages/:stageId/confirm]', err);
       res.status(500).json({ success: false, message: 'Failed to confirm stage' });
+    }
+  }
+);
+
+/**
+ * POST /tickets/:id/line-items/:lineItemId/cancel
+ * ADVISOR cancels a line item that isn't going to happen — refunds its base
+ * amount (no gateway/platform fee) straight to the client's wallet.
+ */
+router.post(
+  '/:id/line-items/:lineItemId/cancel',
+  authenticateJWT,
+  validateRequest(cancelLineItemSchema),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (req.user!.role !== Role.ADVISOR) {
+      res.status(403).json({ success: false, message: 'Only advisors can cancel a line item' });
+      return;
+    }
+    const { reason } = req.body;
+    try {
+      const advisor = await getAdvisorRecord(req.user!.phoneNumber);
+      if (!advisor) { res.status(404).json({ success: false, message: 'Advisor not found' }); return; }
+
+      const ticket = await prisma.serviceTicket.findUnique({ where: { id: req.params.id } });
+      if (!ticket || ticket.advisorId !== advisor.id) {
+        res.status(404).json({ success: false, message: 'Ticket not found' });
+        return;
+      }
+      if (ticket.status === ServiceTicketStatus.CLOSED || ticket.status === ServiceTicketStatus.PAYOUT_RELEASED) {
+        res.status(400).json({ success: false, message: 'Ticket is already closed' });
+        return;
+      }
+
+      const lineItem = await prisma.feeQuoteLineItem.findUnique({ where: { id: req.params.lineItemId } });
+      if (!lineItem || lineItem.quoteId !== ticket.quoteId) {
+        res.status(404).json({ success: false, message: 'Line item not found' });
+        return;
+      }
+      if (lineItem.status !== LineItemStatus.PENDING) {
+        res.status(409).json({ success: false, message: 'This line item has already been released or cancelled' });
+        return;
+      }
+
+      const attachedStage = await prisma.ticketStage.findUnique({ where: { lineItemId: lineItem.id } });
+      const now = new Date();
+      const refundAmount = Number(lineItem.amount);
+
+      await prisma.$transaction([
+        prisma.feeQuoteLineItem.update({
+          where: { id: lineItem.id },
+          data:  { status: LineItemStatus.CANCELLED, cancelledAt: now, cancellationReason: reason },
+        }),
+        ...(attachedStage
+          ? [prisma.ticketStage.update({
+              where: { id: attachedStage.id },
+              data:  { lineItemId: null, releaseAmount: null },
+            })]
+          : []),
+        prisma.wallet.update({
+          where: { userId: ticket.clientId },
+          data:  { balance: { increment: refundAmount } },
+        }),
+      ]);
+
+      io.to(`user:${ticket.clientId}`).emit('ticket_updated', {
+        ticketId: ticket.id,
+        event:    'line_item_cancelled',
+        lineItem: { id: lineItem.id, description: lineItem.description, amount: refundAmount, reason },
+      });
+
+      const clientUser = await prisma.user.findUnique({ where: { id: ticket.clientId } });
+      if (clientUser?.pushToken) {
+        sendPushNotification(
+          clientUser.pushToken,
+          'Refund Issued',
+          `"${lineItem.description}" was cancelled — ₹${refundAmount.toLocaleString('en-IN')} has been credited to your BrokerSaab wallet.`,
+          { ticketId: ticket.id, screen: 'TicketDetail' }
+        );
+      }
+
+      res.json({ success: true, data: { lineItemId: lineItem.id, refundAmount } });
+    } catch (err) {
+      console.error('[POST /tickets/:id/line-items/:lineItemId/cancel]', err);
+      res.status(500).json({ success: false, message: 'Failed to cancel line item' });
     }
   }
 );
@@ -451,6 +613,7 @@ router.post(
       const ticket = await prisma.serviceTicket.findUnique({
         where:   { id: req.params.id },
         include: {
+          quote: { include: { lineItems: true } },
           advisor: {
             select: {
               id: true, fullName: true, pushToken: true,
@@ -469,108 +632,73 @@ router.post(
         return;
       }
 
-      const advisorPayout = Number(ticket.advisorPayout);
-      const commission    = Number(ticket.commission);
-      const totalAmount   = Number(ticket.totalAmount);
-      const amountPaise   = Math.round(advisorPayout * 100);   // Razorpay amounts are in paise
-      const now           = new Date();
+      const now = new Date();
 
-      const hasBankDetails = !!(ticket.advisor.bankAccountNumber && ticket.advisor.bankIfsc);
-      const bankLabel      = hasBankDetails
-        ? `${ticket.advisor.bankAccountHolder ?? ticket.advisor.fullName} | XXXX${ticket.advisor.bankAccountNumber!.slice(-4)} | ${ticket.advisor.bankIfsc}`
-        : ticket.advisor.fullName;
+      // Pay the advisor only for line items still PENDING — anything RELEASED
+      // was already paid via a milestone, anything CANCELLED was refunded to
+      // the client and was never owed. See payoutHelper.computeAdvisorShare.
+      const pendingBase = ticket.quote.lineItems
+        .filter(li => li.status === LineItemStatus.PENDING)
+        .reduce((sum, li) => sum + Number(li.amount), 0);
+      const { advisorNet } = computeAdvisorShare(
+        { baseAmount: Number(ticket.baseAmount), platformFee: Number(ticket.platformFee) },
+        pendingBase,
+      );
 
-      // ── Step 1: Atomically close the ticket and create a PENDING payout record ──
-      const [updated, payoutRecord] = await prisma.$transaction([
-        prisma.serviceTicket.update({
-          where: { id: ticket.id },
-          data: {
-            status:        ServiceTicketStatus.PAYOUT_RELEASED,
-            closedAt:      now,
-            closingComment,
-            userRating,
-            userReview,
-          },
-        }),
-        prisma.payout.create({
-          data: {
-            advisorId:   ticket.advisorId,
-            ticketId:    ticket.id,
-            amount:      totalAmount,
-            commission,
-            netAmount:   advisorPayout,
-            status:      'PENDING',
-            bankAccount: bankLabel,
-            referenceId: `ticket_${ticket.id}`,
-          },
-        }),
-      ]);
+      // Close the ticket first regardless of whether anything is left to pay.
+      const updated = await prisma.serviceTicket.update({
+        where: { id: ticket.id },
+        data: {
+          status:        ServiceTicketStatus.PAYOUT_RELEASED,
+          closedAt:      now,
+          closingComment,
+          userRating,
+          userReview,
+        },
+      });
 
-      // ── Step 2: Trigger RazorpayX payout (PAYOUT_RELEASED interceptor) ─────────
-      // Runs after the DB commit — ticket is always PAYOUT_RELEASED regardless of outcome.
-      if (hasBankDetails) {
-        const outcome = await initiatePayout(
-          {
-            advisorId:             ticket.advisor.id,
-            fullName:              ticket.advisor.fullName,
-            email:                 ticket.advisor.email,
-            phoneNumber:           ticket.advisor.phoneNumber,
-            bankAccountNumber:     ticket.advisor.bankAccountNumber!,
-            bankIfsc:              ticket.advisor.bankIfsc!,
-            bankAccountHolder:     ticket.advisor.bankAccountHolder ?? ticket.advisor.fullName,
-            razorpayContactId:     ticket.advisor.razorpayContactId,
-            razorpayFundAccountId: ticket.advisor.razorpayFundAccountId,
-          },
-          amountPaise,
-          ticket.id,
-        );
-
-        const payoutStatus = mapRzpStatus(outcome.rzpStatus);
-
-        // Persist payout_id, mode, and status from RazorpayX response
-        await prisma.payout.update({
-          where: { id: payoutRecord.id },
-          data: {
-            razorpayPayoutId: outcome.razorpayPayoutId,
-            payoutMode:       outcome.mode ?? 'IMPS',
-            status:           payoutStatus,
-            ...(outcome.error ? { rejectionReason: outcome.error } : {}),
-            // Credit wallet optimistically when payout is successfully queued
-            ...(outcome.success ? { releasedAt: now } : {}),
-          },
-        });
-
-        // Credit advisor wallet balance when payout is successfully initiated
-        if (outcome.success) {
-          await prisma.advisor.update({
-            where: { id: ticket.advisorId },
-            data:  { walletBalance: { increment: advisorPayout } },
-          });
-        }
-
-        // Notify advisor with outcome-specific message
-        if (ticket.advisor.pushToken) {
-          const title = outcome.success ? 'Payment Initiated!' : 'Ticket Closed — Payout Pending';
-          const body  = outcome.success
-            ? `₹${advisorPayout.toLocaleString('en-IN')} is being transferred to your bank account (${ticket.advisor.bankAccountHolder ?? 'your account'}).`
-            : `Your ₹${advisorPayout.toLocaleString('en-IN')} payout will be released by BrokerSaab shortly.`;
-          sendPushNotification(ticket.advisor.pushToken, title, body, { ticketId: ticket.id, screen: 'Wallet' });
-        }
-      } else {
-        // No bank details — stays PENDING for admin to release manually
+      if (advisorNet <= 0.01) {
+        // Everything was already released via milestones or cancelled — nothing left to pay.
         if (ticket.advisor.pushToken) {
           sendPushNotification(
             ticket.advisor.pushToken,
-            'Ticket Closed — Add Bank Details',
-            `₹${advisorPayout.toLocaleString('en-IN')} is ready to be released. Add your bank account in the app to receive payment.`,
+            'Ticket Closed',
+            'All payments for this ticket have already been released.',
             { ticketId: ticket.id, screen: 'Wallet' }
           );
         }
+      } else {
+        const hasBankDetails = !!(ticket.advisor.bankAccountNumber && ticket.advisor.bankIfsc);
+        const bankLabel      = hasBankDetails
+          ? `${ticket.advisor.bankAccountHolder ?? ticket.advisor.fullName} | XXXX${ticket.advisor.bankAccountNumber!.slice(-4)} | ${ticket.advisor.bankIfsc}`
+          : ticket.advisor.fullName;
+
+        await releasePayout({
+          advisorId:       ticket.advisorId,
+          ticketId:        ticket.id,
+          stageId:         null,
+          grossAmount:     pendingBase,
+          netAmount:       advisorNet,
+          bankLabel,
+          hasBankDetails,
+          advisorFullName: ticket.advisor.fullName,
+          advisorEmail:    ticket.advisor.email,
+          advisorPhone:    ticket.advisor.phoneNumber,
+          advisorPushToken: ticket.advisor.pushToken,
+          bankAccountNumber: ticket.advisor.bankAccountNumber,
+          bankIfsc:          ticket.advisor.bankIfsc,
+          bankAccountHolder: ticket.advisor.bankAccountHolder,
+          razorpayContactId:     ticket.advisor.razorpayContactId,
+          razorpayFundAccountId: ticket.advisor.razorpayFundAccountId,
+          notifyTitle:   'Payment Initiated!',
+          notifySuccess: `₹${advisorNet.toLocaleString('en-IN')} is being transferred to your bank account (${ticket.advisor.bankAccountHolder ?? 'your account'}).`,
+          notifyPending: `Your ₹${advisorNet.toLocaleString('en-IN')} payout will be released by BrokerSaab shortly.`,
+        });
       }
 
       io.to(`advisor:${ticket.advisorId}`).emit('ticket_closed', {
         ticketId:  ticket.id,
-        netAmount: advisorPayout,
+        netAmount: advisorNet,
         rating:    userRating,
       });
 

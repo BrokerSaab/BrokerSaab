@@ -1,8 +1,12 @@
 /**
  * RazorpayX Payouts integration — three-step flow:
- *   1. POST /v1/contacts             → get/create contact_id for advisor
+ *   1. POST /v1/contacts             → get/create contact_id for the recipient
  *   2. POST /v1/fund_accounts        → get/create fund_account_id (bank details)
  *   3. POST /v1/payouts              → initiate IMPS/NEFT transfer
+ *
+ * Used for both advisor earnings payouts and client wallet-balance withdrawals —
+ * the recipient can be either an Advisor or a User (client), distinguished by
+ * `PayoutRecipient.recipientType`.
  *
  * Auth  : HTTP Basic (key_id:key_secret) — same credentials as standard Razorpay.
  * Idempotency: X-Payout-Idempotency header prevents duplicate transfers on retry.
@@ -67,15 +71,18 @@ function rzpX<T>(
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-export interface AdvisorBankProfile {
-  advisorId:             string;
-  fullName:              string;
-  email:                 string;
-  phoneNumber:           string;
-  bankAccountNumber:     string;
-  bankIfsc:              string;
-  bankAccountHolder:     string;
-  razorpayContactId?:    string | null;
+export type RecipientType = 'ADVISOR' | 'CLIENT';
+
+export interface PayoutRecipient {
+  recipientType:          RecipientType;
+  recipientId:            string;   // Advisor.id or User.id
+  fullName:               string;
+  email:                  string;
+  phoneNumber:            string;
+  bankAccountNumber:      string;
+  bankIfsc:               string;
+  bankAccountHolder:      string;
+  razorpayContactId?:     string | null;
   razorpayFundAccountId?: string | null;
 }
 
@@ -91,59 +98,66 @@ export interface PayoutInitResult {
   error?:           string;
 }
 
+// ── Persist Razorpay contact/fund-account ids back onto the recipient row ──────
+
+async function persistRazorpayIds(
+  recipient: PayoutRecipient,
+  ids: { razorpayContactId?: string; razorpayFundAccountId?: string },
+): Promise<void> {
+  if (recipient.recipientType === 'ADVISOR') {
+    await prisma.advisor.update({ where: { id: recipient.recipientId }, data: ids });
+  } else {
+    await prisma.user.update({ where: { id: recipient.recipientId }, data: ids });
+  }
+}
+
 // ── Step 1: Contact ────────────────────────────────────────────────────────────
 
-async function ensureContact(advisor: AdvisorBankProfile): Promise<string> {
-  if (advisor.razorpayContactId) {
-    console.log(`[RzpX] Reusing contact ${advisor.razorpayContactId} for advisor ${advisor.advisorId}`);
-    return advisor.razorpayContactId;
+async function ensureContact(recipient: PayoutRecipient): Promise<string> {
+  if (recipient.razorpayContactId) {
+    console.log(`[RzpX] Reusing contact ${recipient.razorpayContactId} for ${recipient.recipientType.toLowerCase()} ${recipient.recipientId}`);
+    return recipient.razorpayContactId;
   }
 
-  const phone = advisor.phoneNumber.replace(/^\+91/, '').replace(/\D/g, '').slice(-10);
+  const phone = recipient.phoneNumber.replace(/^\+91/, '').replace(/\D/g, '').slice(-10);
 
   const contact = await rzpX<{ id: string }>('POST', '/contacts', {
-    name:    advisor.bankAccountHolder || advisor.fullName,
-    email:   advisor.email,
+    name:    recipient.bankAccountHolder || recipient.fullName,
+    email:   recipient.email,
     contact: phone,
-    type:    'vendor',
-    notes:   { advisorId: advisor.advisorId, platform: 'BrokerSaab' },
+    type:    recipient.recipientType === 'ADVISOR' ? 'vendor' : 'customer',
+    notes:   { recipientId: recipient.recipientId, recipientType: recipient.recipientType, platform: 'BrokerSaab' },
   });
 
-  console.log(`[RzpX] Created contact ${contact.id} for advisor ${advisor.advisorId}`);
+  console.log(`[RzpX] Created contact ${contact.id} for ${recipient.recipientType.toLowerCase()} ${recipient.recipientId}`);
 
   // Persist so we never create duplicates
-  await prisma.advisor.update({
-    where: { id: advisor.advisorId },
-    data:  { razorpayContactId: contact.id },
-  });
+  await persistRazorpayIds(recipient, { razorpayContactId: contact.id });
 
   return contact.id;
 }
 
 // ── Step 2: Fund Account ───────────────────────────────────────────────────────
 
-async function ensureFundAccount(contactId: string, advisor: AdvisorBankProfile): Promise<string> {
-  if (advisor.razorpayFundAccountId) {
-    console.log(`[RzpX] Reusing fund_account ${advisor.razorpayFundAccountId} for advisor ${advisor.advisorId}`);
-    return advisor.razorpayFundAccountId;
+async function ensureFundAccount(contactId: string, recipient: PayoutRecipient): Promise<string> {
+  if (recipient.razorpayFundAccountId) {
+    console.log(`[RzpX] Reusing fund_account ${recipient.razorpayFundAccountId} for ${recipient.recipientType.toLowerCase()} ${recipient.recipientId}`);
+    return recipient.razorpayFundAccountId;
   }
 
   const fa = await rzpX<{ id: string }>('POST', '/fund_accounts', {
     contact_id:   contactId,
     account_type: 'bank_account',
     bank_account: {
-      name:           advisor.bankAccountHolder || advisor.fullName,
-      ifsc:           advisor.bankIfsc.toUpperCase(),
-      account_number: advisor.bankAccountNumber,
+      name:           recipient.bankAccountHolder || recipient.fullName,
+      ifsc:           recipient.bankIfsc.toUpperCase(),
+      account_number: recipient.bankAccountNumber,
     },
   });
 
-  console.log(`[RzpX] Created fund_account ${fa.id} for advisor ${advisor.advisorId}`);
+  console.log(`[RzpX] Created fund_account ${fa.id} for ${recipient.recipientType.toLowerCase()} ${recipient.recipientId}`);
 
-  await prisma.advisor.update({
-    where: { id: advisor.advisorId },
-    data:  { razorpayFundAccountId: fa.id },
-  });
+  await persistRazorpayIds(recipient, { razorpayFundAccountId: fa.id });
 
   return fa.id;
 }
@@ -195,20 +209,21 @@ async function createPayout(
 /**
  * Full RazorpayX payout flow: Contact → Fund Account → Payout.
  *
- * `ticketId` is used as the idempotency key (`payout_ticket_<id>`) so that
- * retries always produce the same payout — no duplicate transfers.
+ * `idempotencyKey` must be unique per payout *event* (not per ticket/recipient) —
+ * callers should pass something like `payout_<PayoutRow.id>` or
+ * `withdrawal_<ClientWithdrawalRow.id>`, so that two different partial releases
+ * for the same ticket (or two different withdrawals for the same client) never
+ * collide at Razorpay's idempotency layer.
  *
  * Set DUMMY_PAYOUTS=true in env to short-circuit for dev/staging.
  */
 export async function initiatePayout(
-  advisor:     AdvisorBankProfile,
-  amountPaise: number,
-  ticketId:    string,
+  recipient:      PayoutRecipient,
+  amountPaise:    number,
+  idempotencyKey: string,
 ): Promise<PayoutInitResult> {
-  const idempotencyKey = `payout_ticket_${ticketId}`;
-
   if (process.env.DUMMY_PAYOUTS === 'true') {
-    const dummyId = `dummy_payout_${ticketId}_${Date.now()}`;
+    const dummyId = `dummy_payout_${idempotencyKey}_${Date.now()}`;
     console.log(`[RzpX] DUMMY mode — skipping real transfer. id=${dummyId}`);
     return {
       success:          true,
@@ -219,8 +234,8 @@ export async function initiatePayout(
   }
 
   try {
-    const contactId     = await ensureContact(advisor);
-    const fundAccountId = await ensureFundAccount(contactId, advisor);
+    const contactId     = await ensureContact(recipient);
+    const fundAccountId = await ensureFundAccount(contactId, recipient);
     const payout        = await createPayout(fundAccountId, amountPaise, idempotencyKey);
 
     console.log(`[RzpX] Payout initiated — id=${payout.id} status=${payout.status} utr=${payout.utr ?? 'pending'}`);
@@ -234,7 +249,7 @@ export async function initiatePayout(
     };
   } catch (err: any) {
     const message = err?.message ?? String(err);
-    console.error(`[RzpX] Payout failed for ticket ${ticketId}:`, message);
+    console.error(`[RzpX] Payout failed for ${idempotencyKey}:`, message);
     return { success: false, error: message };
   }
 }
