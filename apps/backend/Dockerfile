@@ -21,9 +21,13 @@ WORKDIR /usr/src/app
 
 RUN apk add --no-cache openssl
 
-# Copy only what the runtime needs
-COPY package*.json ./
-RUN npm install --omit=dev --legacy-peer-deps
+# Copy only what the runtime needs.
+# NOTE: dev deps are intentionally kept here (no --omit=dev) so the pinned
+# `prisma` CLI (package.json devDependencies) is present in node_modules/.bin
+# at container start — without it, `npx prisma` silently fetches the latest
+# registry version instead of the pinned one, which has broken schema.prisma
+# compatibility across major versions before.
+RUN npm install --legacy-peer-deps
 
 # Prisma client + schema (generate already baked into node_modules from builder)
 COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
@@ -35,7 +39,7 @@ COPY --from=builder /usr/src/app/dist ./dist
 
 EXPOSE 10000
 
-# Sync schema to DB (best-effort), then always start the server.
-# prisma db push is used instead of migrate deploy because this project
-# uses db push rather than migration files for schema changes.
-CMD ["sh", "-c", "npx prisma db push || echo '[warn] DB push failed — starting server anyway'; node dist/app.js"]
+# Apply the committed migration history deterministically (replaces the old
+# `prisma db push`, which schema-diffs against whatever Prisma CLI version
+# happens to resolve and has no migration history), then start the server.
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy || echo '[warn] Migration failed — starting server anyway'; node dist/app.js"]
