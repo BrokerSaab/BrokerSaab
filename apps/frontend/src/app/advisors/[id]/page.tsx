@@ -72,7 +72,7 @@ export default function AdvisorProfilePage() {
   const [avatarError, setAvatarError]   = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [isBooked, setIsBooked]         = useState(false);
-  const [paymentGateway, setPaymentGateway] = useState<'RAZORPAY' | 'STRIPE' | 'WALLET'>('RAZORPAY');
+  const [paymentGateway, setPaymentGateway] = useState<'RAZORPAY' | 'WALLET'>('RAZORPAY');
   const [consultMode, setConsultMode]       = useState<'PHONE' | 'CHAT' | 'PHYSICAL'>('PHONE');
   const [notes, setNotes]                   = useState('');
   const [bookingLoading, setBookingLoading] = useState(false);
@@ -136,6 +136,16 @@ export default function AdvisorProfilePage() {
     finally { setUnlockLoading(false); }
   };
 
+  const loadRazorpayScript = (): Promise<void> =>
+    new Promise((resolve, reject) => {
+      if ((window as any).Razorpay) { resolve(); return; }
+      const s = document.createElement('script');
+      s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Payment gateway unavailable. Please try again.'));
+      document.body.appendChild(s);
+    });
+
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoggedIn) { openLoginModal(); return; }
@@ -163,21 +173,102 @@ export default function AdvisorProfilePage() {
       const bookingData = await bookingRes.json();
       if (!bookingData.success) {
         setBookingError(bookingData.message || 'Failed to create booking');
+        setBookingLoading(false);
         return;
       }
+      const bookingId = bookingData.data.id;
 
-      // Step 2: Process payment → moves booking to ACCEPTED
+      // Step 2: Process payment
       const payRes = await fetch(`${API}/payments/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ bookingId: bookingData.data.id, gateway: paymentGateway }),
+        body: JSON.stringify({ bookingId, gateway: paymentGateway }),
       });
       const payData = await payRes.json();
       if (!payData.success) {
         setBookingError(payData.message || 'Payment failed. Please try again.');
+        setBookingLoading(false);
         return;
       }
 
+      // WALLET (or DUMMY_PAYMENTS test mode) resolves synchronously — nothing more to do.
+      if (!payData.requiresPayment) {
+        setIsBooked(true);
+        setBookingLoading(false);
+        return;
+      }
+
+      // RAZORPAY — open the real checkout modal.
+      await loadRazorpayScript();
+      const rzp = new (window as any).Razorpay({
+        key: payData.keyId,
+        amount: payData.amount,
+        currency: payData.currency,
+        name: 'BrokerSaab',
+        description: `Consultation with ${advisor?.fullName ?? 'advisor'}`,
+        image: '/logo-icon.png',
+        order_id: payData.orderId,
+        notes: { purpose: 'CONSULTATION_BOOKING', bookingId },
+        theme: { color: '#4F46E5' },
+        modal: { ondismiss: () => setBookingLoading(false) },
+        handler: async (response: any) => {
+          try {
+            const verifyRes = await fetch(`${API}/payments/verify-checkout`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+              body: JSON.stringify({
+                razorpayOrderId: payData.orderId,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+            if (verifyData.success) setIsBooked(true);
+            else setBookingError(verifyData.message || 'Payment verification failed');
+          } catch {
+            setBookingError('Payment verified but confirmation failed. Contact support.');
+          } finally {
+            setBookingLoading(false);
+          }
+        },
+      });
+      rzp.open();
+    } catch {
+      setBookingError('Something went wrong. Please check your connection and try again.');
+      setBookingLoading(false);
+    }
+  };
+
+  const handleTestPayBooking = async () => {
+    if (!isLoggedIn) { openLoginModal(); return; }
+    if (!selectedSlot) return;
+    const slotData = advisor?.availability.find(s => s.id === selectedSlot);
+    if (!slotData) return;
+
+    setBookingError(null);
+    setBookingLoading(true);
+    try {
+      const bookingRes = await fetch(`${API}/bookings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({
+          advisorId,
+          slotId: selectedSlot,
+          scheduledDate: nextDateForDay(slotData.dayOfWeek, slotData.startTime),
+          mode: consultMode,
+          notes: notes.trim() || undefined,
+        }),
+      });
+      const bookingData = await bookingRes.json();
+      if (!bookingData.success) { setBookingError(bookingData.message || 'Failed to create booking'); return; }
+
+      const payRes = await fetch(`${API}/payments/test-checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ bookingId: bookingData.data.id }),
+      });
+      const payData = await payRes.json();
+      if (!payData.success) { setBookingError(payData.message || 'Test payment failed'); return; }
       setIsBooked(true);
     } catch {
       setBookingError('Something went wrong. Please check your connection and try again.');
@@ -599,7 +690,7 @@ export default function AdvisorProfilePage() {
                             onChange={e => setNotes(e.target.value)}
                             placeholder="Describe your requirements briefly…"
                             rows={2}
-                            className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:border-indigo-300 bg-gray-50 placeholder-gray-300"
+                            className="w-full text-xs text-gray-800 border border-gray-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:border-indigo-300 bg-gray-50 placeholder-gray-300"
                           />
                         </div>
 
@@ -608,8 +699,8 @@ export default function AdvisorProfilePage() {
                           <label className="text-[10px] text-gray-400 uppercase tracking-widest font-bold flex items-center gap-1.5 mb-2">
                             <DollarSign size={11} /> Payment Method
                           </label>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            {(['RAZORPAY', 'STRIPE', 'WALLET'] as const).map(gw => (
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {(['RAZORPAY', 'WALLET'] as const).map(gw => (
                               <button type="button" key={gw} onClick={() => setPaymentGateway(gw)}
                                 className={`py-2 rounded-lg text-[9px] font-bold transition-all text-center border ${
                                   paymentGateway === gw ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-indigo-300'
@@ -640,6 +731,13 @@ export default function AdvisorProfilePage() {
                       {!isLoggedIn ? 'Sign In & Book' : bookingLoading ? 'Processing…' : 'Book & Pay'}
                       {selectedSlot && !bookingLoading && <ChevronRight size={15} />}
                     </button>
+
+                    {process.env.NODE_ENV !== 'production' && isLoggedIn && (
+                      <button type="button" onClick={handleTestPayBooking} disabled={!selectedSlot || bookingLoading}
+                        className="w-full py-2 rounded-xl font-semibold text-xs text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-all disabled:opacity-40">
+                        [DEV] Simulate Payment
+                      </button>
+                    )}
                   </form>
                 )}
 

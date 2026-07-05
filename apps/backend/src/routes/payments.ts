@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import crypto from 'crypto';
+import Razorpay from 'razorpay';
 import prisma from '../config/db';
 import { authenticateJWT, AuthenticatedRequest } from '../middlewares/auth';
 import { validateRequest } from '../middlewares/validate';
@@ -9,10 +11,23 @@ import { sendPushNotification } from '../utils/pushNotification';
 
 const router = Router();
 
+const getRazorpay = () => new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID!,
+  key_secret: process.env.RAZORPAY_KEY_SECRET!,
+});
+
 const checkoutSchema = z.object({
   body: z.object({
     bookingId: z.string().uuid(),
-    gateway: z.enum(['STRIPE', 'RAZORPAY', 'WALLET'])
+    gateway: z.enum(['RAZORPAY', 'WALLET'])
+  })
+});
+
+const verifyCheckoutSchema = z.object({
+  body: z.object({
+    razorpayOrderId: z.string(),
+    razorpayPaymentId: z.string(),
+    razorpaySignature: z.string(),
   })
 });
 
@@ -104,41 +119,168 @@ router.post(
         return;
       }
 
-      // Gateway Strategy: Simulated STRIPE / RAZORPAY Checkout (Development Fallback)
-      // Generates instant successful checkout mock or payment setup
-      const referenceId = `PAY-${gateway.slice(0, 3)}-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-      const simulatedTxn = await prisma.$transaction(async (tx) => {
-        const txn = await tx.transaction.create({
-          data: {
-            referenceId,
-            userId,
-            bookingId,
-            type: TransactionType.DEBIT,
-            status: TransactionStatus.SUCCESS, // Instantly mark success for mock purposes
-            amount: totalFee,
-            commission,
-            netAmount,
-            gatewayMessage: `Simulated checkout via ${gateway} sandbox.`
-          }
+      // Gateway Strategy: RAZORPAY — test mode short-circuit for dev/staging.
+      // Set DUMMY_PAYMENTS=true to skip the real Razorpay order and mark the
+      // booking paid instantly, mirroring the DUMMY_PAYOUTS convention used
+      // on the advisor-payout side.
+      if (process.env.DUMMY_PAYMENTS === 'true') {
+        const referenceId = `DUMMY-PAY-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const dummyTxn = await prisma.$transaction(async (tx) => {
+          const txn = await tx.transaction.create({
+            data: {
+              referenceId, userId, bookingId,
+              type: TransactionType.DEBIT,
+              status: TransactionStatus.SUCCESS,
+              amount: totalFee, commission, netAmount,
+              gatewayMessage: 'DUMMY_PAYMENTS test mode — no real gateway call made.',
+            },
+          });
+          await tx.booking.update({ where: { id: bookingId }, data: { status: BookingStatus.ACCEPTED } });
+          return txn;
         });
+        res.status(200).json({ success: true, message: 'Test-mode payment completed instantly (DUMMY_PAYMENTS).', data: dummyTxn });
+        return;
+      }
 
-        await tx.booking.update({
-          where: { id: bookingId },
-          data: { status: BookingStatus.ACCEPTED }
-        });
+      // Real Razorpay order — booking stays PENDING until POST /payments/verify-checkout confirms it.
+      const order = await getRazorpay().orders.create({
+        amount: Math.round(totalFee * 100),
+        currency: 'INR',
+        receipt: `booking_${bookingId.slice(0, 8)}_${Date.now()}`,
+        payment_capture: true,
+        notes: { bookingId, purpose: 'CONSULTATION_BOOKING' },
+      } as any);
 
-        return txn;
+      await prisma.transaction.create({
+        data: {
+          referenceId: order.id,
+          userId,
+          bookingId,
+          type: TransactionType.DEBIT,
+          status: TransactionStatus.PENDING,
+          amount: totalFee,
+          commission,
+          netAmount,
+          gatewayMessage: 'Awaiting Razorpay checkout confirmation.',
+        },
       });
 
       res.status(200).json({
         success: true,
-        message: 'Mock payment checkout initialized successfully.',
-        paymentUrl: `https://checkout.brokersaab.com/pay/${simulatedTxn.referenceId}`,
-        data: simulatedTxn
+        requiresPayment: true,
+        orderId: order.id,
+        amount: Math.round(totalFee * 100),
+        currency: 'INR',
+        keyId: process.env.RAZORPAY_KEY_ID,
+        bookingId,
       });
     } catch (error) {
+      console.error('[POST /payments/checkout]', error);
       res.status(500).json({ success: false, message: 'Checkout initialization error occurred.' });
+    }
+  }
+);
+
+/**
+ * 1b. POST /payments/verify-checkout
+ * Verifies a real Razorpay payment for a consultation booking and marks it paid.
+ */
+router.post(
+  '/verify-checkout',
+  authenticateJWT,
+  validateRequest(verifyCheckoutSchema),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+
+    try {
+      const transaction = await prisma.transaction.findUnique({ where: { referenceId: razorpayOrderId } });
+      if (!transaction || !transaction.bookingId) {
+        res.status(404).json({ success: false, message: 'Payment record not found' });
+        return;
+      }
+      if (transaction.status === TransactionStatus.SUCCESS) {
+        res.json({ success: true, message: 'Already confirmed' });
+        return;
+      }
+
+      const expectedSig = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+        .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+        .digest('hex');
+
+      const sigMatch = crypto.timingSafeEqual(Buffer.from(expectedSig), Buffer.from(razorpaySignature));
+      if (!sigMatch) {
+        res.status(400).json({ success: false, message: 'Invalid payment signature' });
+        return;
+      }
+
+      await prisma.$transaction([
+        prisma.transaction.update({
+          where: { id: transaction.id },
+          data: { status: TransactionStatus.SUCCESS, gatewayMessage: 'Razorpay checkout confirmed.' },
+        }),
+        prisma.booking.update({
+          where: { id: transaction.bookingId },
+          data: { status: BookingStatus.ACCEPTED },
+        }),
+      ]);
+
+      res.json({ success: true, message: 'Payment confirmed and booking accepted.' });
+    } catch (err) {
+      console.error('[POST /payments/verify-checkout]', err);
+      res.status(500).json({ success: false, message: 'Payment verification failed' });
+    }
+  }
+);
+
+/**
+ * 1c. POST /payments/test-checkout
+ * Dev-only bypass — fabricates a successful payment without touching Razorpay.
+ * Blocked in production regardless of any client-side gating.
+ */
+router.post(
+  '/test-checkout',
+  authenticateJWT,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (process.env.NODE_ENV === 'production') {
+      res.status(403).json({ success: false, message: 'Not available in production' });
+      return;
+    }
+    const userId = req.user!.id;
+    const { bookingId } = req.body;
+
+    try {
+      const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+      if (!booking || booking.clientId !== userId) {
+        res.status(404).json({ success: false, message: 'Booking not found' });
+        return;
+      }
+      if (booking.status !== BookingStatus.PENDING) {
+        res.status(400).json({ success: false, message: 'Booking already processed' });
+        return;
+      }
+
+      const totalFee = Number(booking.totalFee);
+      const referenceId = `test_order_${Date.now()}`;
+
+      const txn = await prisma.$transaction(async (tx) => {
+        const t = await tx.transaction.create({
+          data: {
+            referenceId, userId, bookingId,
+            type: TransactionType.DEBIT,
+            status: TransactionStatus.SUCCESS,
+            amount: totalFee, commission: 0, netAmount: totalFee,
+            gatewayMessage: '[DEV] Simulated payment via test-checkout.',
+          },
+        });
+        await tx.booking.update({ where: { id: bookingId }, data: { status: BookingStatus.ACCEPTED } });
+        return t;
+      });
+
+      res.json({ success: true, message: 'Test payment confirmed and booking accepted.', data: txn });
+    } catch (err) {
+      console.error('[POST /payments/test-checkout]', err);
+      res.status(500).json({ success: false, message: 'Test checkout failed' });
     }
   }
 );

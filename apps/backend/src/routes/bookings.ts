@@ -275,30 +275,39 @@ router.post(
           }
         }
 
-        // Release escrow payout to advisor's wallet if marked COMPLETED
+        // Release escrow payout to the advisor's actual withdrawable balance if marked COMPLETED.
+        // NOTE: this must credit Advisor.walletBalance — the only field POST
+        // /advisors/wallet/withdraw ever reads/decrements. Crediting the
+        // User-linked Wallet model here (as this used to) put earnings
+        // somewhere the advisor could never actually withdraw from.
         if (status === BookingStatus.COMPLETED) {
           const transaction = await tx.transaction.findFirst({
             where: { bookingId: id, status: 'SUCCESS' }
           });
 
           if (transaction) {
-            // Find advisor Base User ID
+            await tx.advisor.update({
+              where: { id: booking.advisorId },
+              data: { walletBalance: { increment: transaction.netAmount } }
+            });
+
+            // Find advisor's linked User row for the audit Transaction record only
+            // (Transaction.userId is a required FK to User; skip the audit row
+            // if it's somehow missing rather than mis-attribute it to the client)
             const advisorUser = await tx.user.findUnique({
               where: { phoneNumber: booking.advisor.phoneNumber }
             });
 
             if (advisorUser) {
-              await tx.wallet.update({
-                where: { userId: advisorUser.id },
-                data: { balance: { increment: transaction.netAmount } }
-              });
-
-              // Register escrow payout transaction
+              // bookingId is intentionally omitted: Transaction.bookingId is
+              // unique and the checkout Transaction already owns this booking's
+              // row. Multiple NULLs are allowed under a unique constraint, so
+              // this audit row stays un-linked to bookingId rather than
+              // colliding with it.
               await tx.transaction.create({
                 data: {
                   referenceId: `EARN-${transaction.referenceId}`,
                   userId: advisorUser.id,
-                  bookingId: id,
                   type: 'CREDIT',
                   status: 'SUCCESS',
                   amount: transaction.netAmount,
