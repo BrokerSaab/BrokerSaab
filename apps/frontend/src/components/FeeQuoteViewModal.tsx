@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   X, FileText, Clock, CheckCircle2, XCircle, Loader2,
   AlertTriangle, CalendarClock, ArrowRight, Wallet, CreditCard, ShieldCheck,
-  ScrollText, Info,
+  ScrollText, Info, ChevronLeft,
 } from 'lucide-react';
 import { getCategoryName } from '@/data/categoryMap';
 
@@ -85,6 +85,7 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
   const [ticketNum,    setTicketNum]    = useState('');
   const [error,        setError]        = useState('');
   const [termsAgreed,  setTermsAgreed]  = useState(false);
+  const [showTcDetail, setShowTcDetail] = useState(false);
 
   // Auto-mark as viewed
   useEffect(() => {
@@ -107,6 +108,7 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
     setTicketId('');
     setTicketNum('');
     setTermsAgreed(false);
+    setShowTcDetail(false);
   }, [quote?.id]);
 
   if (!isOpen || !quote) return null;
@@ -334,7 +336,54 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
 
       {/* ── TERMS VIEW ──────────────────────────────────────── */}
       {view === 'terms' && (
-        <div className="px-5 pb-5 overflow-y-auto flex-1 space-y-4">
+        <div className="px-5 pb-5 overflow-y-auto flex-1 space-y-4 relative">
+
+          {/* ── T&C Detail slide-over panel ── */}
+          {showTcDetail && (
+            <div className="absolute inset-0 z-10 flex flex-col rounded-b-3xl overflow-hidden"
+              style={{ background: 'linear-gradient(160deg,#0B1F3A,#111827)' }}>
+              <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3 shrink-0">
+                <button
+                  onClick={() => setShowTcDetail(false)}
+                  className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors"
+                  style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  <ChevronLeft size={16} />
+                </button>
+                <div>
+                  <h3 className="text-sm font-bold text-white leading-tight">Terms &amp; Conditions</h3>
+                  <p className="text-[10px] text-white/35">Payment Agreement · BrokerSaab</p>
+                </div>
+              </div>
+              <div className="overflow-y-auto flex-1 px-4 py-3 space-y-3 text-[11px] text-white/50 leading-relaxed">
+                <div>
+                  <p className="font-bold text-white/70 mb-1">1. Payment Structure</p>
+                  <p>Your total payment of <span className="text-white/80 font-semibold">₹{fmt(clientTotal)}</span> includes an Advisory Service Fee of ₹{fmt(base)} (paid to the advisor), a Platform Fee of ₹{fmt(platformFee)}, and a Payment Gateway processing fee of ₹{fmt(gatewayFee)}.</p>
+                </div>
+                <div>
+                  <p className="font-bold text-white/70 mb-1">2. Escrow Protection</p>
+                  <p>Your Advisory Service Fee (₹{fmt(base)}) is held securely in escrow by BrokerSaab and is released to the advisor only after you confirm that the work has been completed to your satisfaction by closing the ticket.</p>
+                </div>
+                <div>
+                  <p className="font-bold text-white/70 mb-1">3. Refund Policy</p>
+                  <p className="mb-1">• <span className="text-white/70 font-semibold">Advisory Fee (₹{fmt(base)})</span> — Refundable if the advisor fails to deliver the agreed service.</p>
+                  <p className="mb-1">• <span className="text-red-400 font-semibold">Platform Fee (₹{fmt(platformFee)})</span> — NON-REFUNDABLE under all circumstances.</p>
+                  <p>• <span className="text-red-400 font-semibold">Gateway Fee (₹{fmt(gatewayFee)})</span> — NON-REFUNDABLE as it is charged by the payment processor.</p>
+                </div>
+                <div>
+                  <p className="font-bold text-white/70 mb-1">4. Dispute Resolution</p>
+                  <p>In the event of a dispute, BrokerSaab reserves the right to hold escrow funds pending resolution. Approved refunds (advisory fee only) are processed within 5–7 business days to the original payment method.</p>
+                </div>
+                <div>
+                  <p className="font-bold text-white/70 mb-1">5. Advisor Responsibility</p>
+                  <p>BrokerSaab facilitates the connection between clients and independent advisors. BrokerSaab is not liable for the quality or outcome of advisory services rendered.</p>
+                </div>
+                <div>
+                  <p className="font-bold text-white/70 mb-1">6. Acceptance</p>
+                  <p>By proceeding with payment, you confirm that you have read, understood, and agreed to these terms.</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Fee summary card */}
           <div className="rounded-xl overflow-hidden border border-white/10">
@@ -347,18 +396,15 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
                 <span className="text-sm font-semibold text-white tabular-nums">₹{fmt(base)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-white/60">Payment Gateway Fee <span className="text-white/30">(1.5%)</span></span>
+                <span className="text-xs text-white/60">Gateway Fee <span className="text-white/30">(1.5%)</span></span>
                 <span className="text-sm font-semibold text-white tabular-nums">₹{fmt(gatewayFee)}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-white/60">
-                  Platform Fee{' '}
-                  <span className="text-white/30">
-                    {base <= 3000 ? '(flat ₹30)' : base <= 5000 ? '(flat ₹50)' : '(1%)'}
-                  </span>
-                </span>
-                <span className="text-sm font-semibold text-white tabular-nums">₹{fmt(platformFee)}</span>
-              </div>
+              {platformFee > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-white/60">Platform Fee <span className="text-white/30">(1%)</span></span>
+                  <span className="text-sm font-semibold text-white tabular-nums">₹{fmt(platformFee)}</span>
+                </div>
+              )}
               <div className="border-t border-white/10 pt-2 flex items-center justify-between">
                 <span className="text-sm font-black text-white">Total Payable</span>
                 <span className="text-lg font-black tabular-nums" style={{ color: '#D4AF37' }}>₹{fmt(clientTotal)}</span>
@@ -370,48 +416,11 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
           <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2.5 flex items-start gap-2">
             <Info size={13} className="text-amber-400 shrink-0 mt-0.5" />
             <p className="text-[11px] text-amber-200/70 leading-relaxed">
-              <span className="font-bold text-amber-300">Platform Fee (₹{fmt(platformFee)}) and Gateway Fee (₹{fmt(gatewayFee)}) are non-refundable</span>{' '}
-              regardless of the outcome. Only the Advisory Fee (₹{fmt(base)}) is eligible for refund if work is not completed.
+              Gateway &amp; Platform fees are <span className="font-bold text-amber-300">non-refundable</span>. Only the Advisory Fee (₹{fmt(base)}) is eligible for refund if work is not completed.
             </p>
           </div>
 
-          {/* T&C text */}
-          <div className="rounded-xl border border-white/10 bg-white/3 overflow-hidden">
-            <div className="px-4 py-2.5 bg-white/5 border-b border-white/10 flex items-center gap-2">
-              <ScrollText size={12} className="text-white/40" />
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Terms & Conditions</p>
-            </div>
-            <div className="px-4 py-3 space-y-3 max-h-52 overflow-y-auto text-[11px] text-white/50 leading-relaxed">
-              <div>
-                <p className="font-bold text-white/70 mb-1">1. Payment Structure</p>
-                <p>Your total payment of <span className="text-white/80 font-semibold">₹{fmt(clientTotal)}</span> includes an Advisory Service Fee of ₹{fmt(base)} (paid to the advisor), a Platform Fee of ₹{fmt(platformFee)}, and a Payment Gateway processing fee of ₹{fmt(gatewayFee)}.</p>
-              </div>
-              <div>
-                <p className="font-bold text-white/70 mb-1">2. Escrow Protection</p>
-                <p>Your Advisory Service Fee (₹{fmt(base)}) is held securely in escrow by BrokerSaab and is released to the advisor only after you confirm that the work has been completed to your satisfaction by closing the ticket.</p>
-              </div>
-              <div>
-                <p className="font-bold text-white/70 mb-1">3. Refund Policy</p>
-                <p className="mb-1">• <span className="text-white/70 font-semibold">Advisory Fee (₹{fmt(base)})</span> — Refundable if the advisor fails to deliver the agreed service.</p>
-                <p className="mb-1">• <span className="text-red-400 font-semibold">Platform Fee (₹{fmt(platformFee)})</span> — <strong className="text-red-400">NON-REFUNDABLE</strong> under all circumstances.</p>
-                <p>• <span className="text-red-400 font-semibold">Gateway Fee (₹{fmt(gatewayFee)})</span> — <strong className="text-red-400">NON-REFUNDABLE</strong> as it is charged by the payment processor.</p>
-              </div>
-              <div>
-                <p className="font-bold text-white/70 mb-1">4. Dispute Resolution</p>
-                <p>In the event of a dispute, BrokerSaab reserves the right to hold escrow funds pending resolution. Approved refunds (advisory fee only) are processed within 5–7 business days to the original payment method.</p>
-              </div>
-              <div>
-                <p className="font-bold text-white/70 mb-1">5. Advisor Responsibility</p>
-                <p>BrokerSaab facilitates the connection between clients and independent advisors. BrokerSaab is not liable for the quality or outcome of advisory services rendered.</p>
-              </div>
-              <div>
-                <p className="font-bold text-white/70 mb-1">6. Acceptance</p>
-                <p>By proceeding with payment, you confirm that you have read, understood, and agreed to these terms.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Agreement checkbox */}
+          {/* Single-line checkbox + T&C link */}
           <label className="flex items-start gap-3 cursor-pointer group">
             <div className="mt-0.5 shrink-0">
               <input
@@ -422,9 +431,16 @@ export default function FeeQuoteViewModal({ quote, isOpen, onClose, onDeclined, 
               />
             </div>
             <span className="text-xs text-white/60 leading-relaxed group-hover:text-white/80 transition-colors">
-              I have read and agree to the Terms & Conditions. I understand that the{' '}
-              <span className="text-red-400 font-semibold">Platform Fee (₹{fmt(platformFee)})</span> and{' '}
-              <span className="text-red-400 font-semibold">Gateway Fee (₹{fmt(gatewayFee)})</span> are non-refundable.
+              I agree to the{' '}
+              <button
+                type="button"
+                onClick={e => { e.preventDefault(); setShowTcDetail(true); }}
+                className="font-semibold underline underline-offset-2 transition-colors"
+                style={{ color: '#818CF8' }}>
+                Terms &amp; Conditions
+              </button>
+              . Platform &amp; Gateway fees are{' '}
+              <span className="text-red-400 font-semibold">non-refundable</span>.
             </span>
           </label>
 
