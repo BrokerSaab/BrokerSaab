@@ -594,6 +594,70 @@ router.post(
 );
 
 /**
+ * POST /tickets/:id/start
+ * ADVISOR explicitly signals they've begun work — flips OPEN -> IN_PROGRESS
+ * independent of adding a stage (today IN_PROGRESS is only ever reached as a
+ * side effect of POST /:id/stages, which can leave a ticket sitting at OPEN
+ * indefinitely with no signal to the client that anything has started).
+ */
+router.post(
+  '/:id/start',
+  authenticateJWT,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (req.user!.role !== Role.ADVISOR) {
+      res.status(403).json({ success: false, message: 'Only advisors can start work on a ticket' });
+      return;
+    }
+    try {
+      const advisor = await getAdvisorRecord(req.user!.phoneNumber);
+      if (!advisor) { res.status(404).json({ success: false, message: 'Advisor not found' }); return; }
+
+      const ticket = await prisma.serviceTicket.findUnique({ where: { id: req.params.id } });
+      if (!ticket || ticket.advisorId !== advisor.id) {
+        res.status(404).json({ success: false, message: 'Ticket not found' });
+        return;
+      }
+      if (ticket.status !== ServiceTicketStatus.OPEN) {
+        res.status(400).json({ success: false, message: 'Ticket has already started' });
+        return;
+      }
+
+      const updated = await prisma.serviceTicket.update({
+        where: { id: ticket.id },
+        data:  { status: ServiceTicketStatus.IN_PROGRESS },
+      });
+
+      await prisma.ticketComment.create({
+        data: {
+          ticketId:   ticket.id,
+          authorId:   (await prisma.user.findUnique({ where: { phoneNumber: advisor.phoneNumber } }))?.id ?? ticket.clientId,
+          authorRole: 'ADVISOR',
+          authorName: advisor.fullName,
+          content:    `${advisor.fullName} started working on this ticket.`,
+        },
+      }).catch(() => {});
+
+      io.to(`user:${ticket.clientId}`).emit('ticket_updated', { ticketId: ticket.id, event: 'work_started' });
+
+      const clientUser = await prisma.user.findUnique({ where: { id: ticket.clientId } });
+      if (clientUser?.pushToken) {
+        sendPushNotification(
+          clientUser.pushToken,
+          'Work Started',
+          `${advisor.fullName} has started working on your ticket.`,
+          { ticketId: ticket.id, screen: 'TicketDetail' }
+        );
+      }
+
+      res.json({ success: true, data: updated });
+    } catch (err) {
+      console.error('[POST /tickets/:id/start]', err);
+      res.status(500).json({ success: false, message: 'Failed to start ticket' });
+    }
+  }
+);
+
+/**
  * POST /tickets/:id/close
  * CLIENT closes the ticket with a review. Payment is released to advisor.
  */

@@ -68,6 +68,22 @@ const TICKET_STATUS_MAP: Record<string, { label: string; color: string }> = {
   PAYOUT_RELEASED:  { label: 'Completed & Paid',  color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
 };
 
+// Linear ticket-progress steps. DISPUTED is a lateral branch (reachable from
+// any of these) and is intentionally NOT one of these steps — it renders as
+// its own banner instead, so it never looks like a misleading "next step".
+const TICKET_STEPS = [
+  { key: 'OPEN',             label: 'Started' },
+  { key: 'IN_PROGRESS',      label: 'In Progress' },
+  { key: 'AWAITING_CONFIRM', label: 'Awaiting Confirmation' },
+  { key: 'PAYOUT_RELEASED',  label: 'Closed & Paid' },
+] as const;
+
+function ticketStepIndex(status: string): number {
+  if (status === 'CLOSED') return 3; // CLOSED is never actually set today, but treat same as PAYOUT_RELEASED
+  const idx = TICKET_STEPS.findIndex(s => s.key === status);
+  return idx === -1 ? 0 : idx; // DISPUTED (or anything unrecognized) falls back to step 0 — irrelevant since the disputed banner replaces the stepper
+}
+
 export default function TicketDetailPage() {
   const { id }        = useParams<{ id: string }>();
   const { user }      = useAuth();
@@ -95,6 +111,7 @@ export default function TicketDetailPage() {
   const [stageComment,  setStageComment]  = useState('');
   const [stageCommentFor, setStageCommentFor] = useState<string | null>(null);
   const [confirmingStageId, setConfirmingStageId] = useState<string | null>(null);
+  const [startingWork,  setStartingWork]  = useState(false);
 
   const [cancellingItemId, setCancellingItemId] = useState<string | null>(null);
   const [cancelReason,     setCancelReason]     = useState('');
@@ -212,6 +229,19 @@ export default function TicketDetailPage() {
       fetchTicket();
     } catch { /* ignore */ }
     finally { setUpdatingStage(null); }
+  };
+
+  const handleStartWork = async () => {
+    setStartingWork(true);
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      await fetch(`${API}/tickets/${id}/start`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchTicket();
+    } catch { /* ignore */ }
+    finally { setStartingWork(false); }
   };
 
   const confirmStage = async (stageId: string) => {
@@ -644,6 +674,8 @@ export default function TicketDetailPage() {
 
   const statusInfo = TICKET_STATUS_MAP[ticket.status] ?? { label: ticket.status, color: 'text-gray-500 bg-gray-100 border-gray-200' };
   const isClosed   = ticket.status === 'CLOSED' || ticket.status === 'PAYOUT_RELEASED';
+  const isDisputed = ticket.status === 'DISPUTED';
+  const currentStepIndex = ticketStepIndex(ticket.status);
   const lineItems       = ticket.quote.lineItems ?? [];
   const releasedItems   = lineItems.filter(li => li.status === 'RELEASED');
   const cancelledItems  = lineItems.filter(li => li.status === 'CANCELLED');
@@ -687,6 +719,87 @@ export default function TicketDetailPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-5 space-y-4">
+
+        {/* Disputed banner — DISPUTED is a lateral branch reachable from any
+            step, not a "next" step, so it never renders inside the stepper. */}
+        {isDisputed && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 flex items-center gap-2">
+            <AlertTriangle size={16} className="text-red-500 shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-red-700">Dispute Raised</p>
+              <p className="text-[11px] text-red-500 mt-0.5">
+                {isClient ? 'Your dispute is under review.' : 'The client has raised a dispute on this ticket.'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Ticket progress stepper — advisor drives Started -> In Progress;
+            everything after that follows automatically from stage actions
+            or the client's own close/confirm actions. */}
+        {!isDisputed && (
+          <div className="rounded-2xl bg-white border border-slate-100 shadow-sm px-4 py-4">
+            <div className="flex items-start justify-between gap-2">
+              {TICKET_STEPS.map((step, i) => {
+                const done   = i < currentStepIndex;
+                const active = i === currentStepIndex;
+                return (
+                  <React.Fragment key={step.key}>
+                    <div className="flex flex-col items-center flex-1 min-w-0">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                        done   ? 'bg-emerald-500 text-white' :
+                        active ? 'bg-indigo-600 text-white' :
+                                 'bg-gray-100 text-gray-400'
+                      }`}>
+                        {done ? <CheckCircle2 size={14} /> : <span className="text-[11px] font-bold">{i + 1}</span>}
+                      </div>
+                      <p className={`text-[10px] font-bold mt-1 text-center leading-tight ${
+                        done ? 'text-emerald-600' : active ? 'text-indigo-700' : 'text-gray-400'
+                      }`}>
+                        {step.label}
+                      </p>
+                    </div>
+                    {i < TICKET_STEPS.length - 1 && (
+                      <div className={`h-0.5 flex-1 mt-3.5 ${i < currentStepIndex ? 'bg-emerald-400' : 'bg-gray-100'}`} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+
+            {/* Active-step description — advisor-only actions/copy */}
+            {isAdvisor && currentStepIndex === 0 && (
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-[11px] text-gray-500">Let the client know you've begun this job.</p>
+                <button
+                  onClick={handleStartWork}
+                  disabled={startingWork}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-all"
+                >
+                  {startingWork ? <Loader2 size={12} className="animate-spin" /> : <Clock size={12} />}
+                  {startingWork ? 'Starting…' : 'Start Work'}
+                </button>
+              </div>
+            )}
+            {isAdvisor && currentStepIndex === 2 && (
+              <div className="mt-4 pt-3 border-t border-purple-100 bg-purple-50 -mx-4 -mb-4 px-4 py-3 rounded-b-2xl">
+                <p className="text-xs font-bold text-purple-700">Waiting for client confirmation</p>
+                <p className="text-[11px] text-purple-500 mt-0.5">
+                  The client needs to confirm a stage before you can continue. You&apos;ll be notified when confirmed.
+                </p>
+              </div>
+            )}
+            {isAdvisor && currentStepIndex === 3 && (
+              <div className="mt-4 pt-3 border-t border-emerald-100 bg-emerald-50 -mx-4 -mb-4 px-4 py-3 rounded-b-2xl text-center">
+                <CheckCircle2 size={20} className="text-emerald-500 mx-auto mb-1" />
+                <p className="text-xs font-bold text-emerald-700">Payment Released!</p>
+                <p className="text-[11px] text-emerald-600 mt-0.5">
+                  ₹{totalReleasedNet.toLocaleString('en-IN')} has been credited to your wallet{ticket.payouts && ticket.payouts.length > 1 ? ' across milestone releases' : ''}.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Escrow info */}
         <div className="rounded-2xl overflow-hidden bg-white border border-amber-200 shadow-sm">
@@ -1333,25 +1446,6 @@ export default function TicketDetailPage() {
           </div>
         )}
 
-        {/* Advisor advisory note */}
-        {isAdvisor && !isClosed && ticket.status === 'AWAITING_CONFIRM' && (
-          <div className="rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3">
-            <p className="text-xs font-bold text-purple-700">Waiting for client confirmation</p>
-            <p className="text-[11px] text-purple-500 mt-0.5">
-              The client needs to confirm a stage before you can continue. You'll be notified when confirmed.
-            </p>
-          </div>
-        )}
-
-        {isAdvisor && isClosed && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
-            <CheckCircle2 size={24} className="text-emerald-500 mx-auto mb-1" />
-            <p className="text-sm font-bold text-emerald-700">Payment Released!</p>
-            <p className="text-xs text-emerald-600 mt-0.5">
-              ₹{totalReleasedNet.toLocaleString('en-IN')} has been credited to your wallet{ticket.payouts && ticket.payouts.length > 1 ? ' across milestone releases' : ''}.
-            </p>
-          </div>
-        )}
 
         <p className="text-[10px] text-gray-400 text-center pb-4">
           Ticket created {new Date(ticket.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
